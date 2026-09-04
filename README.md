@@ -1,56 +1,112 @@
-# Welcome to your Expo app 👋
+# Equinox Mobile ☀️
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+**Sistema de Gestão e Monitoramento de Usinas Fotovoltaicas**
 
-## Get started
+O Equinox Mobile é um aplicativo **100% Mobile, Multi-Tenant e Offline-First**, desenvolvido para permitir que técnicos em campo realizem vistorias e registrem leituras de geração de energia em usinas solares, mesmo em locais remotos e sem conectividade com a internet.
 
-1. Install dependencies
+---
 
-   ```bash
-   npm install
-   ```
+## 🚀 Principais Funcionalidades
 
-2. Start the app
+- **Sincronização Offline-First:** O aplicativo funciona de forma contínua sem internet. Todos os dados são salvos localmente e enviados para a nuvem automaticamente assim que a conexão é restabelecida.
+- **Gerenciamento de Multi-Tenancy:** Estrutura escalável para atender diversas Empresas (Tenants), Usinas e Usuários com rígido controle de acesso baseado em RLS (Row Level Security).
+- **Prova de Presença (Proof of Presence):** Validação de localização via GPS para garantir que a leitura foi feita fisicamente na usina correta.
+- **Otimização de Mídia:** Compressão automática local de fotos de relógios medidores (máx 1080p, ~300KB) para garantir uploads bem-sucedidos em redes 3G rurais.
 
-   ```bash
-   npx expo start
-   ```
+---
 
-In the output, you'll find options to open the app in a
+## 🛠️ Stack Tecnológica
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+O sistema foi desenhado seguindo a filosofia de **Clean Architecture**, **Domain-Driven Design (DDD)** e **Test-Driven Development (TDD)**, utilizando as seguintes tecnologias:
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+- **Plataforma/Framework:** React Native + Expo SDK 57 (Expo Router)
+- **Linguagem:** TypeScript v5+ (`strict: true`)
+- **Backend / Nuvem:** Supabase (Auth, Storage, PostgreSQL)
+- **Persistência Local:** SQLite (Fonte Única de Verdade em modo offline)
+- **Testes:** Jest + `@testing-library/react-native`
+- **Validação de Formulários:** Zod + React Hook Form
 
-## Get a fresh project
+---
 
-When you're ready, run:
+## 🏗️ Arquitetura do Sistema
 
-```bash
-npm run reset-project
+O projeto adota a Arquitetura Limpa (Clean Architecture), isolando completamente a lógica de negócios da infraestrutura e interface do usuário.
+
+```mermaid
+flowchart TB
+    subgraph Presentation["Camada de Apresentação (UI)"]
+        UI_Screens[Expo Router Screens]
+        UI_Components[React Native Components]
+        UI_Context[Auth & Connection Context]
+    end
+
+    subgraph Application["Camada de Aplicação (Use Cases)"]
+        UC_Leitura[RegistrarLeituraUseCase]
+        UC_Usina[CadastrarUsinaUseCase]
+        UC_Sync[ProcessarFilaSincronizacaoUseCase]
+    end
+
+    subgraph Domain["Camada de Domínio (Pure Business Logic)"]
+        Dom_Entities[Entidades: Usina, Leitura, Empresa, Usuario]
+        Dom_VO[Value Objects: CoordenadasGPS, UUID]
+        Dom_Ports[[Interfaces: ILeituraRepository, ISyncGateway, IGPSProvider]]
+    end
+
+    subgraph Infrastructure["Camada de Infraestrutura (Drivers & Adapters)"]
+        Infra_SQLite[SQLite Database - expo-sqlite]
+        Infra_Supabase[Supabase Client - @supabase/supabase-js]
+        Infra_Hardware[Expo Camera / Location / SecureStore]
+        Infra_NetInfo[NetInfo Network Monitor]
+    end
+
+    UI_Screens --> UI_Context
+    UI_Screens --> UC_Leitura
+    UI_Screens --> UC_Usina
+    UC_Leitura --> Dom_Entities
+    UC_Leitura --> Dom_Ports
+    UC_Sync --> Dom_Ports
+    Infra_SQLite -.implementa.-> Dom_Ports
+    Infra_Supabase -.implementa.-> Dom_Ports
+    Infra_Hardware -.implementa.-> Dom_Ports
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+---
 
-### Other setup steps
+## 🔄 Motor de Sincronização (Offline-First)
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+A arquitetura garante que nenhuma informação seja perdida. Se o app estiver offline, as ações são enfileiradas. Quando a rede volta, o **SyncManager** orquestra o envio dos arquivos de mídia e JSONs.
 
-## Learn more
+```mermaid
+flowchart TD
+    Start((NetInfo: Online)) --> A1[SyncManager acionado]
+    A1 --> A2[Consultar itens pendentes na action_queue]
+    A2 --> D1{Existe item pendente?}
+    D1 -- Não --> A3[Executar Pull Sync Delta]
+    D1 -- Sim --> A4[Ler primeiro item da fila]
+    A4 --> D2{Tipo da Ação?}
+    D2 -- INSERT_LEITURA --> A5[Upload foto comprimida para Supabase Storage]
+    A5 --> A6[Enviar payload da leitura via Supabase Client API]
+    D2 -- INSERT_USINA --> A7[Enviar payload da usina via Supabase API]
+    A6 --> D3{Resposta Supabase?}
+    A7 --> D3
+    D3 -- Sucesso (200/201) --> A8[Remover item da action_queue]
+    A8 --> A9[Atualizar status no SQLite local para Sincronizada]
+    A9 --> A2
+    D3 -- Conflito (409) --> A10[Marcar status no SQLite para Conflito]
+    A10 --> A8
+    D3 -- Erro de Conexão --> End((Fim / Aguardar próxima janela))
+    A3 --> End
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+---
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## 📚 Documentação Técnica Completa
 
-## Join the community
+Para um aprofundamento na arquitetura, modelos de dados e diretrizes do sistema, consulte os arquivos abaixo:
 
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- [📝 Regras de Arquitetura e Agentes (AGENTS.md)](./AGENTS.md)
+- [📖 Documentação de Software Completa](./docs/documento-software.md)
+- [⚖️ Registro de Decisões de Arquitetura (ADRs)](./docs/decisions.md)
+- [📊 Matriz de Rastreabilidade (TDD)](./docs/design/matriz_rastreabilidade_tdd.md)
+- [🗄️ Schemas de Banco de Dados (SQLite e Supabase)](./docs/design/)
+- [🗺️ Diagramas UML Detalhados](./docs/diagrams/)
