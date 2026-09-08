@@ -24,6 +24,11 @@ Para cada decisão, listamos o contexto, as opções consideradas, a decisão to
 * **Decisão:** **Opção 2 (100% Mobile).**
 * **Justificativa:** Conforme esclarecido pelo usuário, a premissa do negócio é ser inteiramente mobile. Isso unifica a base de código (React Native/Expo) e utiliza as políticas de Row Level Security (RLS) do Supabase para garantir que cada perfil veja apenas o que tem permissão, reduzindo o custo de manutenção de múltiplos front-ends.
 
+### 1.3 Primeiro Acesso e Inicialização (Cold Start)
+* **Contexto:** Após instalar o aplicativo, o técnico precisa das informações iniciais (empresas, usinas) para poder trabalhar offline.
+* **Decisão:** **Conectividade mandatória no primeiro acesso.**
+* **Justificativa:** O primeiro login pós-instalação exige conexão com a internet para gerar a sessão (JWT), configurar o `expo-secure-store` e realizar o *Pull Sync* inicial, populando o SQLite com o catálogo necessário para o trabalho em campo. Apenas os acessos subsequentes estarão liberados para o modo 100% offline.
+
 ---
 
 ## 2. Estratégia de Dados e Sincronização
@@ -44,6 +49,16 @@ Para cada decisão, listamos o contexto, as opções consideradas, a decisão to
 * **Decisão:** **Opção 2 (Sincronização Delta Bidirecional).**
 * **Justificativa:** Toda ação de escrita (`INSERT_LEITURA`, etc.) é salva numa tabela de log (`action_queue`). Assim que o `@react-native-community/netinfo` detecta internet, o app faz o *Push* ordenado da fila, garantindo que nenhuma transação seja perdida. Em seguida, faz o *Pull* pedindo ao Supabase apenas os registros alterados desde a última sincronização (`last_sync_timestamp`), economizando pacote de dados 3G/4G.
 
+### 2.3 Resolução de Conflitos (Merge Automático)
+* **Contexto:** Se múltiplos dispositivos enviarem leituras duplicadas para a mesma usina ou houver colisão de transações na nuvem, como o sistema resolve?
+* **Decisão:** **Estratégia "Last Write Wins" (Última Escrita Vence) sem bloqueio de UI.**
+* **Justificativa:** Delegar a resolução de conflitos a técnicos leigos através de pop-ups ("Qual versão manter?") gera confusão. O backend no Supabase ou o App avaliará o carimbo de data/hora (`data_hora`) da medição e salvará automaticamente a mais recente. O técnico será avisado por uma simples Notificação Local, mantendo a experiência fluida e 100% autônoma.
+
+### 2.4 Evolução do Esquema Local (SQLite Migrations)
+* **Contexto:** Como atualizar a estrutura de tabelas no celular do técnico quando uma nova versão do app for lançada, sem perder os dados não sincronizados?
+* **Decisão:** **Uso de scripts de migração versionados na inicialização.**
+* **Justificativa:** Diferente do Supabase que usa CLI e migrações no servidor, o SQLite requer que cada dispositivo atualize seu esquema. Será adotado um sistema de controle de versão de banco de dados (ex: `drizzle-orm` local ou `expo-sqlite` pragma `user_version`) para rodar scripts de migração sequenciais na inicialização do aplicativo (Splash Screen), garantindo a integridade dos dados existentes antes de abrir a UI.
+
 ---
 
 ## 3. Integração com Hardware e Mídia
@@ -57,12 +72,9 @@ Para cada decisão, listamos o contexto, as opções consideradas, a decisão to
 * **Justificativa:** Salvar dezenas de fotos originais em offline lotaria rapidamente o armazenamento do celular. Além disso, tentar fazer upload de 100MB de fotos numa rede 3G rural resultaria em timeout constante. A decisão de usar `expo-image-manipulator` para comprimir para JPEG 1080p (qualidade 70-80%, reduzindo para ~300KB) resolve os dois problemas garantindo escalabilidade.
 
 ### 3.2 Autenticação em Ambiente Desconectado
-* **Contexto:** O token JWT de login expira ou o técnico abre o app no meio do campo sem sinal.
-* **Opções Consideradas:**
-    1.  Forçar o usuário a logar online antes de ir a campo.
-    2.  Persistir a sessão ativamente e validá-la localmente.
-* **Decisão:** **Opção 2 (Persistência segura via `expo-secure-store`).**
-* **Justificativa:** Se o app fechar da memória, o técnico não pode ficar travado na tela de login sem internet. Ao gravar o hash/token criptografado no cofre do SO (`secure-store`), o app consegue validar "quem é" o usuário offline e liberar o acesso às suas tabelas locais do SQLite.
+* **Contexto:** O token JWT de login no Supabase tem tempo de expiração, e estendê-lo infinitamente abre brechas de segurança. Porém, o técnico pode precisar abrir o app no meio do campo após dias sem sinal.
+* **Decisão:** **Cofre Local (PIN / Biometria) via `expo-secure-store`.**
+* **Justificativa:** Para manter a usabilidade offline sem comprometer a segurança da API na nuvem, o aplicativo solicitará a criação de um PIN de Acesso Local (ou Biometria, como Digital/FaceID) salvo criptografado no cofre do SO. Quando offline, o login ocorre validando este PIN local, liberando a UI e o SQLite e ignorando o JWT expirado. Ao restabelecer a internet, o SyncManager tenta renovar o JWT automaticamente em background ou solicita um novo login web, garantindo acesso perpétuo às ferramentas de campo.
 
 ---
 
@@ -100,14 +112,24 @@ Para cada decisão, listamos o contexto, as opções consideradas, a decisão to
 * **Decisão:** **Opção 2 (TypeScript v5+ com `strict: true`).**
 * **Justificativa:** A tipagem forte e estática é pré-requisito fundamental para implementar o Domain-Driven Design de maneira segura, permitindo o uso eficiente de Interfaces, DTOs e Value Objects, eliminando uma classe inteira de erros em tempo de execução.
 
+### 4.5 Observabilidade e Monitoramento de Erros
+* **Contexto:** Sendo um app offline, não podemos depender do console para depurar erros que ocorrem no meio rural. Erros silenciosos corrompem a experiência.
+* **Decisão:** **Uso do Sentry (Crashlytics).**
+* **Justificativa:** O Sentry captura *stack traces* e eventos de erros (inclusive no processamento da `action_queue`). Quando offline, o SDK do Sentry armazena os relatórios em disco; ao reconectar, envia os relatórios automaticamente, permitindo diagnóstico remoto para os desenvolvedores.
+
+### 4.6 Pipeline de Build e Distribuição (CI/CD)
+* **Contexto:** Como gerar builds (APK/AAB/IPA) e enviar correções rápidas para a frota de técnicos em campo?
+* **Decisão:** **Ecossistema EAS (Expo Application Services).**
+* **Justificativa:** O projeto usará o **EAS Build** para geração de binários em nuvem e o **EAS Update** para enviar atualizações *Over-The-Air* (OTA) para pequenas correções de JS/regras de negócio, sem precisar passar pelo processo demorado de aprovação nas lojas de aplicativos (Play Store / App Store).
+
 ---
 
 ## 5. Tratamento de Edge Cases e Comportamentos Específicos
 
-### 5.1 Exclusão de Dados (Soft Delete)
-* **Contexto:** Como tratar a deleção de registros no modo offline sem quebrar a sincronização?
-* **Decisão:** **Soft Delete (Advanced CRUD) Universal.**
-* **Justificativa:** Nunca faremos exclusões físicas (Hard Delete) via app. Registros são apenas inativados (ex: `status = 'Inativa'`). Isso garante que os dispositivos mantenham o histórico rastreável.
+### 5.1 Exclusão e Edição de Dados (Soft Delete Offline)
+* **Contexto:** Como tratar a deleção e edição de registros no modo offline sem quebrar a sincronização?
+* **Decisão:** **Soft Delete (Advanced CRUD) Universal com Suporte Offline.**
+* **Justificativa:** Nunca faremos exclusões físicas (Hard Delete) via app. Registros são apenas inativados (ex: `status = 'Inativa'`). Para suportar edição e exclusão de usinas de forma offline, inserimos tipos de ações adicionais na tabela `action_queue` local, como `UPDATE_USINA` e `DELETE_USINA` (que apenas mudará o status e registrará a data de desativação), mantendo a capacidade de os técnicos continuarem o gerenciamento em campo.
 
 ### 5.2 Limite e Erros na Fila de Sincronização
 * **Contexto:** O que ocorre quando um item da `action_queue` atinge o limite de tentativas?
@@ -138,3 +160,28 @@ Para cada decisão, listamos o contexto, as opções consideradas, a decisão to
 * **Contexto:** Formulários vão usar Zod para validação. Precisamos de validação dupla?
 * **Decisão:** **Zod para UX Rápida + Invariantes para Segurança do Core.**
 * **Justificativa:** O Zod vai na camada de Apresentação/Aplicação para dar *feedback* rápido na tela. Porém, as classes da camada de Domínio (`Leitura`, `Usina`) devem manter suas regras rigorosamente fechadas (`Invariantes`). Se algum dado passar quebrado pelo Zod, o Domínio levanta uma exceção fatal, barrando a corrupção do banco local.
+
+### 5.8 Política de Expurgo de Dados (Data Retention)
+* **Contexto:** Com o uso frequente, a base local (SQLite) armazenará grande volume de registros e fotos (cache) de leituras sincronizadas, ocupando memória do dispositivo do usuário.
+* **Decisão:** **Limpeza Automática de Registros Antigos (30 Dias).**
+* **Justificativa:** Para economizar espaço, o app rodará rotinas periódicas em background (ou na inicialização) que removerão permanentemente fotos do FileSystem e registros da tabela `leituras` onde `status = Sincronizada` E `data_hora < (Hoje - 30 dias)`.
+
+### 5.9 Recuperação e Reset de Senha
+* **Contexto:** O técnico pode esquecer sua senha. Como resolver isso de forma compatível com o ambiente de campo?
+* **Decisão:** **Abordagem Híbrida: Auto-Reset (Online) e Reset Administrativo (Online).**
+* **Justificativa:** Por questões de segurança, a redefinição de senhas exige internet. O usuário terá a opção tradicional "Esqueci minha senha" (Auto-Reset) e o fluxo via tela de Gestão no App, onde o `Admin` de uma empresa específica pode resetar ou enviar o link forçado para o funcionário, facilitando o uso para técnicos com menor instrução digital.
+
+### 5.10 Infraestrutura do Banco Remoto e DDL (Supabase)
+* **Contexto:** Como controlar, versionar e sincronizar as estruturas do banco de dados remoto (Supabase) com a equipe e com o que é esperado pelo app?
+* **Decisão:** **Uso Mandatório do Supabase CLI (Migrations em Repositório).**
+* **Justificativa:** As definições de Tabelas, Índices, Triggers e principalmente as políticas de Row Level Security (RLS) não devem ser feitas manualmente no painel web. Utilizaremos migrations `.sql` armazenadas na pasta `supabase/migrations/` como Fonte Única da Verdade para a infraestrutura, facilitando a replicação para ambientes de `staging` e `produção`.
+
+### 5.11 Resolução de Conflito em Soft Delete Remoto
+* **Contexto:** Um Admin inativa uma Usina via App, mas o Técnico offline tenta registrar uma leitura para essa Usina no mesmo período.
+* **Decisão:** **Registro como "Rejeitada" e Alerta Visual.**
+* **Justificativa:** O backend não pode aceitar novas leituras atreladas a uma entidade desativada no momento do processamento. O Supabase deve retornar um erro 409 ou similar, e o App marcará o status local da leitura como `Rejeitada`, notificando o Técnico de que a medição não é mais válida.
+
+### 5.12 Permissões Críticas de Hardware Negadas
+* **Contexto:** O Técnico se recusa ou nega permanentemente a permissão de Câmera ou Localização.
+* **Decisão:** **Bloqueio de Funcionalidade Direcionado (Fallback UI).**
+* **Justificativa:** A foto é pré-requisito rígido para auditoria. Caso negado, o fluxo da Nova Leitura exibe uma *Fallback UI* (tela de bloqueio interativa) instruindo e fornecendo um botão direto para as Configurações do SO (`Linking.openSettings()`). A medição não pode ser iniciada sem estas permissões.

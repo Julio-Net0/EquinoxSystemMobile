@@ -12,7 +12,7 @@ O sistema opera em modelo multi-tenant 100% mobile com três perfis de acesso di
 3. **Técnico / Operador de Campo:** Profissional que realiza vistorias de manutenção, leituras de medidores em áreas remotas e cadastros emergenciais de usinas em campo.
 
 ### Casos de Uso Principais
-- **Autenticação e Login Seguro Offline:** Permite acesso ao aplicativo via credenciais corporativas com persistência local de sessão segura (`expo-secure-store`).
+- **Autenticação e Login Seguro Offline:** Permite acesso ao aplicativo usando PIN Local ou Biometria configurados, garantindo acesso às ferramentas offline mesmo que o token de rede corporativo (JWT) tenha expirado, persistindo a chave segura via `expo-secure-store`.
 - **Gestão Corporativa (SuperAdmin/Admin):** Cadastro de empresas, aprovação de funcionários e vinculação de usinas aos técnicos.
 - **Consulta de Usinas e Clientes:** Exibição da lista de usinas fotovoltaicas sob responsabilidade do usuário logado, permitindo busca e consulta rápida offline.
 - **Registro de Leituras de Campo:** Coleta de dados de consumo (kWh) e geração, exigindo comprovação fotográfica compactada do relógio medidor e registro georreferenciado (GPS).
@@ -70,7 +70,7 @@ No Supabase, as tabelas serão equivalentes às do SQLite, garantindo consistên
 ### Estratégia de Sincronização Delta (Push / Pull)
 - **Push Sync (Fila Local -> Nuvem):** Quando a biblioteca de rede detectar internet, o `SyncManager` iniciará a varredura da `action_queue` de forma assíncrona. Os itens com sucesso são removidos do SQLite local.
 - **Pull Sync (Novem -> SQLite Local):** Ao realizar login online ou disparar a sincronização, o app busca alterações remotas via `last_sync_timestamp`, baixando do Supabase apenas os dados de empresas/usinas/leituras que o perfil do usuário logado tem permissão de visualizar.
-- **Resolução de Conflitos:** Caso o Supabase retorne conflito (ex: leitura duplicada no mesmo mês), a leitura ganha status `Conflito`, e o operador é notificado na tela para escolher entre sobrescrever com dados locais ou descartar.
+- **Resolução de Conflitos:** Caso o Supabase retorne conflito (ex: leitura duplicada no mesmo mês), o sistema aplica a estratégia *Last Write Wins*, sobrescrevendo o registro baseando-se na data/hora mais recente de medição, notificando o técnico que o registro foi atualizado sem exigir intervenção manual de *merge*.
 
 ### Autenticação e Armazenamento de Sessão Offline
 A autenticação será controlada pelo Supabase Auth (JWT). O token JWT e o estado do perfil do usuário são armazenados de forma criptografada no dispositivo usando `expo-secure-store`. Isso permite que o aplicativo valide a sessão localmente e autorize a operação quando o dispositivo estiver sem acesso à rede. O acesso aos dados remotos no Supabase utiliza políticas rígidas de Row Level Security (RLS).

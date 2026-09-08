@@ -21,7 +21,9 @@ Documento de especificação técnica do aplicativo móvel **Equinox Mobile**, u
 | **RF09** | O sistema deve registrar toda operação realizada offline (inserção de leitura, usina ou empresa) na fila transacional local (`action_queue`). | Alta | Sistema (Domain/Infra) |
 | **RF10** | O sistema deve executar a sincronização assíncrona da `action_queue` (Push Sync) assim que a conexão de internet for detectada pelo `@react-native-community/netinfo`. | Alta | Sistema (SyncManager) |
 | **RF11** | O sistema deve realizar a carga inicial e atualização delta (Pull Sync) trazendo do Supabase apenas dados que o usuário tem permissão de visualizar via RLS. | Alta | Sistema (SyncManager) |
-| **RF12** | O sistema deve marcar leituras duplicadas no mesmo período com a flag `Conflito` e permitir que o operador escolha entre sobrescrever ou descartar a versão local. | Média | Técnico, Admin |
+| **RF12** | O sistema deve resolver leituras duplicadas automaticamente usando "Last Write Wins", salvando a mais recente, notificando o usuário silenciosamente sem exigir intervenção manual. | Média | Sistema (SyncManager) |
+| **RF13** | O sistema deve exigir conectividade com a internet obrigatoriamente no primeiro acesso (Cold Start) para carga inicial do catálogo e configuração de sessão. | Alta | Sistema |
+| **RF14** | O sistema deve bloquear a interface de Nova Leitura com uma *Fallback UI* redirecionando às Configurações caso as permissões de Câmera e Localização sejam negadas permanentemente. | Alta | App / Técnico |
 
 ### 1.2 Requisitos Não-Funcionais (RNF)
 
@@ -33,6 +35,10 @@ Documento de especificação técnica do aplicativo móvel **Equinox Mobile**, u
 | **RNF04** | Performance | A compressão da imagem capturada em campo deve ser executada em segundo plano sem travar a UI. | Tempo de processamento da imagem < 800ms em dispositivos intermediários. | Alta |
 | **RNF05** | Segurança | Tokens JWT e credenciais de sessão local devem ser gravados de forma criptografada. | Uso obrigatório do `expo-secure-store` para persistência de tokens. | Alta |
 | **RNF06** | Usabilidade | A interface deve indicar visualmente e em tempo real o estado da conexão (Online/Offline) e o número de pendências na fila de sincronização. | Indicador no cabeçalho atualizado em tempo real via hook `useConnectionState`. | Alta |
+| **RNF07** | Persistência (Expurgo) | O sistema deve expurgar dados locais antigos para economizar armazenamento. | Limpeza automática de leituras (status `Sincronizada`) e fotos criadas há mais de 30 dias. | Média |
+| **RNF08** | Persistência (Migrações) | O banco de dados local (SQLite) deve suportar versionamento e execução de migrações. | Execução de scripts sequenciais sem perda de dados na tela de Splash. | Alta |
+| **RNF09** | Observabilidade | O app deve monitorar e armazenar *crashes* offline. | Integração do Sentry capturando erros na `action_queue`. | Alta |
+| **RNF10** | CI/CD | O pipeline de build e envio de atualizações *Over-The-Air* deve utilizar ecossistema oficial. | Configuração do EAS Build e EAS Update no projeto. | Média |
 
 ---
 
@@ -77,7 +83,8 @@ flowchart LR
     Usuario --> UC12[Sincronizar Dados]
     UC12 -.include.-> UC13[Processar Action Queue Push]
     UC12 -.include.-> UC14[Executar Pull Sync Delta]
-    UC15[Resolver Conflito de Sincronização] -.extend.-> UC13
+    UC15[Auto-Merge Last Write Wins] -.extend.-> UC13
+    Usuario --> UC16[Recuperar Senha Online]
 ```
 
 ### 2.3 Descrição Textual dos Casos de Uso Principais
@@ -94,6 +101,7 @@ flowchart LR
   6. O app cria a entidade `Leitura` (com UUIDv4 e status `Pendente`) e persiste no SQLite.
   7. O app registra o payload na `action_queue`.
 - **Fluxo Alternativo (Sem sinal de GPS preciso):** Caso o GPS falhe, o app solicita permissão para tentar novamente ou alerta falta de precisão antes de salvar.
+- **Fluxo Alternativo (Permissão Negada):** Caso o acesso à Câmera ou GPS seja negado, o aplicativo exibe uma Fallback UI que bloqueia a leitura e direciona o usuário para as Configurações do Dispositivo.
 - **Pós-condição:** Leitura salva no SQLite local e inserida na fila de sincronização.
 
 #### UC12 — Sincronizar Dados (SyncManager)
@@ -104,7 +112,8 @@ flowchart LR
   2. Para cada item da fila (ex: `INSERT_LEITURA`), envia a foto para o bucket `comprovantes` do Supabase Storage e depois envia a leitura para a tabela remota `leituras`.
   3. Com o sucesso da requisição, o item é removido da `action_queue` e o status da leitura no SQLite muda para `Sincronizada`.
   4. O `SyncManager` executa o Pull Sync para atualizar registros modificados no servidor.
-- **Fluxo Alternativo (Conflito de Leitura):** Se a API retornar erro de duplicidade/conflito, o status da leitura local é alterado para `Conflito` e o operador é notificado na UI.
+- **Fluxo Alternativo (Conflito de Leitura):** Se a API retornar erro de duplicidade, o sistema aplica o "Last Write Wins" validando a `data_hora` mais recente e notifica o operador no celular ("Registro atualizado com versão mais recente"), resolvendo sem travar a tela.
+- **Fluxo Alternativo (Usina Inativa - Soft Delete):** Se a API rejeitar a leitura por apontar a uma Usina que foi desativada no servidor, a leitura é marcada com o status `Rejeitada` no celular e o usuário é notificado.
 - **Pós-condição:** Banco local e remoto sincronizados sem perda de dados.
 
 ---
@@ -246,7 +255,7 @@ erDiagram
 
     ACTION_QUEUE {
         uuid id PK
-        string tipo_operacao "INSERT_LEITURA | INSERT_USINA | INSERT_EMPRESA"
+        string tipo_operacao "INSERT_LEITURA | INSERT_USINA | UPDATE_USINA | DELETE_USINA | INSERT_EMPRESA"
         text payload_json
         text timestamp
         int tentativas
@@ -311,10 +320,9 @@ stateDiagram-v2
     [*] --> Pendente : Salva no SQLite (Offline)
     Pendente --> Sincronizando : NetInfo detecta Conexão
     Sincronizando --> Sincronizada : Upload Mídia + API Supabase OK
-    Sincronizando --> Conflito : Servidor detecta duplicidade
+    Sincronizando --> Sincronizada : Substituída por Auto-Merge (Last Write Wins)
+    Sincronizando --> Rejeitada : Conflito de Soft Delete (Usina Inativa)
     Sincronizando --> Pendente : Falha na rede / Retry
-    Conflito --> Pendente : Técnico escolhe sobrescrever
-    Conflito --> Rejeitada : Técnico descarta versão local
     Sincronizada --> [*]
     Rejeitada --> [*]
 ```
@@ -339,6 +347,7 @@ stateDiagram-v2
 | **Autenticar** | `LoginScreen`, `AuthPresenter` | `AutenticarUsuarioUseCase` | `Usuario` |
 | **Registrar Leitura** | `NovaLeituraScreen`, `CameraModule`, `GPSModule` | `RegistrarLeituraUseCase` | `Leitura`, `Usina`, `CoordenadasGPS` |
 | **Cadastrar Usina** | `NovaUsinaScreen` | `CadastrarUsinaUseCase` | `Usina`, `Empresa`, `CoordenadasGPS` |
+| **Recuperar Senha** | `RecuperarSenhaScreen` | `RecuperarSenhaUseCase` | `Usuario` |
 | **Sincronizar Dados** | `SyncHeaderStatusView`, `SyncButtonView` | `ProcessarFilaSincronizacaoUseCase`, `ExecutarPullSyncUseCase` | `ActionQueueItem`, `Leitura`, `Usina` |
 
 ```mermaid
@@ -373,21 +382,27 @@ sequenceDiagram
     participant Queue as ActionQueueSQLiteRepository «infra»
 
     Técnico ->> Screen: Preenche valor em kWh e clica "Tirar Foto"
-    Screen ->> Camera: capturarFoto()
-    Camera -->> Screen: fotoRawPath
-    Screen ->> Camera: comprimirImagem(fotoRawPath)
-    Camera -->> Screen: fotoCompressedPath (~300KB)
-    Screen ->> GPS: capturarCoordenadas()
-    GPS -->> Screen: latitude, longitude
-    Screen ->> UseCase: executar(dadosLeitura)
-    UseCase ->> Domain: criar(UUIDv4, usinaId, valorKwh, fotoCompressedPath, GPS)
-    Domain -->> UseCase: instancialeitura
-    UseCase ->> LocalRepo: salvar(leitura)
-    LocalRepo -->> UseCase: ok
-    UseCase ->> Queue: enfileirar(INSERT_LEITURA, payloadJSON)
-    Queue -->> UseCase: ok
-    UseCase -->> Screen: Sucesso (Salvo Offline)
-    Screen -->> Técnico: Exibe alerta "Leitura salva localmente!"
+    alt Permissões Concedidas
+        Screen ->> Camera: capturarFoto()
+        Camera -->> Screen: fotoRawPath
+        Screen ->> Camera: comprimirImagem(fotoRawPath)
+        Camera -->> Screen: fotoCompressedPath (~300KB)
+        Screen ->> GPS: capturarCoordenadas()
+        GPS -->> Screen: latitude, longitude
+        Screen ->> UseCase: executar(dadosLeitura)
+        UseCase ->> Domain: criar(UUIDv4, usinaId, valorKwh, fotoCompressedPath, GPS)
+        Domain -->> UseCase: instancialeitura
+        UseCase ->> LocalRepo: salvar(leitura)
+        LocalRepo -->> UseCase: ok
+        UseCase ->> Queue: enfileirar(INSERT_LEITURA, payloadJSON)
+        Queue -->> UseCase: ok
+        UseCase -->> Screen: Sucesso (Salvo Offline)
+        Screen -->> Técnico: Exibe alerta "Leitura salva localmente!"
+    else Permissões Negadas
+        Screen -->> Técnico: Exibe Fallback UI (Bloqueio)
+        Técnico ->> Screen: Toca em "Abrir Configurações"
+        Screen ->> Técnico: Linking.openSettings()
+    end
 ```
 
 ---
@@ -410,7 +425,8 @@ flowchart TD
     D3 -- Sucesso (200/201) --> A8[Remover item da action_queue]
     A8 --> A9[Atualizar status no SQLite local para Sincronizada]
     A9 --> A2
-    D3 -- Conflito (409) --> A10[Marcar status no SQLite para Conflito]
+    D3 -- Duplicada (Auto-Merge) --> A8
+    D3 -- Rejeitada (Usina Inativa) --> A10[Marcar status no SQLite para Rejeitada]
     A10 --> A8
     D3 -- Erro de Conexão --> End((Fim / Aguardar próxima janela))
     A3 --> End
@@ -445,6 +461,7 @@ flowchart TB
         Infra_Supabase[Supabase Client - @supabase/supabase-js]
         Infra_Hardware[Expo Camera / Location / SecureStore]
         Infra_NetInfo[NetInfo Network Monitor]
+        Infra_Sentry[Sentry SDK - Crashlytics]
     end
 
     UI_Screens --> UI_Context
@@ -456,6 +473,7 @@ flowchart TB
     Infra_SQLite -.implementa.-> Dom_Ports
     Infra_Supabase -.implementa.-> Dom_Ports
     Infra_Hardware -.implementa.-> Dom_Ports
+    Infra_Sentry -.implementa.-> Dom_Ports
 ```
 
 ---
