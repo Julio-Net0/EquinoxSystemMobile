@@ -504,9 +504,15 @@ src/
 └── presentation/                   # Camada de Apresentação (React Native & Expo Router)
     ├── app/                        # Roteamento de rotas (tabs, stacks)
     ├── context/                    # AuthContext.tsx, ConnectionContext.tsx
-    ├── hooks/                      # useConnectionState.ts, useLeitura.ts
+    ├── hooks/                      # Custom Hooks (detalhados em docs/hooks.md)
+    │   ├── context/                # useAuth.ts, useConnectionState.ts, useSync.ts
+    │   ├── usecases/               # useLeitura.ts, useUsinas.ts, useCadastrarUsina.ts
+    │   ├── hardware/               # useCameraHardware.ts, useGPS.ts, useSecureStore.ts
+    │   └── utils/                  # useZodForm.ts, useDebounce.ts
     └── components/                 # Componentes estilizados com NativeWind/StyleSheet
 ```
+
+> **Catálogo Completo de Hooks:** Consulte [`docs/hooks.md`](./hooks.md) para especificações de interfaces TypeScript, contratos de entrada/saída e cobertura TDD de cada Custom Hook.
 
 ### 10.2 Plano de Testes TDD (Ciclo Red -> Green -> Refactor)
 

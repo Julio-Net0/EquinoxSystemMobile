@@ -122,6 +122,17 @@ Para cada decisão, listamos o contexto, as opções consideradas, a decisão to
 * **Decisão:** **Ecossistema EAS (Expo Application Services).**
 * **Justificativa:** O projeto usará o **EAS Build** para geração de binários em nuvem e o **EAS Update** para enviar atualizações *Over-The-Air* (OTA) para pequenas correções de JS/regras de negócio, sem precisar passar pelo processo demorado de aprovação nas lojas de aplicativos (Play Store / App Store).
 
+### 4.7 Governança e Papel Arquitetural dos Custom Hooks
+* **Contexto:** Como conectar as telas do Expo Router aos Casos de Uso (Application Layer) e APIs de sensores (Infrastructure Layer) sem acoplar JSX a regras de negócio ou chamadas de hardware?
+* **Opções Consideradas:**
+    1. Executar Casos de Uso e chamadas de SQLite/Câmera diretamente dentro dos componentes visuais (inline nos botões).
+    2. Adotar Custom Hooks padronizados atuando como Controladores / ViewModels da camada de Apresentação.
+* **Decisão:** **Opção 2 (Custom Hooks como Controladores / ViewModels).**
+* **Justificativa:**
+    * **Desacoplamento:** Componentes visuais cuidam exclusivamente de renderização e estilização, consumindo funções reativas simples (`registrarLeitura()`, `capturarEComprimirFoto()`, `isOnline`).
+    * **Testabilidade:** Os hooks podem ser testados de forma isolada via `@testing-library/react-native` (`renderHook`) com mocks dos Casos de Uso, sem necessidade de renderizar telas complexas.
+    * **Catálogo Formal:** Organização estruturada em 4 grupos em `src/presentation/hooks/` (`context/`, `usecases/`, `hardware/`, `utils/`), detalhados formalmente em `docs/hooks.md`.
+
 ---
 
 ## 5. Tratamento de Edge Cases e Comportamentos Específicos

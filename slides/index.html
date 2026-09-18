@@ -1,0 +1,2946 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Equinox Mobile — Planejamento de Sistema & Arquitetura</title>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Mermaid JS via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+
+  <style>
+    :root {
+      --bg-dark: #07090e;
+      --bg-card: rgba(17, 24, 39, 0.75);
+      --bg-card-hover: rgba(30, 41, 59, 0.85);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-focus: rgba(245, 158, 11, 0.4);
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --text-dim: #6b7280;
+      
+      --solar-amber: #f59e0b;
+      --solar-orange: #ea580c;
+      --solar-gold: #fbbf24;
+      --solar-glow: rgba(245, 158, 11, 0.15);
+      
+      --tech-cyan: #06b6d4;
+      --tech-blue: #38bdf8;
+      --tech-emerald: #10b981;
+      --tech-rose: #f43f5e;
+      
+      --font-display: 'Outfit', sans-serif;
+      --font-body: 'Inter', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      
+      --slide-width: 1400px;
+      --slide-height: 820px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: var(--font-body);
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(245, 158, 11, 0.04) 0%, transparent 45%),
+        radial-gradient(circle at 85% 85%, rgba(6, 182, 212, 0.04) 0%, transparent 45%);
+    }
+
+    /* Top Progress Bar */
+    #progress-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.05);
+      z-index: 100;
+    }
+    #progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--solar-amber), var(--solar-orange), var(--tech-cyan));
+      transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+    }
+
+    /* Top Navigation Header */
+    header.deck-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 28px;
+      background: rgba(11, 15, 25, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-subtle);
+      z-index: 90;
+    }
+    .brand-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-logo {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--solar-amber), var(--solar-orange));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-family: var(--font-display);
+      color: #000;
+      box-shadow: 0 0 12px rgba(245, 158, 11, 0.4);
+    }
+    .brand-title {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1.1rem;
+      letter-spacing: -0.02em;
+    }
+    .brand-tag {
+      background: rgba(245, 158, 11, 0.12);
+      color: var(--solar-gold);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .module-pill {
+      font-family: var(--font-display);
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--tech-cyan);
+      background: rgba(6, 182, 212, 0.1);
+      border: 1px solid rgba(6, 182, 212, 0.2);
+      padding: 5px 14px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .btn-icon {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 0.95rem;
+      transition: all 0.2s;
+    }
+    .btn-icon:hover {
+      color: var(--text-main);
+      background: var(--bg-card-hover);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-1px);
+    }
+
+    /* Presentation Main Stage */
+    main.stage {
+      flex: 1;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      padding: 16px;
+    }
+
+    .slide-viewport {
+      width: var(--slide-width);
+      height: var(--slide-height);
+      max-width: 96vw;
+      max-height: 86vh;
+      position: relative;
+    }
+
+    .slide {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(13, 18, 30, 0.85);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 32px 40px;
+      display: flex;
+      flex-direction: column;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(12px) scale(0.98);
+      transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      overflow-y: auto;
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7);
+    }
+
+    .slide.active {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0) scale(1);
+    }
+
+    /* Custom Scrollbar for slides */
+    .slide::-webkit-scrollbar {
+      width: 6px;
+    }
+    .slide::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .slide::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+    }
+
+    /* Slide Header */
+    .slide-header {
+      margin-bottom: 18px;
+      flex-shrink: 0;
+    }
+    .slide-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .slide-badge {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 3px 10px;
+      border-radius: 4px;
+    }
+    .badge-amber { background: rgba(245, 158, 11, 0.15); color: var(--solar-gold); border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-cyan { background: rgba(6, 182, 212, 0.15); color: var(--tech-cyan); border: 1px solid rgba(6, 182, 212, 0.3); }
+    .badge-emerald { background: rgba(16, 185, 129, 0.15); color: var(--tech-emerald); border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-rose { background: rgba(244, 63, 94, 0.15); color: var(--tech-rose); border: 1px solid rgba(244, 63, 94, 0.3); }
+
+    .slide-title {
+      font-family: var(--font-display);
+      font-size: 1.85rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .slide-subtitle {
+      font-size: 0.92rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* Slide Content Bodies */
+    .slide-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-height: 0; /* Permite scroll interno se necessário */
+    }
+
+    /* Grid Layouts */
+    .grid-2col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      align-items: stretch;
+      flex: 1;
+      min-height: 0;
+    }
+    .grid-3col {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+      align-items: stretch;
+      flex: 1;
+      min-height: 0;
+    }
+    .grid-4col {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      align-items: stretch;
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* Info Cards */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      position: relative;
+      transition: all 0.2s ease;
+    }
+    .card:hover {
+      background: var(--bg-card-hover);
+      border-color: rgba(255, 255, 255, 0.14);
+      transform: translateY(-2px);
+    }
+    .card-title {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1.05rem;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-text {
+      font-size: 0.88rem;
+      line-height: 1.5;
+      color: var(--text-muted);
+    }
+    .card-text strong {
+      color: var(--text-main);
+    }
+
+    .card-highlight-amber { border-left: 4px solid var(--solar-amber); }
+    .card-highlight-cyan { border-left: 4px solid var(--tech-cyan); }
+    .card-highlight-emerald { border-left: 4px solid var(--tech-emerald); }
+    .card-highlight-rose { border-left: 4px solid var(--tech-rose); }
+
+    /* Code Boxes */
+    .code-box {
+      background: #090d16;
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 14px;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      color: #cbd5e1;
+      overflow-x: auto;
+      line-height: 1.5;
+    }
+
+    /* ========================================================
+       DIAGRAM INTERACTIVE VIEWER & PAN-ZOOM STYLES
+       ======================================================== */
+    .diagram-container {
+      background: #090d16;
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+      min-height: 320px;
+      box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.4);
+    }
+
+    .diagram-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 14px;
+      background: rgba(17, 24, 39, 0.95);
+      border-bottom: 1px solid var(--border-subtle);
+      z-index: 10;
+    }
+    .diagram-title {
+      font-family: var(--font-display);
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .diagram-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .diag-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--text-main);
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s;
+    }
+    .diag-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: var(--solar-amber);
+      color: #fff;
+    }
+    .zoom-level-badge {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--solar-gold);
+      min-width: 45px;
+      text-align: center;
+    }
+
+    .diagram-viewport {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      cursor: grab;
+      background-image: radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+      background-size: 20px 20px;
+      width: 100%;
+      height: 100%;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    .diagram-viewport:active,
+    .diagram-viewport.dragging {
+      cursor: grabbing;
+    }
+
+    .diagram-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform-origin: 0 0;
+      display: inline-block;
+      pointer-events: none;
+      will-change: transform;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .diagram-canvas .mermaid,
+    .diagram-canvas svg,
+    .diagram-canvas * {
+      pointer-events: none !important;
+      user-select: none !important;
+      -webkit-user-select: none !important;
+    }
+    .diagram-canvas svg {
+      max-width: none !important;
+      display: block;
+      filter: drop-shadow(0 4px 14px rgba(0,0,0,0.6));
+      overflow: visible !important;
+    }
+    /* Garantir uniformidade absoluta de tipografia entre medição e renderização do Mermaid */
+    .mermaid,
+    .mermaid svg,
+    .mermaid text,
+    .mermaid tspan,
+    .mermaid .label,
+    .mermaid .nodeLabel,
+    .mermaid .edgeLabel,
+    .mermaid .cluster-label,
+    .mermaid .actor,
+    .mermaid .messageText,
+    .mermaid .labelText,
+    .mermaid .loopText,
+    .mermaid .classTitle,
+    .mermaid .classText {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+      letter-spacing: normal !important;
+    }
+    .mermaid .cluster rect {
+      fill: rgba(15, 23, 42, 0.75) !important;
+      stroke: rgba(56, 189, 248, 0.35) !important;
+      stroke-width: 1.5px !important;
+      rx: 8px !important;
+      ry: 8px !important;
+    }
+    .mermaid .cluster-label text,
+    .mermaid .cluster-label span {
+      font-family: 'Outfit', 'Inter', sans-serif !important;
+      font-weight: 700 !important;
+      font-size: 13px !important;
+      fill: #38bdf8 !important;
+      color: #38bdf8 !important;
+    }
+    .diagram-canvas svg foreignObject,
+    .modal-canvas svg foreignObject {
+      overflow: visible !important;
+    }
+    .diagram-canvas svg foreignObject > div,
+    .modal-canvas svg foreignObject > div {
+      overflow: visible !important;
+      word-break: normal !important;
+      white-space: normal !important;
+      padding: 0 8px !important;
+    }
+    .diagram-canvas text,
+    .modal-canvas text,
+    .diagram-canvas tspan,
+    .modal-canvas tspan {
+      overflow: visible !important;
+    }
+
+    /* Structured Tables */
+    .table-wrapper {
+      background: #090d16;
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      overflow: hidden;
+      flex: 1;
+    }
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+      text-align: left;
+    }
+    table.data-table th {
+      background: rgba(17, 24, 39, 0.95);
+      padding: 10px 14px;
+      color: var(--text-muted);
+      font-weight: 600;
+      border-bottom: 1px solid var(--border-subtle);
+      font-family: var(--font-display);
+      text-transform: uppercase;
+      font-size: 0.72rem;
+      letter-spacing: 0.05em;
+    }
+    table.data-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      color: var(--text-main);
+      vertical-align: middle;
+    }
+    table.data-table tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+    table.data-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .badge-pill {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .pill-high { background: rgba(244, 63, 94, 0.15); color: #fda4af; }
+    .pill-med { background: rgba(245, 158, 11, 0.15); color: #fde68a; }
+    .pill-green { background: rgba(16, 185, 129, 0.15); color: #a7f3d0; }
+    .pill-blue { background: rgba(56, 189, 248, 0.15); color: #bae6fd; }
+
+    /* Bottom Deck Footer */
+    footer.deck-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 28px;
+      background: rgba(11, 15, 25, 0.85);
+      border-top: 1px solid var(--border-subtle);
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      z-index: 90;
+    }
+    .keyboard-hints {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+    .kbd {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--text-main);
+    }
+    .slide-counter {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: var(--solar-gold);
+    }
+    .footer-nav {
+      display: flex;
+      gap: 8px;
+    }
+
+    /* Speaker Notes Drawer */
+    #speaker-notes-drawer {
+      position: fixed;
+      right: -440px;
+      top: 50px;
+      bottom: 45px;
+      width: 420px;
+      background: rgba(15, 23, 42, 0.96);
+      backdrop-filter: blur(20px);
+      border-left: 1px solid var(--border-subtle);
+      border-radius: 16px 0 0 16px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      transition: right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 95;
+      box-shadow: -15px 0 35px rgba(0, 0, 0, 0.7);
+    }
+    #speaker-notes-drawer.open {
+      right: 0;
+    }
+    .notes-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 12px;
+    }
+    .notes-header h4 {
+      font-family: var(--font-display);
+      color: var(--solar-amber);
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .notes-body {
+      flex: 1;
+      overflow-y: auto;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      color: #e2e8f0;
+      padding-right: 4px;
+    }
+    .notes-body h5 {
+      color: var(--tech-cyan);
+      margin: 12px 0 4px 0;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Grid Overview Modal */
+    #grid-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(4, 7, 13, 0.94);
+      backdrop-filter: blur(24px);
+      z-index: 120;
+      display: none;
+      flex-direction: column;
+      padding: 30px 40px;
+      overflow-y: auto;
+    }
+    #grid-modal.open {
+      display: flex;
+    }
+    .grid-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    .grid-header h3 {
+      font-family: var(--font-display);
+      font-size: 1.4rem;
+      color: #fff;
+    }
+    .grid-deck {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 16px;
+    }
+    .grid-item {
+      background: rgba(17, 24, 39, 0.8);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 16px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+    .grid-item:hover, .grid-item.current {
+      background: rgba(30, 41, 59, 0.9);
+      border-color: var(--solar-amber);
+      transform: translateY(-3px);
+      box-shadow: 0 10px 20px -5px rgba(245, 158, 11, 0.2);
+    }
+    .grid-item-num {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--solar-gold);
+      font-weight: 700;
+    }
+    .grid-item-title {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 0.92rem;
+      color: #fff;
+      line-height: 1.3;
+    }
+
+    /* FULLSCREEN DEDICATED DIAGRAM MODAL */
+    #diagram-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(5, 8, 15, 0.96);
+      backdrop-filter: blur(28px);
+      z-index: 150;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #diagram-modal.open {
+      display: flex;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 28px;
+      background: rgba(15, 23, 42, 0.9);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .modal-title {
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .modal-viewport {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      cursor: grab;
+      background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+      background-size: 24px 24px;
+      width: 100%;
+      height: 100%;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    .modal-viewport:active,
+    .modal-viewport.dragging {
+      cursor: grabbing;
+    }
+    .modal-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform-origin: 0 0;
+      display: inline-block;
+      pointer-events: none;
+      will-change: transform;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .modal-canvas svg {
+      max-width: none !important;
+      display: block;
+      filter: drop-shadow(0 6px 20px rgba(0,0,0,0.7));
+      overflow: visible !important;
+    }
+    .modal-canvas * {
+      pointer-events: none !important;
+      user-select: none !important;
+      -webkit-user-select: none !important;
+    }
+    .modal-footer {
+      padding: 10px 24px;
+      background: rgba(15, 23, 42, 0.9);
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    /* Hero Slide Special Styling */
+    .hero-container {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      height: 100%;
+      position: relative;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: 999px;
+      color: var(--solar-gold);
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: 3.4rem;
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+      background: linear-gradient(135deg, #ffffff 30%, var(--solar-gold) 85%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 16px;
+    }
+    .hero-subtitle {
+      font-size: 1.25rem;
+      color: var(--text-muted);
+      max-width: 820px;
+      line-height: 1.5;
+      margin-bottom: 32px;
+    }
+    .hero-tags {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .hero-tag-item {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-main);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Progress Bar -->
+  <div id="progress-container">
+    <div id="progress-bar"></div>
+  </div>
+
+  <!-- Header -->
+  <header class="deck-header">
+    <div class="brand-box">
+      <div class="brand-logo">EQ</div>
+      <div>
+        <div class="brand-title">Equinox Mobile</div>
+      </div>
+      <div class="brand-tag">Offline-First Solar Ops</div>
+    </div>
+
+    <div class="module-pill" id="module-pill">
+      <span>●</span> Módulo 1: Contexto e Negócio
+    </div>
+
+    <div class="header-actions">
+      <button class="btn-icon" id="btn-grid" title="Visão Geral dos Slides (G)">⊞</button>
+      <button class="btn-icon" id="btn-notes" title="Notas do Orador (S)">✎</button>
+      <button class="btn-icon" id="btn-fullscreen" title="Tela Cheia (F)">⛶</button>
+    </div>
+  </header>
+
+  <!-- Stage -->
+  <main class="stage">
+    <div class="slide-viewport">
+
+      <!-- SLIDE 1: Capa Executiva -->
+      <section class="slide active" data-module="Módulo 1: Visão Geral e Negócio" data-notes="Boa tarde a todos. Hoje apresentamos o projeto de engenharia de software do Equinox Mobile. Trata-se de uma solução corporativa 100% mobile, desenhada para solucionar a criticidade da coleta de dados de geração solar fotovoltaica em ambientes rurais completamente sem internet. O projeto adota Clean Architecture, DDD, Offline-First real e TDD ponta a ponta.">
+        <div class="hero-container">
+          <div class="hero-badge">⚡ Engenharia de Software Móvel • Expo SDK 57</div>
+          <h1 class="hero-title">Equinox Mobile</h1>
+          <p class="hero-subtitle">Plataforma Móvel Integrada para Gestão de Usinas Fotovoltaicas e Coleta Georreferenciada de Medição com Paradigma Offline-First</p>
+          
+          <div class="hero-tags">
+            <div class="hero-tag-item">📱 React Native + Expo Router</div>
+            <div class="hero-tag-item">💾 SQLite Local Transacional</div>
+            <div class="hero-tag-item">☁️ Supabase Cloud & RLS</div>
+            <div class="hero-tag-item">🏛️ Clean Architecture + DDD</div>
+            <div class="hero-tag-item">🧪 100% TDD (Jest + RNTL)</div>
+            <div class="hero-tag-item">🔑 UUIDv4 Domain-Generated</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 2: Problema Real -->
+      <section class="slide" data-module="Módulo 1: Visão Geral e Negócio" data-notes="Para contextualizar a importância: usinas de energia solar no Brasil ficam espalhadas em telhados de galpões e áreas rurais. O técnico chega no local e não há torre de celular. Soluções que dependem da nuvem simplesmente não abrem ou travam a tela. Hoje o mercado usa anotações em papel ou fotos no WhatsApp, gerando erros de digitação e ausência de comprovação de presença real do técnico.">
+        <div class="slide-header">
+          <div class="slide-meta"><span class="slide-badge badge-rose">Diagnóstico de Campo</span></div>
+          <h2 class="slide-title">O Desafio da Coleta em Usinas Fotovoltaicas Remotas</h2>
+          <p class="slide-subtitle">Por que sistemas tradicionais cloud-dependent falham nas operações solares?</p>
+        </div>
+        <div class="slide-body">
+          <div class="grid-3col">
+            <div class="card card-highlight-rose">
+              <div class="card-title">📡 Desconexão Crítica</div>
+              <div class="card-text">
+                Usinas de geração distribuída (GD) ficam majoritariamente em zonas rurais e áreas isoladas onde o sinal 3G/4G é instável ou totalmente inexistente.
+                <br><br>
+                <strong>Impacto:</strong> Aplicativos comerciais que exigem handshake constante com APIs na nuvem sofrem timeout e impedem a execução da rota.
+              </div>
+            </div>
+            <div class="card card-highlight-amber">
+              <div class="card-title">📝 Fragilidade Operacional</div>
+              <div class="card-text">
+                O fluxo alternativo manual — anotações em pranchetas de papel ou envio desestruturado de fotos em grupos de WhatsApp — gera retrabalho manual.
+                <br><br>
+                <strong>Impacto:</strong> Erros de digitação de kWh, perda de registros de faturamento e atraso de semanas para consolidar a geração mensal.
+              </div>
+            </div>
+            <div class="card card-highlight-cyan">
+              <div class="card-title">📍 Fraude e Falta de Auditoria</div>
+              <div class="card-text">
+                Inexistência de comprovação matemática de presença física do técnico na coordenada real da usina no exato instante da medição.
+                <br><br>
+                <strong>Impacto:</strong> Risco de lançamentos falsos feitos de dentro do escritório, violando normas de conformidade técnica e garantias de investidores.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 3: Solução Proposta -->
+      <section class="slide" data-module="Módulo 1: Visão Geral e Negócio" data-notes="O Equinox Mobile nasce para inverter o paradigma. Em vez de ser um app web empacotado que chora quando a rede cai, ele é 100% offline-first. O SQLite local é o centro do universo do app. O técnico realiza 100% das suas tarefas sem conexão. Quando a rede volta, o SyncManager sincroniza automaticamente em segundo plano.">
+        <div class="slide-header">
+          <div class="slide-meta"><span class="slide-badge badge-emerald">Proposta de Valor</span></div>
+          <h2 class="slide-title">A Solução: Plataforma 100% Mobile & Offline-First</h2>
+          <p class="slide-subtitle">Resiliência matemática e operacional sem bloqueio de interface em campo</p>
+        </div>
+        <div class="slide-body">
+          <div class="grid-2col">
+            <div class="card card-highlight-emerald">
+              <div class="card-title">💾 SQLite Local como Single Source of Truth</div>
+              <div class="card-text">
+                Todas as leituras, usinas e ações são lidas e gravadas instantaneamente no banco de dados SQLite nativo do dispositivo.
+                <br><br>
+                A interface do usuário nunca aguarda requisições HTTP para responder: a resposta é imediata (sub-10ms), garantindo fluidez total mesmo no meio do pasto em Modo Avião.
+              </div>
+            </div>
+            <div class="card card-highlight-cyan">
+              <div class="card-title">🔄 Sincronização Delta Bidirecional</div>
+              <div class="card-text">
+                O aplicativo escuta o estado da rede via NetInfo. Ao restabelecer conectividade, o <code>SyncManager</code> faz o Push dos registros locais e o Pull apenas dos dados modificados remotamente após o último carimbo de data/hora (Delta Sync).
+              </div>
+            </div>
+            <div class="card card-highlight-amber">
+              <div class="card-title">📸 Auditoria e Prova de Presença (Proof of Presence)</div>
+              <div class="card-text">
+                O formulário de medição exige a captura fotográfica do medidor físico compactada automaticamente no ato da foto, combinada com as coordenadas de GPS para auditoria de conformidade.
+              </div>
+            </div>
+            <div class="card card-highlight-rose">
+              <div class="card-title">🏢 Arquitetura 100% Mobile Unificada</div>
+              <div class="card-text">
+                Elimina o custo e a complexidade de manter múltiplos front-ends (como painéis web separados). SuperAdmins, Admins e Técnicos usam o mesmo app móvel, com telas protegidas dinamicamente por RLS.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 4: Multi-Tenant & Perfis -->
+      <section class="slide" data-module="Módulo 1: Visão Geral e Negócio" data-notes="Um ponto forte aprovado nas decisões de projeto é a estrutura multi-tenant. Cada integradora solar é um tenant isolado. O SuperAdmin cadastra a empresa; o Admin gerencia técnicos e usinas; e o Técnico faz a operação de campo. Esse isolamento é protegido pelo RLS no Supabase e por filtros de empresa_id no SQLite.">
+        <div class="slide-header">
+          <div class="slide-meta"><span class="slide-badge badge-cyan">Segurança & Acessos</span></div>
+          <h2 class="slide-title">Estrutura Multi-Tenant e Perfis de Acesso</h2>
+          <p class="slide-subtitle">Isolamento rigoroso de dados corporativos no banco local e na nuvem</p>
+        </div>
+        <div class="slide-body">
+          <div class="grid-3col">
+            <div class="card card-highlight-amber">
+              <div class="card-title">👑 SuperAdmin (Equinox)</div>
+              <div class="card-text">
+                Gestor global da plataforma.
+                <ul style="margin-left: 18px; margin-top: 8px;">
+                  <li>Cadastra novas Empresas parceiras no ecossistema;</li>
+                  <li>Realiza o pré-cadastro inicial de usinas solares;</li>
+                  <li>Acesso irrestrito a auditorias de faturamento.</li>
+                </ul>
+              </div>
+            </div>
+            <div class="card card-highlight-cyan">
+              <div class="card-title">🏢 Admin (Empresa Integradora)</div>
+              <div class="card-text">
+                Gestor do Tenant corporativo.
+                <ul style="margin-left: 18px; margin-top: 8px;">
+                  <li>Aprova novos técnicos da sua empresa;</li>
+                  <li>Homologa usinas em comissionamento;</li>
+                  <li>Acesso restrito estritamente ao seu <code>empresa_id</code>.</li>
+                </ul>
+              </div>
+            </div>
+            <div class="card card-highlight-emerald">
+              <div class="card-title">👷 Técnico / Operador de Campo</div>
+              <div class="card-text">
+                Profissional em atividade de rota.
+                <ul style="margin-left: 18px; margin-top: 8px;">
+                  <li>Consulta catálogo offline de usinas de sua alçada;</li>
+                  <li>Registra leituras físicas com foto e GPS;</li>
+                  <li>Realiza cadastro emergencial de usina em campo.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <div class="code-box" style="margin-top: 10px;">
+            🔒 <strong>Barreira de Segurança:</strong> As políticas de Row Level Security (RLS) no Supabase validam <code>auth.jwt() -> empresa_id</code>. No SQLite local, todas as consultas filtram rigidamente pela empresa ativa, impedindo vazamento entre concorrentes.
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 5: [Skill Sec. 1] Requisitos RF e RNF -->
+      <section class="slide" data-module="Módulo 2: Requisitos & UML" data-notes="Seguindo estritamente a seção 1 da skill software-design-doc, aqui temos o levantamento formal dos Requisitos Funcionais e Não-Funcionais. Notem que cada RNF possui um critério mensurável de aceitação, como tempo de compressão abaixo de 800 milissegundos e 100% de cobertura nos testes de Domínio.">
+        <div class="slide-header">
+          <div class="slide-meta"><span class="slide-badge badge-amber">Skill: Seção 1</span></div>
+          <h2 class="slide-title">Levantamento Formal de Requisitos (RF & RNF)</h2>
+          <p class="slide-subtitle">Engenharia de requisitos rastreáveis com critérios mensuráveis de aceitação</p>
+        </div>
+        <div class="slide-body">
+          <div class="grid-2col">
+            <div class="table-wrapper">
+              <table class="data-table">
+                <thead>
+                  <tr><th>ID</th><th>Requisito Funcional (RF)</th><th>Prioridade</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><strong>RF01</strong></td><td>Autenticação online e offline via sessão local segura</td><td><span class="badge-pill pill-high">Alta</span></td></tr>
+                  <tr><td><strong>RF02</strong></td><td>Cadastro de Empresas Clientes (SuperAdmin)</td><td><span class="badge-pill pill-high">Alta</span></td></tr>
+                  <tr><td><strong>RF03</strong></td><td>Pré-cadastro e gestão de Usinas Fotovoltaicas</td><td><span class="badge-pill pill-high">Alta</span></td></tr>
+                  <tr><td><strong>RF04</strong></td><td>Aprovação de funcionários/técnicos pelo Admin</td><td><span class="badge-pill pill-high">Alta</span></td></tr>
+                  <tr><td><strong>RF05</strong></td><td>Consulta e busca offline de usinas da empresa</td><td><span class="badge-pill pill-high">Alta</span></td></tr>
+                  <tr><td><strong>RF06</strong></td><td>Registro de leitura em campo com foto e GPS</td><td><span class="badge-pill pill-high">Alta</span></td></tr>
+                  <tr><td><strong>RF07</strong></td><td>Cadastro emergencial de usina com status Em Comissionamento</td><td><span class="badge-pill pill-med">Média</span></td></tr>
+                  <tr><td><strong>RF09</strong></td><td>Gravação em fila local de ações offline (action_queue)</td><td><span class="badge-pill pill-high">Alta</span></td></tr>
+                  <tr><td><strong>RF10</strong></td><td>Push Sync assíncrono acionado por detecção de rede</td><td><span class="badge-pill pill-high">Alta</span></td></tr>
+                  <tr><td><strong>RF12</strong></td><td>Resolução de conflitos de leitura via Last Write Wins</td><td><span class="badge-pill pill-med">Média</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="table-wrapper">
+              <table class="data-table">
+                <thead>
+                  <tr><th>ID</th><th>Requisito Não-Funcional (RNF)</th><th>Critério Mensurável</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><strong>RNF01</strong></td><td>Arquitetura Clean & DDD</td><td>Domínio puro sem dependência de UI, SQLite ou Supabase</td></tr>
+                  <tr><td><strong>RNF02</strong></td><td>Testabilidade (TDD)</td><td>100% de cobertura nos testes de Domínio e Casos de Uso</td></tr>
+                  <tr><td><strong>RNF03</strong></td><td>Persistência Descentralizada</td><td>UUIDv4 obrigatório gerado no Domínio em todas as PKs</td></tr>
+                  <tr><td><strong>RNF04</strong></td><td>Performance de Mídia</td><td>Compressão de foto da câmera &lt; 800ms em background</td></tr>
+                  <tr><td><strong>RNF05</strong></td><td>Criptografia de Sessão</td><td>Persistência de PIN/Token no cofre expo-secure-store</td></tr>
+                  <tr><td><strong>RNF06</strong></td><td>Usabilidade Reativa</td><td>Indicador visual em tempo real do estado de conexão e fila</td></tr>
+                  <tr><td><strong>RNF07</strong></td><td>Expurgo de Armazenamento</td><td>Limpeza automática de leituras sincronizadas &gt; 30 dias</td></tr>
+                  <tr><td><strong>RNF08</strong></td><td>Migrações SQLite</td><td>Execução de scripts de versão no Splash sem perda de dados</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 6: [Skill Sec. 2] Diagrama de Casos de Uso (Corrigido para sintaxe válida e interativo) -->
+      <section class="slide" data-module="Módulo 2: Requisitos & UML" data-notes="Na seção 2 da skill, temos o Diagrama de Casos de Uso formal em UML. Observem a correta herança de atores: SuperAdmin, Admin e Técnico herdam de Usuário. Notem os estereótipos include: Registrar Nova Leitura obrigatoriamente inclui Capturar Foto, Capturar GPS e Comprimir Imagem. O Auto-Merge Last Write Wins aparece como extend condicional da sincronização. Use os controles de zoom e arrasto para inspecionar!">
+        <div class="slide-header">
+          <div class="slide-meta"><span class="slide-badge badge-cyan">Skill: Seção 2</span></div>
+          <h2 class="slide-title">Diagrama de Casos de Uso (UML)</h2>
+          <p class="slide-subtitle">Mapeamento de papéis, herança de atores, dependências include e extend</p>
+        </div>
+        <div class="slide-body">
+          <div class="diagram-container" data-diagram-title="UML: Diagrama de Casos de Uso">
+            <div class="diagram-toolbar">
+              <span class="diagram-title">🔍 Visualizador Interativo • Arraste para mover • Scroll para Zoom</span>
+              <div class="diagram-controls">
+                <span class="zoom-level-badge">100%</span>
+                <button class="diag-btn btn-zoom-out" title="Diminuir Zoom">−</button>
+                <button class="diag-btn btn-zoom-in" title="Aumentar Zoom">+</button>
+                <button class="diag-btn btn-zoom-reset" title="Resetar Enquadramento">↺</button>
+                <button class="diag-btn btn-zoom-fullscreen" title="Abrir em Tela Cheia">⛶ Tela Cheia</button>
+              </div>
+            </div>
+            <div class="diagram-viewport">
+              <div class="diagram-canvas">
+                <div class="mermaid">
+flowchart LR
+    Usuario(["👤 Usuário"])
+    SuperAdmin(["👑 SuperAdmin"])
+    Admin(["🏢 Admin"])
+    Tecnico(["👷 Técnico"])
+
+    SuperAdmin -.->|herda| Usuario
+    Admin -.->|herda| Usuario
+    Tecnico -.->|herda| Usuario
+
+    Usuario --> UC01[" Autenticar no App "]
+    UC01 -.->|include| UC02[" Validar Token SecureStore "]
+
+    SuperAdmin --> UC03[" Cadastrar Empresa "]
+    SuperAdmin --> UC04[" Vincular Usina a Empresa "]
+
+    Admin --> UC05[" Gerenciar/Aprovar Técnicos "]
+    Admin --> UC04
+
+    Tecnico --> UC06[" Consultar Usinas Offline "]
+    Tecnico --> UC07[" Registrar Nova Leitura "]
+    UC07 -.->|include| UC08[" Capturar Foto Medidor "]
+    UC07 -.->|include| UC09[" Capturar Coordenadas GPS "]
+    UC08 -.->|include| UC10[" Comprimir Imagem JPEG "]
+    
+    Tecnico --> UC11[" Cadastrar Usina Emergencial "]
+
+    Usuario --> UC12[" Sincronizar Dados "]
+    UC12 -.->|include| UC13[" Processar Action Queue Push "]
+    UC12 -.->|include| UC14[" Executar Pull Sync Delta "]
+    UC15[" Auto-Merge Last Write Wins "] -.->|extend| UC13
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 7: [Skill Sec. 2] Especificação Textual de Casos de Uso -->
+      <section class="slide" data-module="Módulo 2: Requisitos & UML" data-notes="A skill exige a especificação textual completa dos fluxos principais e alternativos. Destacamos aqui o UC07 de leitura e o UC12 de sincronização. Veja como tratamos os fluxos alternativos: falha de sinal de GPS gera alerta consultivo sem impedir o registro; e permissão de hardware negada aciona a Fallback UI direcionando para as configurações do sistema operacional.">
+        <div class="slide-header">
+          <div class="slide-meta"><span class="slide-badge badge-cyan">Skill: Seção 2</span></div>
+          <h2 class="slide-title">Especificação Textual dos Casos de Uso Chave</h2>
+          <p class="slide-subtitle">Pré-condições, fluxos principais, fluxos alternativos e pós-condições</p>
+        </div>
+        <div class="slide-body">
+          <div class="grid-2col">
+            <div class="card card-highlight-amber">
+              <div class="card-title">⚡ UC07 — Registrar Nova Leitura</div>
+              <div class="card-text">
+                <strong>Ator:</strong> Técnico de Campo | <strong>Pré-condição:</strong> Logado com Usina selecionada.
+                <br><br>
+                <strong>Fluxo Principal:</strong>
+                <ol style="margin-left: 18px; margin-top: 4px;">
+                  <li>Técnico informa valor de medição em kWh;</li>
+                  <li>App dispara a câmera nativa e captura foto do medidor;</li>
+                  <li>App comprime a foto para JPEG 1080p (~300KB) no FileSystem;</li>
+                  <li>App coleta coordenadas GPS instantâneas;</li>
+                  <li>Gravação atômica: entidade criada no SQLite e enfileirada na <code>action_queue</code>.</li>
+                </ol>
+                <br>
+                <strong>Fluxos Alternativos:</strong>
+                <ul style="margin-left: 18px; margin-top: 4px;">
+                  <li><em>Sem sinal de GPS:</em> Alerta de satélite sem bloquear o salvamento;</li>
+                  <li><em>Permissão Negada:</em> Bloqueio com Fallback UI e atalho para Ajustes do SO.</li>
+                </ul>
+              </div>
+            </div>
+            <div class="card card-highlight-cyan">
+              <div class="card-title">🔄 UC12 — Sincronizar Dados (SyncManager)</div>
+              <div class="card-text">
+                <strong>Ator:</strong> Sistema (NetInfo) ou Disparo Manual | <strong>Pré-condição:</strong> Rede online.
+                <br><br>
+                <strong>Fluxo Principal:</strong>
+                <ol style="margin-left: 18px; margin-top: 4px;">
+                  <li>SyncManager lê itens pendentes da <code>action_queue</code>;</li>
+                  <li>Upload prioritário da foto comprimida para o Supabase Storage;</li>
+                  <li>Envio do payload da leitura ao PostgreSQL remoto;</li>
+                  <li>Remoção da fila local e atualização do status para <code>Sincronizada</code>;</li>
+                  <li>Execução do Pull Sync Delta via <code>last_sync_timestamp</code>.</li>
+                </ol>
+                <br>
+                <strong>Fluxos Alternativos:</strong>
+                <ul style="margin-left: 18px; margin-top: 4px;">
+                  <li><em>Conflito Concorrente:</em> Aplica Auto-Merge Last Write Wins silencioso;</li>
+                  <li><em>Usina Inativada Remota:</em> Marca status local como <code>Rejeitada</code>.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 8: [Skill Sec. 3] Diagrama de Classes (Com Pan/Zoom Interativo) -->
+      <section class="slide" data-module="Módulo 2: Requisitos & UML" data-notes="Na seção 3 da skill, temos o Diagrama de Classes de Domínio. Como há muitas classes, atributos e métodos, use a ferramenta de zoom e arrasto ou clique em Tela Cheia para inspecionar cada classe e relação de composição e agregação com nitidez absoluta!">
+        <div class="slide-header">
+          <div class="slide-meta"><span class="slide-badge badge-emerald">Skill: Seção 3</span></div>
+          <h2 class="slide-title">Diagrama de Classes de Domínio (DDD)</h2>
+          <p class="slide-subtitle">Entidades ricas, Value Objects, composições, agregações e multiplicidades</p>
+        </div>
+        <div class="slide-body">
+          <div class="diagram-container" data-diagram-title="DDD: Diagrama de Classes de Domínio" data-initial-scale="1.05" data-modal-scale="1.45">
+            <div class="diagram-toolbar">
+              <span class="diagram-title">🔍 Visualizador Interativo • Arraste para mover • Scroll para Zoom</span>
+              <div class="diagram-controls">
+                <span class="zoom-level-badge">105%</span>
+                <button class="diag-btn btn-zoom-out" title="Diminuir Zoom">−</button>
+                <button class="diag-btn btn-zoom-in" title="Aumentar Zoom">+</button>
+                <button class="diag-btn btn-scale-set" data-scale="1.0" title="100%">100%</button>
+                <button class="diag-btn btn-scale-set" data-scale="1.5" title="150%">150%</button>
+                <button class="diag-btn btn-scale-set" data-scale="2.0" title="200%">200%</button>
+                <button class="diag-btn btn-zoom-reset" title="Resetar Enquadramento">↺</button>
+                <button class="diag-btn btn-zoom-fullscreen" title="Abrir em Tela Cheia">⛶ Tela Cheia</button>
+              </div>
+            </div>
+            <div class="diagram-viewport">
+              <div class="diagram-canvas">
+                <div class="mermaid">
+classDiagram
+    class Empresa {
+        -id: UUID
+        -nome: String
+        -cnpj: String
+        -dataCriacao: Date
+        +validarCNPJ() bool
+    }
+
+    class Usuario {
+        -id: UUID
+        -empresaId: UUID
+        -nome: String
+        -email: String
+        -perfil: PerfilEnum
+        -status: StatusUsuario
+        +isAtivo() bool
+    }
+
+    class Usina {
+        -id: UUID
+        -empresaId: UUID
+        -nome: String
+        -codigoUC: String
+        -capacidade: Decimal
+        -coordenadas: CoordenadasGPS
+        -status: StatusUsina
+        -dataUltimaVisita: Date
+        +aprovarComissionamento() void
+    }
+
+    class Leitura {
+        -id: UUID
+        -usinaId: UUID
+        -usuarioId: UUID
+        -valorKwh: Decimal
+        -dataHora: Date
+        -caminhoFotoLocal: String
+        -urlFotoRemota: String
+        -coordenadas: CoordenadasGPS
+        -statusSync: StatusSync
+        +marcarSincronizada(url: String) void
+        +marcarComoConflito() void
+    }
+
+    class CoordenadasGPS {
+        -latitude: double
+        -longitude: double
+        +isValid() bool
+    }
+
+    class ActionQueueItem {
+        -id: UUID
+        -tipo: TipoOperacaoEnum
+        -payloadJSON: String
+        -timestamp: Date
+        -tentativas: int
+    }
+
+    Empresa "1" -- "0..*" Usuario : possui
+    Empresa "1" -- "0..*" Usina : pertence
+    Usina "1" -- "0..*" Leitura : registra
+    Usuario "1" -- "0..*" Leitura : realiza
+    Usina "1" *-- "1" CoordenadasGPS : compoe
+    Leitura "1" *-- "1" CoordenadasGPS : compoe
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 9: [Skill Sec. 3 & 3.1] Persistência & DER -->
+      <section class="slide" data-module="Módulo 2: Requisitos & UML" data-notes="Aqui cumprimos a tabela de persistência e a derivação estrita do DER relacional, conforme a skill. Apenas as entidades marcadas como persistentes viram tabelas. Notem que CoordenadasGPS é um Value Object embutido na tabela do dono, e a action_queue é exclusiva do SQLite local. Todas as cardinalidades do DER batem exatamente com as multiplicidades do diagrama de classes.">
+        <div class="slide-header">
+          <div class="slide-meta"><span class="slide-badge badge-emerald">Skill: Seções 3 & 3.1</span></div>
+          <h2 class="slide-title">Mapeamento de Persistência & Diagrama DER</h2>
+          <p class="slide-subtitle">Espelhamento relacional rigoroso entre SQLite Local e Supabase Cloud</p>
+        </div>
+        <div class="slide-body">
+          <div class="grid-2col">
+            <div class="table-wrapper">
+              <table class="data-table">
+                <thead>
+                  <tr><th>Classe</th><th>Persistente?</th><th>SQLite Local</th><th>Supabase Remoto</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><strong>Empresa</strong></td><td>Sim</td><td>Tabela <code>empresas</code> (PK UUID)</td><td>Tabela <code>empresas</code> (PK UUID)</td></tr>
+                  <tr><td><strong>Usuario</strong></td><td>Sim</td><td>Tabela <code>usuarios</code> (FK empresa_id)</td><td>Tabela <code>profiles</code> (Auth.users)</td></tr>
+                  <tr><td><strong>Usina</strong></td><td>Sim</td><td>Tabela <code>usinas</code> (PK UUID)</td><td>Tabela <code>usinas</code> (PK UUID)</td></tr>
+                  <tr><td><strong>Leitura</strong></td><td>Sim</td><td>Tabela <code>leituras</code> (PK UUID)</td><td>Tabela <code>leituras</code> (PK UUID)</td></tr>
+                  <tr><td><strong>CoordenadasGPS</strong></td><td>Não (VO)</td><td>Colunas embutidas (lat/long)</td><td>Colunas embutidas (lat/long)</td></tr>
+                  <tr><td><strong>ActionQueueItem</strong></td><td>Sim</td><td>Tabela <code>action_queue</code></td><td><em>Não aplicável (Exclusivo Local)</em></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="diagram-container" data-diagram-title="DER: Diagrama Entidade-Relacionamento">
+              <div class="diagram-toolbar">
+                <span class="diagram-title">🔍 DER Relacional</span>
+                <div class="diagram-controls">
+                  <span class="zoom-level-badge">100%</span>
+                  <button class="diag-btn btn-zoom-out">−</button>
+                  <button class="diag-btn btn-zoom-in">+</button>
+                  <button class="diag-btn btn-zoom-reset">↺</button>
+                  <button class="diag-btn btn-zoom-fullscreen">⛶</button>
+                </div>
+              </div>
+              <div class="diagram-viewport">
+                <div class="diagram-canvas">
+                  <div class="mermaid">
+erDiagram
+    EMPRESAS ||--o{ USUARIOS : possui
+    EMPRESAS ||--o{ USINAS : pertence
+    USINAS ||--o{ LEITURAS : recebe
+    USUARIOS ||--o{ LEITURAS : realiza
+
+    EMPRESAS {
+        uuid id PK
+        string nome
+        string cnpj
+        text data_criacao
+    }
+    USUARIOS {
+        uuid id PK
+        uuid empresa_id FK
+        string nome
+        string email
+        string perfil
+        string status
+    }
+    USINAS {
+        uuid id PK
+        uuid empresa_id FK
+        string nome
+        string codigo_uc
+        decimal capacidade_nominal
+        float latitude
+        float longitude
+        string status
+    }
+    LEITURAS {
+        uuid id PK
+        uuid usina_id FK
+        uuid usuario_id FK
+        decimal valor_kwh
+        string caminho_imagem_local
+        string url_imagem_remota
+        float latitude
+        float longitude
+        string status_sincronizacao
+    }
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 10: [Skill Sec. 4] Diagrama de Objetos -->
+      <section class="slide" data-module="Módulo 2: Requisitos & UML" data-notes="Na seção 4 da skill, apresentamos o Diagrama de Objetos. Ele é o snapshot em tempo de execução com instâncias concretas e atributos reais. Esse diagrama valida as cardinalidades: vemos a Solar Power Ltda instanciada, ligada ao técnico João e à Usina Fazenda Sol, que por sua vez recebe a medição de 1450 kWh. Esse cenário serve também como massa de teste para o TDD.">
+        <div class="slide-header">
+          <div class="slide-meta"><span class="slide-badge badge-amber">Skill: Seção 4</span></div>
+          <h2 class="slide-title">Diagrama de Objetos (Snapshot em Tempo Real)</h2>
+          <p class="slide-subtitle">Validação de multiplicidades e relações através de instâncias concretas de campo</p>
+        </div>
+        <div class="slide-body">
+          <div class="diagram-container" data-diagram-title="Diagrama de Objetos (Instâncias)">
+            <div class="diagram-toolbar">
+              <span class="diagram-title">🔍 Snapshot Concreto de Execução • UML Object Diagram</span>
+              <div class="diagram-controls">
+                <span class="zoom-level-badge">100%</span>
+                <button class="diag-btn btn-zoom-out">−</button>
+                <button class="diag-btn btn-zoom-in">+</button>
+                <button class="diag-btn btn-scale-set" data-scale="1.0">100%</button>
+                <button class="diag-btn btn-scale-set" data-scale="1.4">140%</button>
+                <button class="diag-btn btn-zoom-reset">↺</button>
+                <button class="diag-btn btn-zoom-fullscreen">⛶ Tela Cheia</button>
+              </div>
+            </div>
+            <div class="diagram-viewport">
+              <div class="diagram-canvas">
+                <div class="mermaid">
+flowchart TD
+    classDef objBox fill:#0f172a,stroke:#f59e0b,stroke-width:2px,color:#f8fafc,text-align:left;
+
+    O1["<div style='text-align:center;font-weight:700;border-bottom:1px solid rgba(245,158,11,0.4);padding-bottom:4px;margin-bottom:6px;'><u>empresaEquinox : Empresa</u></div><b>id:</b> 550e8400...<br/><b>nome:</b> Solar Power Ltda<br/><b>cnpj:</b> 12.345.678/0001-90"]:::objBox
+
+    O2["<div style='text-align:center;font-weight:700;border-bottom:1px solid rgba(245,158,11,0.4);padding-bottom:4px;margin-bottom:6px;'><u>tecnicoJoao : Usuario</u></div><b>id:</b> a1b2c3d4...<br/><b>empresaId:</b> 550e8400...<br/><b>nome:</b> João da Silva<br/><b>perfil:</b> Tecnico (Ativo)"]:::objBox
+
+    O3["<div style='text-align:center;font-weight:700;border-bottom:1px solid rgba(245,158,11,0.4);padding-bottom:4px;margin-bottom:6px;'><u>usinaFazendaSol : Usina</u></div><b>id:</b> f47ac10b...<br/><b>empresaId:</b> 550e8400...<br/><b>nome:</b> Usina Fazenda Sol<br/><b>codigoUC:</b> UC-998877<br/><b>status:</b> Ativa"]:::objBox
+
+    O4["<div style='text-align:center;font-weight:700;border-bottom:1px solid rgba(245,158,11,0.4);padding-bottom:4px;margin-bottom:6px;'><u>leituraMarco2026 : Leitura</u></div><b>id:</b> 7c9e6679...<br/><b>usinaId:</b> f47ac10b...<br/><b>usuarioId:</b> a1b2c3d4...<br/><b>valorKwh:</b> 1450.75 kWh<br/><b>statusSync:</b> Pendente (Offline)"]:::objBox
+
+    O1 ---|possui vínculo| O2
+    O1 ---|possui ativo| O3
+    O3 ---|registra medição| O4
+    O2 ---|realiza leitura| O4
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 11: [Skill Sec. 5] Diagrama de Estados -->
+      <section class="slide" data-module="Módulo 2: Requisitos & UML" data-notes="Na seção 5 da skill, temos os Diagramas de Estados para entidades com ciclo de vida complexo: Leitura e Usina. A Leitura nasce Pendente offline, transita para Sincronizando e pode virar Sincronizada ou Rejeitada se a usina foi desativada no servidor. A Usina pode nascer Em Comissionamento se criada em campo pelo técnico, e só vira Ativa após homologação do Admin.">
+        <div class="slide-header">
+          <div class="slide-meta"><span class="slide-badge badge-cyan">Skill: Seção 5</span></div>
+          <h2 class="slide-title">Diagramas de Estados: Ciclos de Vida</h2>
+          <p class="slide-subtitle">Transições de status estritamente governadas por eventos e regras de negócio</p>
+        </div>
+        <div class="slide-body">
+          <div class="grid-2col">
+            <div class="diagram-container" data-diagram-title="Ciclo de Vida: Leitura">
+              <div class="diagram-toolbar">
+                <span class="diagram-title">Ciclo: Leitura</span>
+                <div class="diagram-controls">
+                  <span class="zoom-level-badge">100%</span>
+                  <button class="diag-btn btn-zoom-out">−</button>
+                  <button class="diag-btn btn-zoom-in">+</button>
+                  <button class="diag-btn btn-zoom-reset">↺</button>
+                  <button class="diag-btn btn-zoom-fullscreen">⛶</button>
+                </div>
+              </div>
+              <div class="diagram-viewport">
+                <div class="diagram-canvas">
+                  <div class="mermaid">
+stateDiagram-v2
+    [*] --> Pendente : Salva no SQLite (Offline)
+    Pendente --> Sincronizando : NetInfo detecta Conexão
+    Sincronizando --> Sincronizada : Upload Mídia + Supabase OK
+    Sincronizando --> Sincronizada : Auto-Merge (Last Write Wins)
+    Sincronizando --> Rejeitada : Usina Inativa (Soft Delete)
+    Sincronizando --> Pendente : Falha na rede / Retry
+    Sincronizada --> [*]
+    Rejeitada --> [*]
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="diagram-container" data-diagram-title="Ciclo de Vida: Usina">
+              <div class="diagram-toolbar">
+                <span class="diagram-title">Ciclo: Usina</span>
+                <div class="diagram-controls">
+                  <span class="zoom-level-badge">100%</span>
+                  <button class="diag-btn btn-zoom-out">−</button>
+                  <button class="diag-btn btn-zoom-in">+</button>
+                  <button class="diag-btn btn-zoom-reset">↺</button>
+                  <button class="diag-btn btn-zoom-fullscreen">⛶</button>
+                </div>
+              </div>
+              <div class="diagram-viewport">
+                <div class="diagram-canvas">
+                  <div class="mermaid">
+stateDiagram-v2
+    [*] --> EmComissionamento : Criada emergencialmente
+    [*] --> Ativa : Cadastrada pelo Admin
+    EmComissionamento --> Ativa : Homologada pelo Admin
+    Ativa --> Inativa : Desativada pelo Admin
+    Inativa --> Ativa : Reativada pelo Admin
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 12: [Skill Sec. 6] BCE e Robustez -->
+      <section class="slide" data-module="Módulo 3: Análise e Comportamento" data-notes="Na seção 6 da skill, apresentamos a análise Boundary-Control-Entity e o Diagrama de Robustez. Essa separação é o alicerce da Clean Architecture: a Tela de Nova Leitura é a Fronteira; o RegistrarLeituraUseCase é o Controle; e Leitura e CoordenadasGPS são as Entidades. Isso garante que a regra de lançamento não fique acoplada a hooks ou botões de tela.">
+        <div class="slide-header">
+          <div class="slide-meta"><span class="slide-badge badge-emerald">Skill: Seção 6</span></div>
+          <h2 class="slide-title">Mapeamento BCE & Diagrama de Robustez</h2>
+          <p class="slide-subtitle">Separação formal entre Fronteira (UI), Controle (Use Case) e Entidade (Domínio)</p>
+        </div>
+        <div class="slide-body">
+          <div class="grid-2col">
+            <div class="table-wrapper">
+              <table class="data-table">
+                <thead>
+                  <tr><th>Caso de Uso</th><th>Boundary (Fronteira)</th><th>Control (Controle)</th><th>Entities</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><strong>Autenticar</strong></td><td>LoginScreen</td><td>AutenticarUsuarioUseCase</td><td>Usuario</td></tr>
+                  <tr><td><strong>Registrar Leitura</strong></td><td>NovaLeituraScreen, Camera, GPS</td><td>RegistrarLeituraUseCase</td><td>Leitura, Usina, CoordenadasGPS</td></tr>
+                  <tr><td><strong>Cadastrar Usina</strong></td><td>NovaUsinaScreen</td><td>CadastrarUsinaUseCase</td><td>Usina, Empresa, CoordenadasGPS</td></tr>
+                  <tr><td><strong>Sincronizar</strong></td><td>SyncHeaderStatusView</td><td>ProcessarFilaUseCase</td><td>ActionQueueItem, Leitura</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="diagram-container" data-diagram-title="BCE: Diagrama de Robustez">
+              <div class="diagram-toolbar">
+                <span class="diagram-title">🔍 Robustez BCE</span>
+                <div class="diagram-controls">
+                  <span class="zoom-level-badge">100%</span>
+                  <button class="diag-btn btn-zoom-out">−</button>
+                  <button class="diag-btn btn-zoom-in">+</button>
+                  <button class="diag-btn btn-zoom-reset">↺</button>
+                  <button class="diag-btn btn-zoom-fullscreen">⛶</button>
+                </div>
+              </div>
+              <div class="diagram-viewport">
+                <div class="diagram-canvas">
+                  <div class="mermaid">
+flowchart LR
+    Tecnico(["👷 Técnico"])
+    B1["NovaLeituraScreen<br/>«boundary»"]
+    B2["CameraModule<br/>«boundary»"]
+    C["RegistrarLeituraUseCase<br/>«control»"]
+    E1["Leitura<br/>«entity»"]
+    E2["CoordenadasGPS<br/>«entity»"]
+
+    Tecnico --> B1
+    B1 --> B2
+    B1 --> C
+    C --> E1
+    C --> E2
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 13: [Skill Sec. 7] Diagrama de Sequência -->
+      <section class="slide" data-module="Módulo 3: Análise e Comportamento" data-notes="Na seção 7 da skill, temos o Diagrama de Sequência detalhando a ordem temporal das chamadas no fluxo de Nova Leitura. Notem a clareza da orquestração: ao tirar a foto, a compressão roda de imediato no FileSystem, as coordenadas GPS são colhidas, o Use Case instancia a Leitura e grava simultaneamente no SQLite e na action_queue. A confirmação visual para o técnico ocorre em menos de 100 milissegundos.">
+        <div class="slide-header">
+          <div class="slide-meta"><span class="slide-badge badge-cyan">Skill: Seção 7</span></div>
+          <h2 class="slide-title">Diagrama de Sequência: Fluxo Offline de Nova Leitura</h2>
+          <p class="slide-subtitle">Orquestração temporal síncrona/assíncrona entre Boundary, Sensores, Controle e Repositórios</p>
+        </div>
+        <div class="slide-body">
+          <div class="diagram-container" data-diagram-title="UML: Diagrama de Sequência Nova Leitura">
+            <div class="diagram-toolbar">
+              <span class="diagram-title">🔍 Sequência Cronológica de Chamadas</span>
+              <div class="diagram-controls">
+                <span class="zoom-level-badge">100%</span>
+                <button class="diag-btn btn-zoom-out">−</button>
+                <button class="diag-btn btn-zoom-in">+</button>
+                <button class="diag-btn btn-zoom-reset">↺</button>
+                <button class="diag-btn btn-zoom-fullscreen">⛶ Tela Cheia</button>
+              </div>
+            </div>
+            <div class="diagram-viewport">
+              <div class="diagram-canvas">
+                <div class="mermaid">
+sequenceDiagram
+    actor Técnico as 👷 Técnico
+    participant Screen as NovaLeituraScreen<br/>«boundary»
+    participant Camera as CameraService<br/>«infra»
+    participant GPS as GPSService<br/>«infra»
+    participant UseCase as RegistrarLeituraUseCase<br/>«control»
+    participant Domain as Leitura<br/>«entity»
+    participant LocalRepo as LeituraSQLiteRepo<br/>«infra»
+    participant Queue as ActionQueueSQLiteRepo<br/>«infra»
+
+    Técnico ->> Screen: Preenche valor em kWh e clica "Tirar Foto"
+    alt Permissões Concedidas
+        Screen ->> Camera: capturarFoto()
+        Camera -->> Screen: fotoRawPath
+        Screen ->> Camera: comprimirImagem(fotoRawPath)
+        Camera -->> Screen: fotoCompressedPath (~300KB)
+        Screen ->> GPS: capturarCoordenadas()
+        GPS -->> Screen: latitude, longitude
+        Screen ->> UseCase: executar(dadosLeitura)
+        UseCase ->> Domain: criar(UUIDv4, usinaId, valorKwh, fotoCompressedPath, GPS)
+        Domain -->> UseCase: instancialeitura
+        UseCase ->> LocalRepo: salvar(leitura)
+        LocalRepo -->> UseCase: ok
+        UseCase ->> Queue: enfileirar(INSERT_LEITURA, payloadJSON)
+        Queue -->> UseCase: ok
+        UseCase -->> Screen: Sucesso (Salvo Offline)
+        Screen -->> Técnico: Exibe alerta "Leitura salva localmente!"
+    else Permissões Negadas
+        Screen -->> Técnico: Exibe Fallback UI (Bloqueio)
+        Técnico ->> Screen: Toca em "Abrir Configurações"
+        Screen ->> Técnico: Linking.openSettings()
+    end
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 14: [Skill Sec. 8] Diagrama de Atividades -->
+      <section class="slide" data-module="Módulo 3: Análise e Comportamento" data-notes="Na seção 8 da skill, temos o Diagrama de Atividades que expressa o algoritmo do SyncManager. Chamo a atenção para a decisão de upload da foto ANTES do envio ao banco. Isso implementa a regra 'Storage Always First': se a rede cair no meio do caminho, temos uma foto órfã, mas nunca uma leitura sem foto no banco corporativo.">
+        <div class="slide-header">
+          <div class="slide-meta"><span class="slide-badge badge-amber">Skill: Seção 8</span></div>
+          <h2 class="slide-title">Diagrama de Atividades: Sincronização do SyncManager</h2>
+          <p class="slide-subtitle">Processamento de fila em background, upload fail-safe de mídia e pull delta</p>
+        </div>
+        <div class="slide-body">
+          <div class="diagram-container" data-diagram-title="UML: Diagrama de Atividades SyncManager">
+            <div class="diagram-toolbar">
+              <span class="diagram-title">🔍 Algoritmo de Sincronização em Segundo Plano</span>
+              <div class="diagram-controls">
+                <span class="zoom-level-badge">100%</span>
+                <button class="diag-btn btn-zoom-out">−</button>
+                <button class="diag-btn btn-zoom-in">+</button>
+                <button class="diag-btn btn-zoom-reset">↺</button>
+                <button class="diag-btn btn-zoom-fullscreen">⛶ Tela Cheia</button>
+              </div>
+            </div>
+            <div class="diagram-viewport">
+              <div class="diagram-canvas">
+                <div class="mermaid">
+flowchart TD
+    Start((NetInfo: Online)) --> A1[SyncManager acionado]
+    A1 --> A2["Consultar itens pendentes<br/>na action_queue"]
+    A2 --> D1{Existe item pendente?}
+    D1 -- Não --> A3[Executar Pull Sync Delta]
+    D1 -- Sim --> A4[Ler primeiro item da fila]
+    A4 --> D2{Tipo da Ação?}
+    D2 -- INSERT_LEITURA --> A5["Upload foto comprimida<br/>para Supabase Storage"]
+    A5 --> A6["Enviar payload da leitura<br/>via Supabase API"]
+    D2 -- INSERT_USINA --> A7["Enviar payload da usina<br/>via Supabase API"]
+    A6 --> D3{Resposta Supabase?}
+    A7 --> D3
+    D3 -- Sucesso (200/201) --> A8[Remover item da action_queue]
+    A8 --> A9["Atualizar status no SQLite<br/>para Sincronizada"]
+    A9 --> A2
+    D3 -- Duplicada (Auto-Merge) --> A8
+    D3 -- Rejeitada (Usina Inativa) --> A10["Marcar status no SQLite<br/>para Rejeitada"]
+    A10 --> A8
+    D3 -- Erro de Conexão --> End((Fim / Aguardar próxima janela))
+    A3 --> End
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 15: [Skill Sec. 9] Diagrama de Componentes -->
+      <section class="slide" data-module="Módulo 3: Análise e Comportamento" data-notes="Na seção 9 da skill, apresentamos o Diagrama de Componentes mostrando a materialização das camadas da Clean Architecture. Reparem na regra de ouro da Clean Architecture: as dependências apontam estritamente para o centro. O Domínio define a interface de repositório (ILeituraRepository) e não conhece nem SQLite nem Supabase. A Infraestrutura é mero detalhe descartável que implementa a porta.">
+        <div class="slide-header">
+          <div class="slide-meta"><span class="slide-badge badge-cyan">Skill: Seção 9</span></div>
+          <h2 class="slide-title">Diagrama de Componentes (Clean Architecture)</h2>
+          <p class="slide-subtitle">Inversão de dependência (DIP) e isolamento hermético do núcleo de domínio</p>
+        </div>
+        <div class="slide-body">
+          <div class="diagram-container" data-diagram-title="Clean Architecture: Diagrama de Componentes">
+            <div class="diagram-toolbar">
+              <span class="diagram-title">🔍 Estrutura de Pacotes e Direção de Dependência</span>
+              <div class="diagram-controls">
+                <span class="zoom-level-badge">100%</span>
+                <button class="diag-btn btn-zoom-out">−</button>
+                <button class="diag-btn btn-zoom-in">+</button>
+                <button class="diag-btn btn-zoom-reset">↺</button>
+                <button class="diag-btn btn-zoom-fullscreen">⛶ Tela Cheia</button>
+              </div>
+            </div>
+            <div class="diagram-viewport">
+              <div class="diagram-canvas">
+                <div class="mermaid">
+flowchart TD
+    classDef ui fill:#1e1b4b,stroke:#818cf8,stroke-width:2px,color:#f8fafc;
+    classDef app fill:#0c2d48,stroke:#38bdf8,stroke-width:2px,color:#f8fafc;
+    classDef dom fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#f8fafc;
+    classDef port fill:#1e293b,stroke:#fbbf24,stroke-width:2px,stroke-dasharray: 4 4,color:#f8fafc;
+    classDef infra fill:#3b1d11,stroke:#f59e0b,stroke-width:2px,color:#f8fafc;
+
+    UI_Screens["📱 Expo Router Screens<br/>(Telas & Navegação Mobile)"]:::ui
+    UI_Context["📱 Auth & Connection Context<br/>(NetInfo & Sessão Segura)"]:::ui
+
+    UC_Leitura["⚙️ RegistrarLeituraUseCase"]:::app
+    UC_Usina["⚙️ CadastrarUsinaUseCase"]:::app
+    UC_Sync["⚙️ ProcessarFilaSyncUseCase"]:::app
+
+    Dom_Entities["🏛️ Entidades de Domínio<br/>(Usina, Leitura, Empresa, Usuario)"]:::dom
+    Dom_VO["🏛️ Value Objects Imutáveis<br/>(CoordenadasGPS, UUIDv4)"]:::dom
+    Dom_Ports["⚡ Portas / Interfaces de Repositório (DIP):<br/>ILeituraRepository • ISyncGateway • IGPSProvider"]:::port
+
+    Infra_SQLite["🔌 SQLite Local<br/>(expo-sqlite)"]:::infra
+    Infra_Supabase["🔌 Supabase Client & Storage<br/>(PostgreSQL Cloud & Bucket)"]:::infra
+    Infra_Hardware["🔌 Sensores & Hardware SO<br/>(Câmera 1080p, GPS, SecureStore)"]:::infra
+
+    UI_Screens --> UC_Leitura
+    UI_Screens --> UC_Usina
+    UI_Context --> UC_Sync
+
+    UC_Leitura --> Dom_Entities
+    UC_Usina --> Dom_Entities
+    UC_Sync --> Dom_Ports
+    Dom_Entities --- Dom_VO
+
+    Dom_Ports -.->|implementada por| Infra_SQLite
+    Dom_Ports -.->|implementada por| Infra_Supabase
+    Dom_Ports -.->|implementada por| Infra_Hardware
+                </div>
+              </div>
+            </div>
+            <div style="display:flex; justify-content:center; gap:20px; padding:8px 14px; background:rgba(15,23,42,0.85); font-size:0.75rem; border-top:1px solid var(--border-subtle); flex-wrap:wrap; font-family:var(--font-mono);">
+              <span><span style="color:#818cf8; font-weight:bold;">●</span> Camada 1: Apresentação (UI)</span>
+              <span><span style="color:#38bdf8; font-weight:bold;">●</span> Camada 2: Aplicação (Use Cases)</span>
+              <span><span style="color:#10b981; font-weight:bold;">●</span> Camada 3: Domínio Puro</span>
+              <span><span style="color:#fbbf24; font-weight:bold;">●</span> Portas de Saída (DIP)</span>
+              <span><span style="color:#f59e0b; font-weight:bold;">●</span> Camada 4: Infraestrutura (Adapters)</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 16: [ADR 4.7] Arquitetura de Apresentação: Catálogo de Custom Hooks -->
+      <section class="slide" data-module="Módulo 3: Análise e Comportamento" data-notes="Conforme o ADR 4.7, as telas do Expo Router nunca tocam diretamente no banco SQLite nem no hardware da câmera. Todos os fluxos são intermediados por Custom Hooks proprietários desenvolvidos em TypeScript estrito. Organizamos o catálogo em 4 pilares: Hooks de Contexto Global como useAuth e useConnectionState; Hooks Controladores de Use Cases como useLeitura e useUsinas; Hooks de Hardware como useCameraHardware e useGPS; e Hooks Utilitários de Formulário com Zod. Isso permite testar 100% da lógica de interface com renderHook sem precisar montar telas completas.">
+        <div class="slide-header">
+          <div class="slide-meta"><span class="slide-badge badge-cyan">ADR 4.7 & Apresentação</span></div>
+          <h2 class="slide-title">Arquitetura de Apresentação: Catálogo de Custom Hooks</h2>
+          <p class="slide-subtitle">Ponte reativa e desacoplada entre as telas do Expo Router e os Casos de Uso da Clean Architecture</p>
+        </div>
+        <div class="slide-body">
+          <div class="grid-4col">
+            <div class="card card-highlight-cyan">
+              <div class="card-title" style="font-size:0.95rem;">📱 1. Contextos Globais</div>
+              <div class="card-text" style="font-size:0.8rem;">
+                <strong>Gerenciamento Transversal:</strong>
+                <ul style="margin-left: 16px; margin-top: 6px; line-height: 1.5;">
+                  <li><code>useAuth()</code>: Sessão, perfil do usuário (Técnico/Admin) e login com PIN via cofre offline;</li>
+                  <li><code>useConnectionState()</code>: Monitor NetInfo em tempo real (Online/Offline) atendendo ao RNF06;</li>
+                  <li><code>useSync()</code>: Observa <code>action_queue</code>, contagem de pendências e botão de push manual.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="card card-highlight-emerald">
+              <div class="card-title" style="font-size:0.95rem;">⚙️ 2. Controladores (Use Cases)</div>
+              <div class="card-text" style="font-size:0.8rem;">
+                <strong>Regras de Negócio & Fluxos:</strong>
+                <ul style="margin-left: 16px; margin-top: 6px; line-height: 1.5;">
+                  <li><code>useLeitura()</code>: Validação, orquestração de mídia/GPS e gravação na fila offline (RF06);</li>
+                  <li><code>useUsinas()</code>: Busca e filtros reativos de usinas cacheadas no SQLite (RF05);</li>
+                  <li><code>useCadastrarUsina()</code>: Cadastro emergencial com status <em>Em Comissionamento</em> (RF07);</li>
+                  <li><code>useEmpresas()</code>: Gestão multi-tenant de clientes e técnicos.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="card card-highlight-amber">
+              <div class="card-title" style="font-size:0.95rem;">🔌 3. Sensores & Hardware SO</div>
+              <div class="card-text" style="font-size:0.8rem;">
+                <strong>Isolamento de Baixo Nível:</strong>
+                <ul style="margin-left: 16px; margin-top: 6px; line-height: 1.5;">
+                  <li><code>useCameraHardware()</code>: Permissões, disparo e compressão JPEG 1080p (~300KB) via FileSystem;</li>
+                  <li><code>useGPS()</code>: Prova de Presença (Proof of Presence) com política consultiva (não bloqueante);</li>
+                  <li><code>useSecureStore()</code>: Criptografia de PIN e tokens na Keystore (Android) e Keychain (iOS).</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="card card-highlight-rose">
+              <div class="card-title" style="font-size:0.95rem;">🛡️ 4. Formulários & Validação</div>
+              <div class="card-text" style="font-size:0.8rem;">
+                <strong>UX & Blindagem de Input:</strong>
+                <ul style="margin-left: 16px; margin-top: 6px; line-height: 1.5;">
+                  <li><code>useZodForm(schema)</code>: Wrapper integrando <code>react-hook-form</code> e <code>zodResolver</code> com inferência estrita de tipos;</li>
+                  <li><code>useDebounce(value)</code>: Otimização de busca sem sobrecarregar queries locais no SQLite;</li>
+                  <li><strong>TDD 100%:</strong> Testabilidade total com <code>renderHook</code> sem acoplamento a JSX.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="code-box" style="margin-top: 10px; font-size: 0.82rem; display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.3); padding: 10px 16px; border-radius: 8px;">
+            <span style="color: var(--text-bright); font-weight: 600;">🏛️ Padrão ViewModel:</span>
+            <code>Tela (UI / JSX)</code>
+            <span style="color: #38bdf8; font-size: 1.05rem; font-weight: bold; padding: 0 4px;">⇄</span>
+            <code>Custom Hook (Controller)</code>
+            <span style="color: #38bdf8; font-size: 1.05rem; font-weight: bold; padding: 0 4px;">⇄</span>
+            <code>Caso de Uso (Application)</code>
+            <span style="color: #38bdf8; font-size: 1.05rem; font-weight: bold; padding: 0 4px;">⇄</span>
+            <code>SQLite / Hardware (Infraestrutura)</code>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 17: [Skill Sec. 10] Mapeamento DDD -->
+      <section class="slide" data-module="Módulo 4: DDD & Engenharia Offline" data-notes="Na seção 10 da skill, detalhamos o design tático de Domain-Driven Design. Cada Aggregate Root é a fronteira de consistência transacional do sistema. Repositórios existem apenas para raízes de agregação. Adotamos linguagem ubíqua genuína do setor solar: Código UC, Consumo kWh, Comissionamento e Usina, rejeitando termos técnicos vazios.">
+        <div class="slide-header">
+          <div class="slide-meta"><span class="slide-badge badge-emerald">Skill: Seção 10</span></div>
+          <h2 class="slide-title">Mapeamento Tático DDD: Agregados & Linguagem Ubíqua</h2>
+          <p class="slide-subtitle">Fronteiras de consistência, raízes de agregação e respeito ao negócio solar</p>
+        </div>
+        <div class="slide-body">
+          <div class="grid-2col">
+            <div class="table-wrapper">
+              <table class="data-table">
+                <thead>
+                  <tr><th>Aggregate Root</th><th>Entidades Internas</th><th>Value Objects</th><th>Repositório Associado</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><strong>Empresa</strong></td><td>—</td><td>CNPJ, DataCriacao</td><td><code>IEmpresaRepository</code></td></tr>
+                  <tr><td><strong>Usuario</strong></td><td>—</td><td>Email, UUID</td><td><code>IUsuarioRepository</code></td></tr>
+                  <tr><td><strong>Usina</strong></td><td>—</td><td>CoordenadasGPS, CodigoUC</td><td><code>IUsinaRepository</code></td></tr>
+                  <tr><td><strong>Leitura</strong></td><td>—</td><td>CoordenadasGPS, ConsumokWh</td><td><code>ILeituraRepository</code></td></tr>
+                  <tr><td><strong>ActionQueueItem</strong></td><td>—</td><td>TipoOperacao, PayloadJSON</td><td><code>IActionQueueRepository</code></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="card card-highlight-cyan">
+              <div class="card-title">📖 Linguagem Ubíqua (Ubiquitous Language)</div>
+              <div class="card-text">
+                O código fala a mesma língua dos engenheiros de campo e integradores solares:
+                <ul style="margin-left: 18px; margin-top: 8px;">
+                  <li><strong>Usina:</strong> Unidade geradora fotovoltaica identificada por Código UC;</li>
+                  <li><strong>Leitura:</strong> Medição periódica de consumo e injeção em kWh;</li>
+                  <li><strong>Em Comissionamento:</strong> Usina recém instalada aguardando homologação do Admin;</li>
+                  <li><strong>ActionQueue:</strong> Log transacional de eventos operacionais offline.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 18: Por que UUIDv4 -->
+      <section class="slide" data-module="Módulo 4: DDD & Engenharia Offline" data-notes="Entrando nas decisões arquiteturais registradas no decisions.md: por que UUIDv4 no domínio? Em apps offline, IDs autoincrementais como 1, 2, 3 colapsam assim que dois aparelhos sincronizarem juntos. Ao gerar UUIDv4 na camada de domínio, cada leitura criada offline nasce com identidade globalmente única sem precisar falar com a nuvem.">
+        <div class="slide-header">
+          <div class="slide-meta"><span class="slide-badge badge-amber">ADR 2.1</span></div>
+          <h2 class="slide-title">Identificadores Universais: Por que UUIDv4 no Domínio?</h2>
+          <p class="slide-subtitle">Eliminando o colapso de integridade relacional em sincronizações concorrentes</p>
+        </div>
+        <div class="slide-body">
+          <div class="grid-2col">
+            <div class="card card-highlight-rose">
+              <div class="card-title">❌ O Desastre do Auto-Incremento (1, 2, 3...)</div>
+              <div class="card-text">
+                Se o SQLite local gerasse IDs sequenciais:
+                <ul style="margin-left: 18px; margin-top: 8px;">
+                  <li>Técnico A em Goiás cria uma Leitura com ID <code>101</code> offline;</li>
+                  <li>Técnico B na Bahia cria outra Leitura com ID <code>101</code> offline;</li>
+                  <li>Ao sincronizarem com o Supabase ao mesmo tempo, ocorre colisão catastrófica de Chave Primária;</li>
+                  <li>O banco exige remapeamento complexo de chaves estrangeiras, corrompendo referências locais.</li>
+                </ul>
+              </div>
+            </div>
+            <div class="card card-highlight-emerald">
+              <div class="card-title">✅ A Elegância Matemática do UUIDv4 no Domínio</div>
+              <div class="card-text">
+                O ID é gerado pela própria classe de Domínio antes de salvar no SQLite:
+                <ul style="margin-left: 18px; margin-top: 8px;">
+                  <li>Espaço de 128 bits: probabilidade de colisão menor que 10<sup>-15</sup>;</li>
+                  <li>Unicidade universal garantida mesmo com dezenas de técnicos offline;</li>
+                  <li>Chaves estrangeiras locais já nascem apontando para o UUID final;</li>
+                  <li>Zero necessidade de handshake prévio com a API do servidor remoto.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 19: Action Queue e Sync Delta -->
+      <section class="slide" data-module="Módulo 4: DDD & Engenharia Offline" data-notes="No ADR 2.2 decidimos pela Action Queue combinada com Sync Delta. Cada modificação offline gera um item de log transacional local. Quando a rede volta, fazemos o push ordenado da fila e em seguida puxamos apenas os registros que mudaram após o last_sync_timestamp, economizando pacote de dados 3G do técnico.">
+        <div class="slide-header">
+          <div class="slide-meta"><span class="slide-badge badge-cyan">ADR 2.2</span></div>
+          <h2 class="slide-title">Action Queue & Motor de Sincronização Delta</h2>
+          <p class="slide-subtitle">Log transacional ordenado no cliente e tráfego delta econômico em redes instáveis</p>
+        </div>
+        <div class="slide-body">
+          <div class="grid-2col">
+            <div class="card card-highlight-cyan">
+              <div class="card-title">📋 A Tabela action_queue (Log Transacional)</div>
+              <div class="card-text">
+                Toda escrita offline grava uma linha atômica na tabela local:
+                <div class="code-box" style="margin-top: 8px;">
+                  id: UUIDv4<br>
+                  tipo_operacao: 'INSERT_LEITURA' | 'INSERT_USINA' | ...<br>
+                  payload_json: { ...dados completos serializados }<br>
+                  timestamp: Data/hora exata do evento local<br>
+                  tentativas: Contador de retries (máx 5)
+                </div>
+                Garante que mesmo se o app for finalizado pelo sistema operacional, nenhuma transação é esquecida.
+              </div>
+            </div>
+            <div class="card card-highlight-emerald">
+              <div class="card-title">⚡ Push Ordenado & Pull Delta Incremental</div>
+              <div class="card-text">
+                <strong>Push Sync:</strong> O <code>SyncManager</code> consome a fila respeitando a ordem cronológica dos eventos, garantindo consistência causal.
+                <br><br>
+                <strong>Pull Sync Delta:</strong> Em vez de baixar o banco inteiro da nuvem, o aplicativo consulta apenas:
+                <div class="code-box" style="margin-top: 6px;">
+                  SELECT * FROM usinas WHERE updated_at > :last_sync_timestamp;
+                </div>
+                Redução de 99% no consumo de banda móvel e processamento no dispositivo.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 20: Otimização de Mídia -->
+      <section class="slide" data-module="Módulo 4: DDD & Engenharia Offline" data-notes="No ADR 3.1 tratamos a mídia. Câmeras atuais tiram fotos de 12 a 15 megabytes. 50 leituras ocupariam quase 1GB do celular do técnico e o upload falharia em redes 3G rurais. Usamos o expo-image-manipulator para comprimir para JPEG 1080p com qualidade 75%. O arquivo cai para cerca de 300 kilobytes sem perder a nitidez dos dígitos do relógio.">
+        <div class="slide-header">
+          <div class="slide-meta"><span class="slide-badge badge-amber">ADR 3.1</span></div>
+          <h2 class="slide-title">Otimização de Mídia: Compressão Agressiva 1080p</h2>
+          <p class="slide-subtitle">Redução de 95% do tamanho de arquivo sem sacrificar legibilidade técnica dos medidores</p>
+        </div>
+        <div class="slide-body">
+          <div class="grid-3col">
+            <div class="card card-highlight-rose">
+              <div class="card-title">📸 Mídia Bruta da Câmera</div>
+              <div class="card-text">
+                Sensores modernos de smartphones geram arquivos de <strong>8MB a 15MB</strong> por clique.
+                <br><br>
+                50 vistorias = ~600MB de espaço ocupado e timeout constante ao tentar subir via rede 3G instável.
+              </div>
+            </div>
+            <div class="card card-highlight-amber">
+              <div class="card-title">⚙️ Pipeline de Processamento</div>
+              <div class="card-text">
+                Processamento imediato no <code>CameraAdapter</code> via <code>expo-image-manipulator</code>:
+                <ul style="margin-left: 18px; margin-top: 6px;">
+                  <li>Redimensionamento proporcional máx: 1080p;</li>
+                  <li>Compressão JPEG ajustada para 70-80%;</li>
+                  <li>Execução assíncrona sem congelar a UI (&lt; 800ms).</li>
+                </ul>
+              </div>
+            </div>
+            <div class="card card-highlight-emerald">
+              <div class="card-title">🎯 Resultado Otimizado</div>
+              <div class="card-text">
+                Arquivo final comprimido para <strong>~300KB</strong> (redução de 95%).
+                <br><br>
+                Preserva nitidez total dos dígitos mecânicos e digitais para auditoria humana e OCR futuro, viabilizando upload instantâneo.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 21: Prova de Presença & GPS -->
+      <section class="slide" data-module="Módulo 4: DDD & Engenharia Offline" data-notes="No ADR 5.4 estabelecemos a política de Proof of Presence. O GPS é obrigatório para auditoria física, mas decidimos que ele atua como CONSULTA, e NÃO como bloqueio. Se o técnico estiver dentro de um galpão com telhas de zinco e o sinal de satélite falhar, o app emite aviso mas NÃO impede o salvamento. A prioridade máxima é não parar a operação de campo.">
+        <div class="slide-header">
+          <div class="slide-meta"><span class="slide-badge badge-cyan">ADR 5.4</span></div>
+          <h2 class="slide-title">Prova de Presença (Proof of Presence) e GPS Consultivo</h2>
+          <p class="slide-subtitle">Auditoria de campo georreferenciada sem paralisar o trabalho sob condições adversas</p>
+        </div>
+        <div class="slide-body">
+          <div class="grid-2col">
+            <div class="card card-highlight-cyan">
+              <div class="card-title">📍 Auditoria Georreferenciada</div>
+              <div class="card-text">
+                No instante em que o técnico fotografa o medidor, o módulo de hardware aciona o <code>expo-location</code> para capturar as coordenadas de latitude e longitude.
+                <br><br>
+                Esses dados são salvos no Value Object <code>CoordenadasGPS</code>, comprovando aos investidores e gestores que o técnico esteve fisicamente nas imediações da unidade consumidora (UC).
+              </div>
+            </div>
+            <div class="card card-highlight-amber">
+              <div class="card-title">🛡️ Política de Engenharia: GPS Consultivo</div>
+              <div class="card-text">
+                <strong>O Dilema:</strong> Em salas de comando blindadas ou galpões industriais com telhas de aço, o satélite GPS pode demorar ou não travar sinal.
+                <br><br>
+                <strong>A Decisão:</strong> O GPS atua para auditoria consultiva. O app alerta falta de sinal ou baixa precisão, mas <strong>nunca bloqueia</strong> o técnico de salvar a medição e seguir sua rota.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 22: Segurança Offline e Cold Start -->
+      <section class="slide" data-module="Módulo 4: DDD & Engenharia Offline" data-notes="Nos ADRs 1.3 e 3.2 resolvemos um problema clássico: tokens JWT expiram. Como o técnico abre o app após 5 dias no mato sem internet? Adotamos o Cold Start: o primeiro login exige internet para baixar o catálogo e configurar o cofre de sessão no expo-secure-store. Nos dias seguintes, o técnico destrava o app com PIN local ou Biometria direto no hardware do aparelho, ignorando o JWT expirado.">
+        <div class="slide-header">
+          <div class="slide-meta"><span class="slide-badge badge-rose">ADR 1.3 & 3.2</span></div>
+          <h2 class="slide-title">Segurança em Desconexão: Cold Start & Cofre de Sessão</h2>
+          <p class="slide-subtitle">Como garantir login offline seguro quando os tokens JWT corporativos já expiraram?</p>
+        </div>
+        <div class="slide-body">
+          <div class="grid-2col">
+            <div class="card card-highlight-rose">
+              <div class="card-title">❄️ Cold Start Mandatório (Primeiro Acesso)</div>
+              <div class="card-text">
+                Após instalar o aplicativo, o primeiro login exige conectividade obrigatória com a internet:
+                <ul style="margin-left: 18px; margin-top: 8px;">
+                  <li>Autentica no Supabase Auth e obtém o token JWT;</li>
+                  <li>Solicita o cadastro de um PIN Local de 6 dígitos ou Biometria (FaceID/Digital);</li>
+                  <li>Executa o Pull Sync inicial para popular o SQLite com as usinas da empresa.</li>
+                </ul>
+              </div>
+            </div>
+            <div class="card card-highlight-emerald">
+              <div class="card-title">🔐 Cofre em Hardware (expo-secure-store)</div>
+              <div class="card-text">
+                O PIN e as credenciais offline são gravados na Keystore (Android) e Keychain (iOS):
+                <ul style="margin-left: 18px; margin-top: 8px;">
+                  <li>Em campo desconectado, o app valida o PIN localmente contra o cofre seguro;</li>
+                  <li>Libera a UI e o SQLite mesmo se o token JWT de rede estiver expirado;</li>
+                  <li>Ao voltar a ter internet, o SyncManager renova a sessão remota em background silenciosamente.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 23: Registro Formal de ADRs -->
+      <section class="slide" data-module="Módulo 5: Decisões & Casos de Borda" data-notes="Na engenharia moderna, decisões técnicas não nascem do nada. Adotamos o padrão formal de ADR (Architecture Decision Records). Temos 18 decisões documentadas no decisions.md, cada uma com contexto, opções avaliadas, decisão e fundamentação técnica. Isso garante rastreabilidade histórica e maturidade técnica para a equipe.">
+        <div class="slide-header">
+          <div class="slide-meta"><span class="slide-badge badge-amber">Prática Profissional</span></div>
+          <h2 class="slide-title">Rigor de Engenharia: Prática Formal de ADRs</h2>
+          <p class="slide-subtitle">18 Decisões de Arquitetura documentadas com análise criteriosa de trade-offs</p>
+        </div>
+        <div class="slide-body">
+          <div class="grid-3col">
+            <div class="card card-highlight-cyan">
+              <div class="card-title">1. Arquitetura Geral</div>
+              <div class="card-text">
+                <strong>ADR 1.1:</strong> Paradigma Offline-First;<br>
+                <strong>ADR 1.2:</strong> Sistema 100% Mobile (sem web separada);<br>
+                <strong>ADR 1.3:</strong> Conectividade mandatória no Cold Start.
+              </div>
+            </div>
+            <div class="card card-highlight-emerald">
+              <div class="card-title">2. Dados & Sync</div>
+              <div class="card-text">
+                <strong>ADR 2.1:</strong> PKs UUIDv4 geradas no Domínio;<br>
+                <strong>ADR 2.2:</strong> Sincronização Delta Bidirecional;<br>
+                <strong>ADR 2.3:</strong> Resolução Last Write Wins;<br>
+                <strong>ADR 2.4:</strong> Migrações SQLite no Splash.
+              </div>
+            </div>
+            <div class="card card-highlight-rose">
+              <div class="card-title">3. Qualidade & Hardware</div>
+              <div class="card-text">
+                <strong>ADR 3.1:</strong> Compressão JPEG 1080p (~300KB);<br>
+                <strong>ADR 3.2:</strong> Cofre PIN/Biometria offline;<br>
+                <strong>ADR 4.1:</strong> Clean Architecture + DDD;<br>
+                <strong>ADR 4.2:</strong> TDD estrito com Jest e RNTL.
+              </div>
+            </div>
+          </div>
+          <div class="code-box" style="margin-top: 10px;">
+            📄 <strong>Estrutura Padrão de Cada ADR:</strong> Contexto &rarr; Opções Consideradas com Prós e Contras &rarr; Decisão Final Adotada &rarr; Justificativa Técnica Fundamentada.
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 24: ADRs Críticos: Last Write Wins & Storage First -->
+      <section class="slide" data-module="Módulo 5: Decisões & Casos de Borda" data-notes="Dois ADRs críticos merecem destaque. O ADR 2.3 substituiu pop-ups de merge por Last Write Wins automático: técnicos no campo não entendem de conflito de dados; o app resolve pela data da medição mais recente. E o ADR 5.5 define 'Storage Always First': a foto sobe antes do registro no banco. Uma foto órfã é tolerável, mas uma leitura sem foto quebra a regra central do negócio.">
+        <div class="slide-header">
+          <div class="slide-meta"><span class="slide-badge badge-rose">ADRs Críticos</span></div>
+          <h2 class="slide-title">ADRs Críticos: Last Write Wins & Storage Always First</h2>
+          <p class="slide-subtitle">Soluções arquiteturais desenhadas para proteção de integridade e experiência fluida</p>
+        </div>
+        <div class="slide-body">
+          <div class="grid-2col">
+            <div class="card card-highlight-amber">
+              <div class="card-title">🤖 ADR 2.3 — Auto-Merge Last Write Wins</div>
+              <div class="card-text">
+                <strong>O Problema:</strong> Se dois técnicos enviarem leituras conflitantes para a mesma usina, como resolver?
+                <br><br>
+                <strong>Decisão:</strong> Abandonamos pop-ups na tela ("Qual versão manter?"). Técnicos leigos ficam confusos com merges manuais.
+                <br><br>
+                O sistema avalia o carimbo de medição (<code>data_hora</code>) e consolida a mais recente automaticamente, emitindo apenas uma notificação silenciosa de status.
+              </div>
+            </div>
+            <div class="card card-highlight-emerald">
+              <div class="card-title">🛡️ ADR 5.5 — Storage (Imagem) Always First</div>
+              <div class="card-text">
+                <strong>O Dilema de Ordem:</strong> Devemos subir o texto no PostgreSQL primeiro ou a foto no Storage primeiro?
+                <br><br>
+                <strong>Decisão:</strong> A foto é enviada obrigatoriamente <strong>antes</strong> do registro relacional.
+                <br><br>
+                <strong>Justificativa Fail-Safe:</strong> Se a conexão cair após subir a foto, temos no máximo uma imagem temporária órfã. Mas se o banco subisse primeiro, teríamos uma Leitura aprovada sem foto comprobatória, violando a regra de negócio.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 25: Gestão de Edge Cases -->
+      <section class="slide" data-module="Módulo 5: Decisões & Casos de Borda" data-notes="Demonstrando a maturidade do planejamento, mapeamos 12 casos de borda específicos. Destaque para o Soft Delete offline: usinas nunca sofrem exclusão física; registros antigos são expurgados após 30 dias para não lotar o celular; e se o técnico negar permissão de câmera, uma Fallback UI interativa o guia até as configurações do aparelho.">
+        <div class="slide-header">
+          <div class="slide-meta"><span class="slide-badge badge-cyan">Resiliência Operacional</span></div>
+          <h2 class="slide-title">Tratamento de Edge Cases Operacionais</h2>
+          <p class="slide-subtitle">Prevenção ativa contra corrupção de banco, sobrecarga de disco e negações de hardware</p>
+        </div>
+        <div class="slide-body">
+          <div class="grid-4col">
+            <div class="card card-highlight-cyan">
+              <div class="card-title" style="font-size:0.95rem;">🗑️ Soft Delete Universal</div>
+              <div class="card-text" style="font-size:0.8rem;">
+                <strong>ADR 5.1:</strong> Nunca usamos Hard Delete via app. Usinas são apenas inativadas. As ações <code>UPDATE_USINA</code> e <code>DELETE_USINA</code> são suportadas offline na fila.
+              </div>
+            </div>
+            <div class="card card-highlight-amber">
+              <div class="card-title" style="font-size:0.95rem;">🧹 Expurgo de 30 Dias</div>
+              <div class="card-text" style="font-size:0.8rem;">
+                <strong>ADR 5.8:</strong> Rotina periódica limpa do SQLite e do FileSystem registros onde <code>status = 'Sincronizada'</code> há mais de 30 dias, poupando armazenamento do celular.
+              </div>
+            </div>
+            <div class="card card-highlight-rose">
+              <div class="card-title" style="font-size:0.95rem;">🚫 Permissões Negadas</div>
+              <div class="card-text" style="font-size:0.8rem;">
+                <strong>ADR 5.12:</strong> Se a câmera for negada no SO, a tela exibe uma Fallback UI com botão de redirecionamento direto via <code>Linking.openSettings()</code>.
+              </div>
+            </div>
+            <div class="card card-highlight-emerald">
+              <div class="card-title" style="font-size:0.95rem;">📦 Migrações SQLite</div>
+              <div class="card-text" style="font-size:0.8rem;">
+                <strong>ADR 2.4:</strong> Scripts de DDL sequenciais rodam na tela de Splash via pragma <code>user_version</code>, atualizando o banco local sem apagar leituras pendentes.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 26: TDD no Núcleo do Sistema -->
+      <section class="slide" data-module="Módulo 6: Qualidade & Rastreabilidade" data-notes="Na seção 10 da skill, abordamos o TDD (Test-Driven Development). Nossa diretriz é clara: nenhuma linha de código de produção será escrita sem que um teste automatizado falhe antes (Red). Rodamos testes unitários ultrarrápidos no Domínio usando fakes em memória, subindo para testes de integração de SQLite apenas na camada de infraestrutura.">
+        <div class="slide-header">
+          <div class="slide-meta"><span class="slide-badge badge-emerald">Skill: Seção 10</span></div>
+          <h2 class="slide-title">Test-Driven Development (TDD) no Núcleo do Sistema</h2>
+          <p class="slide-subtitle">Disciplina Red &rarr; Green &rarr; Refactor com pirâmide de testes desacoplada</p>
+        </div>
+        <div class="slide-body">
+          <div class="grid-3col">
+            <div class="card card-highlight-rose">
+              <div class="card-title">🔴 1. Red (Falha Prévia)</div>
+              <div class="card-text">
+                Escrever a suíte de testes unitários antes de qualquer código em <code>tests/unit/domain/</code>.
+                <br><br>
+                Rodar <code>npm test</code> e garantir que a falha ocorre pelo motivo exato esperado (ex: entidade não existe ou método ainda não implementado).
+              </div>
+            </div>
+            <div class="card card-highlight-emerald">
+              <div class="card-title">🟢 2. Green (Código Mínimo)</div>
+              <div class="card-text">
+                Implementar o código de produção mais simples e direto possível para fazer os testes passarem sem introduzir efeitos colaterais.
+                <br><br>
+                Uso de repositórios em memória (In-Memory Fakes) para testar Use Cases em milissegundos sem banco real.
+              </div>
+            </div>
+            <div class="card card-highlight-cyan">
+              <div class="card-title">🔵 3. Refactor (Otimização)</div>
+              <div class="card-text">
+                Refatorar o design do código, eliminar redundâncias, aplicar Value Objects e extrair métodos mantendo 100% da suíte verde.
+                <br><br>
+                Garantia matemática contra regressão de requisitos funcionais em manutenções futuras.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 27: Matriz de Rastreabilidade End-to-End -->
+      <section class="slide" data-module="Módulo 6: Qualidade & Rastreabilidade" data-notes="Este é um dos slides mais importantes para a banca avaliadora: a Matriz de Rastreabilidade End-to-End. Cada requisito funcional mapeia diretamente para um Caso de Uso, uma Entidade de Domínio e o arquivo exato de teste automatizado que comprovará sua aceitação no repositório.">
+        <div class="slide-header">
+          <div class="slide-meta"><span class="slide-badge badge-emerald">Skill: Seção 10</span></div>
+          <h2 class="slide-title">Matriz de Rastreabilidade End-to-End</h2>
+          <p class="slide-subtitle">Encadeamento formal: Requisito Funcional &rarr; Caso de Uso &rarr; Entidade &rarr; Teste TDD</p>
+        </div>
+        <div class="slide-body">
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr><th>ID RF</th><th>Descrição</th><th>Caso de Uso (Application)</th><th>Entidade (Domain)</th><th>Arquivo de Teste TDD</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><strong>RF01</strong></td><td>Autenticação e sessão segura</td><td><code>AutenticarUsuarioUseCase</code></td><td><code>Usuario</code></td><td><code>tests/unit/domain/Usuario.spec.ts</code></td></tr>
+                <tr><td><strong>RF02</strong></td><td>Cadastrar Empresas clientes</td><td><code>CadastrarEmpresaUseCase</code></td><td><code>Empresa</code></td><td><code>tests/unit/domain/Empresa.spec.ts</code></td></tr>
+                <tr><td><strong>RF03</strong></td><td>Pré-cadastro de Usinas</td><td><code>CadastrarUsinaUseCase</code></td><td><code>Usina</code></td><td><code>tests/unit/domain/Usina.spec.ts</code></td></tr>
+                <tr><td><strong>RF05</strong></td><td>Consulta offline de Usinas</td><td><code>ConsultarUsinasUseCase</code></td><td><code>Usina</code></td><td><code>tests/unit/application/ConsultarUsinas.spec.ts</code></td></tr>
+                <tr><td><strong>RF06</strong></td><td>Registro de Nova Leitura</td><td><code>RegistrarLeituraUseCase</code></td><td><code>Leitura</code></td><td><code>tests/unit/domain/Leitura.spec.ts</code></td></tr>
+                <tr><td><strong>RF08</strong></td><td>Compressão de Mídia</td><td><em>N/A (InfraService)</em></td><td><code>CameraAdapter</code></td><td><code>tests/integration/infra/CameraAdapter.spec.ts</code></td></tr>
+                <tr><td><strong>RF10</strong></td><td>Push Sync assíncrono</td><td><code>ProcessarFilaUseCase</code></td><td><code>SyncManager</code></td><td><code>tests/integration/infra/SyncManager.spec.ts</code></td></tr>
+                <tr><td><strong>RF12</strong></td><td>Resolução de Conflitos</td><td><code>ResolverConflitoUseCase</code></td><td><code>Leitura</code></td><td><code>tests/unit/application/ResolverConflito.spec.ts</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 28: Dupla Validação: Zod vs Invariantes -->
+      <section class="slide" data-module="Módulo 6: Qualidade & Rastreabilidade" data-notes="No ADR 5.7 decidimos pela validação em duas camadas. Não dependemos apenas do Zod no formulário. O Zod atua na Apresentação para feedback instantâneo ao usuário; já o Domínio encapsula Invariantes fechadas com validações irredutíveis. Se um dado malicioso contornar o formulário, o construtor do Domínio recusa a criação do objeto e barra a corrupção do SQLite.">
+        <div class="slide-header">
+          <div class="slide-meta"><span class="slide-badge badge-amber">ADR 5.7</span></div>
+          <h2 class="slide-title">Defesa em Duas Camadas: Zod vs. Invariantes de Domínio</h2>
+          <p class="slide-subtitle">Feedback instantâneo na UI combinado com blindagem hermética do núcleo de negócio</p>
+        </div>
+        <div class="slide-body">
+          <div class="grid-2col">
+            <div class="card card-highlight-cyan">
+              <div class="card-title">🎨 1ª Barreira: Apresentação (Zod + React Hook Form)</div>
+              <div class="card-text">
+                <strong>Objetivo:</strong> Experiência do usuário (UX) ágil e feedback visual na tela.
+                <ul style="margin-left: 18px; margin-top: 8px;">
+                  <li>Impede cliques vazios nos botões de formulário;</li>
+                  <li>Exibe mensagens amigáveis de validação tipada de campos;</li>
+                  <li>Formata máscaras em tempo real (ex: CNPJ da empresa e decimais de kWh).</li>
+                </ul>
+              </div>
+            </div>
+            <div class="card card-highlight-emerald">
+              <div class="card-title">🛡️ 2ª Barreira: Invariantes do Domínio (DDD)</div>
+              <div class="card-text">
+                <strong>Objetivo:</strong> Garantia inegociável de sanidade e integridade dos dados.
+                <ul style="margin-left: 18px; margin-top: 8px;">
+                  <li>Classes <code>Leitura</code> e <code>Usina</code> possuem invariantes em seus métodos;</li>
+                  <li>Lançam exceções de domínio se <code>valorKwh &lt; 0</code> ou coordenadas forem inválidas;</li>
+                  <li>Mesmo se a UI for burlada, o banco local e a fila nunca receberão registros corrompidos.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 29: Auditoria Técnica e Refinamentos -->
+      <section class="slide" data-module="Módulo 7: Conclusão & Próximos Passos" data-notes="Demonstrando autocrítica profissional, realizamos uma revisão técnica antes de iniciar o código (docs/Revisao.md). Cruzamos a proposta original com os ADRs e encontramos divergências que corrigimos a tempo: alinhamos o escopo multi-tenant de 3 perfis, consolidamos o Auto-Merge sem pop-ups manuais e corrigimos a constraint CHECK da action_queue para aceitar UPDATE e DELETE de usinas.">
+        <div class="slide-header">
+          <div class="slide-meta"><span class="slide-badge badge-cyan">Auditoria Técnica</span></div>
+          <h2 class="slide-title">Auditoria Técnica & Refinamentos Identificados</h2>
+          <p class="slide-subtitle">Controle de qualidade preventivo realizado antes de escrever código descartável</p>
+        </div>
+        <div class="slide-body">
+          <div class="grid-2col">
+            <div class="card card-highlight-emerald">
+              <div class="card-title">✅ Pontos Fortes Consolidados</div>
+              <div class="card-text">
+                <ul style="margin-left: 18px; line-height: 1.6;">
+                  <li>ADRs minuciosos cobrindo 18 decisões de engenharia de software;</li>
+                  <li>Matriz de rastreabilidade end-to-end completa dos requisitos funcionais;</li>
+                  <li>Persistência descentralizada sem conflitos com UUIDv4 no domínio;</li>
+                  <li>Tratamento de 12 edge cases reais de ambiente móvel rural.</li>
+                </ul>
+              </div>
+            </div>
+            <div class="card card-highlight-amber">
+              <div class="card-title">🔧 Refinamentos e Ajustes Identificados</div>
+              <div class="card-text">
+                <ul style="margin-left: 18px; line-height: 1.6;">
+                  <li><strong>Escopo Multi-Tenant:</strong> Inclusão formal de 3 perfis e da tela de gestão;</li>
+                  <li><strong>Auto-Merge:</strong> Unificação da resolução automática Last Write Wins;</li>
+                  <li><strong>Schema SQLite:</strong> Ajuste da constraint CHECK da <code>action_queue</code> para incluir <code>UPDATE_USINA</code> e <code>DELETE_USINA</code>;</li>
+                  <li><strong>Tentativas Máximas:</strong> Definição da constante <code>MAX_TENTATIVAS_SYNC = 5</code>.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 30: Roadmap de Implementação -->
+      <section class="slide" data-module="Módulo 7: Conclusão & Próximos Passos" data-notes="Com o planejamento 100% concluído e validado, nosso cronograma de implementação seguirá estritamente a ordem da Clean Architecture: primeiro o Domínio com testes unitários em TDD; segundo a Infraestrutura SQLite e adaptadores de câmera; terceiro o SyncManager com Supabase; e por último as telas de apresentação no Expo Router.">
+        <div class="slide-header">
+          <div class="slide-meta"><span class="slide-badge badge-cyan">Cronograma de Engenharia</span></div>
+          <h2 class="slide-title">Roadmap de Implementação: Fases de Desenvolvimento</h2>
+          <p class="slide-subtitle">Construção estratificada de dentro para fora: Domínio &rarr; Infraestrutura &rarr; UI</p>
+        </div>
+        <div class="slide-body">
+          <div class="grid-4col">
+            <div class="card card-highlight-rose">
+              <div class="card-title" style="font-size:0.95rem;">Fase 1: Domínio & TDD</div>
+              <div class="card-text" style="font-size:0.82rem;">
+                <strong>Semana 1</strong><br><br>
+                Implementação das Entidades (<code>Usina</code>, <code>Leitura</code>, <code>Empresa</code>), Value Objects e Casos de Uso com 100% dos testes unitários passando em Jest.
+              </div>
+            </div>
+            <div class="card card-highlight-amber">
+              <div class="card-title" style="font-size:0.95rem;">Fase 2: Infra & SQLite</div>
+              <div class="card-text" style="font-size:0.82rem;">
+                <strong>Semana 2</strong><br><br>
+                Migrações do <code>expo-sqlite</code>, adaptadores de repositório local, compressão no <code>CameraAdapter</code> e testes de integração de persistência.
+              </div>
+            </div>
+            <div class="card card-highlight-emerald">
+              <div class="card-title" style="font-size:0.95rem;">Fase 3: Sync & Supabase</div>
+              <div class="card-text" style="font-size:0.82rem;">
+                <strong>Semana 3</strong><br><br>
+                Fila de ações (<code>action_queue</code>), monitor NetInfo, integração com Supabase Storage e algoritmo de sincronização delta Push/Pull.
+              </div>
+            </div>
+            <div class="card card-highlight-cyan">
+              <div class="card-title" style="font-size:0.95rem;">Fase 4: UI & Expo Router</div>
+              <div class="card-text" style="font-size:0.82rem;">
+                <strong>Semana 4</strong><br><br>
+                Telas de navegação (tabs e stacks), formulários com React Hook Form + Zod, feedback visual de conectividade e testes E2E.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 31: Conclusão e Q&A -->
+      <section class="slide" data-module="Módulo 7: Conclusão & Próximos Passos" data-notes="Para concluir: o Equinox Mobile é a união da necessidade real de um setor vital com as melhores práticas da engenharia de software contemporânea. Temos uma arquitetura desacoplada, TDD, garantia matemática contra colisões e tratamento rigoroso de exceções. Agradecemos a atenção da banca e estamos prontos para a sessão de perguntas e respostas.">
+        <div class="hero-container">
+          <div class="hero-badge">🎓 Equinox Mobile • Excelência em Engenharia</div>
+          <h1 class="hero-title" style="font-size:2.8rem;">Engenharia Robusta para o Mundo Real</h1>
+          <p class="hero-subtitle">
+            Um sistema desenhado desde o primeiro dia para operar com autonomia absoluta no campo e integridade inegociável na nuvem.
+          </p>
+
+          <div class="hero-tags" style="margin-bottom: 28px;">
+            <div class="hero-tag-item">✨ Offline-First Real</div>
+            <div class="hero-tag-item">🏛️ Clean Arch & DDD</div>
+            <div class="hero-tag-item">🧪 100% Cobertura TDD</div>
+            <div class="hero-tag-item">📑 18 ADRs Documentados</div>
+          </div>
+
+          <div style="font-family: var(--font-display); font-size: 1.2rem; color: var(--solar-gold); font-weight: 700;">
+            Obrigado! Sessão aberta para Perguntas & Respostas (Q&A)
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="deck-footer">
+    <div class="keyboard-hints">
+      <span><span class="kbd">←</span> <span class="kbd">→</span> Navegar</span>
+      <span><span class="kbd">G</span> Grade de Slides</span>
+      <span><span class="kbd">S</span> Notas do Apresentador</span>
+      <span><span class="kbd">F</span> Tela Cheia</span>
+    </div>
+
+    <div class="slide-counter">
+      Slide <span id="current-slide-num">1</span> de <span id="total-slides-num">31</span>
+    </div>
+
+    <div class="footer-nav">
+      <button class="btn-icon" id="btn-prev" title="Slide Anterior (←)">‹</button>
+      <button class="btn-icon" id="btn-next" title="Próximo Slide (→)">›</button>
+    </div>
+  </footer>
+
+  <!-- Speaker Notes Drawer -->
+  <aside id="speaker-notes-drawer">
+    <div class="notes-header">
+      <h4><span>✎</span> Notas do Apresentador</h4>
+      <button class="btn-icon" id="btn-close-notes" style="width:28px; height:28px;">✕</button>
+    </div>
+    <div class="notes-body" id="notes-content">
+      <!-- Injetado dinamicamente -->
+    </div>
+  </aside>
+
+  <!-- Grid Overview Modal -->
+  <div id="grid-modal">
+    <div class="grid-header">
+      <h3>Visão Geral da Apresentação (31 Slides)</h3>
+      <button class="btn-icon" id="btn-close-grid" style="width:32px; height:32px;">✕</button>
+    </div>
+    <div class="grid-deck" id="grid-deck-container">
+      <!-- Injetado dinamicamente -->
+    </div>
+  </div>
+
+  <!-- DEDICATED FULLSCREEN DIAGRAM VIEWER MODAL -->
+  <div id="diagram-modal">
+    <div class="modal-header">
+      <div class="modal-title">
+        <span>🔍</span> <span id="modal-diagram-title">Visualizador de Diagrama</span>
+      </div>
+      <div class="diagram-controls">
+        <span class="zoom-level-badge" id="modal-zoom-level">100%</span>
+        <button class="diag-btn" id="modal-zoom-out" title="Diminuir Zoom">−</button>
+        <button class="diag-btn" id="modal-zoom-in" title="Aumentar Zoom">+</button>
+        <button class="diag-btn modal-scale-set" data-scale="1.0" title="100%">100%</button>
+        <button class="diag-btn modal-scale-set" data-scale="1.5" title="150%">150%</button>
+        <button class="diag-btn modal-scale-set" data-scale="2.0" title="200%">200%</button>
+        <button class="diag-btn modal-scale-set" data-scale="3.0" title="300%">300%</button>
+        <button class="diag-btn" id="modal-zoom-reset" title="Resetar">↺ 100%</button>
+        <button class="diag-btn" id="modal-close" style="margin-left: 12px; background: rgba(244, 63, 94, 0.2); border-color: rgba(244, 63, 94, 0.4);">✕ Fechar (Esc)</button>
+      </div>
+    </div>
+    <div class="modal-viewport" id="modal-viewport">
+      <div class="modal-canvas" id="modal-canvas">
+        <!-- SVG clonado para visualização em alta escala -->
+      </div>
+    </div>
+    <div class="modal-footer">
+      <div>💡 <strong>Modo Explorador:</strong> Gire a <strong>roda do mouse</strong> para Zoom In/Out • Clique e <strong>arraste</strong> para mover o diagrama livremente.</div>
+      <div>Pressione <span class="kbd">Esc</span> para fechar</div>
+    </div>
+  </div>
+
+  <script>
+    // Configuração e Inicialização do Mermaid
+    mermaid.initialize({
+      startOnLoad: false, // Controlado manualmente para renderizar mesmo em slides com opacity
+      theme: 'dark',
+      themeVariables: {
+        darkMode: true,
+        background: '#090d16',
+        primaryColor: '#1e293b',
+        primaryTextColor: '#f3f4f6',
+        primaryBorderColor: '#f59e0b',
+        lineColor: '#38bdf8',
+        secondaryColor: '#0f172a',
+        tertiaryColor: '#111827',
+        fontSize: '12px',
+        fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+      },
+      flowchart: {
+        curve: 'basis',
+        htmlLabels: true,
+        padding: 24,
+        nodeSpacing: 40,
+        rankSpacing: 40,
+        subGraphTitleMargin: { top: 15, bottom: 15 }
+      },
+      er: { useMaxWidth: false },
+      sequence: {
+        actorFontSize: 12,
+        messageFontSize: 11,
+        boxMargin: 16,
+        boxTextMargin: 10,
+        noteMargin: 12,
+        messageMargin: 40
+      }
+    });
+
+    // Renderização explícita de todos os blocos Mermaid
+    window.addEventListener('DOMContentLoaded', async () => {
+      try {
+        // Aguardar carregamento completo das fontes antes de medir textos SVG
+        if (document.fonts && document.fonts.ready) {
+          await document.fonts.ready;
+        }
+        await mermaid.run({ querySelector: '.mermaid' });
+        // Após renderizar, inicializar controladores de Pan & Zoom
+        initAllPanZoomControllers();
+      } catch (err) {
+        console.warn('Mermaid render warning:', err);
+        initAllPanZoomControllers();
+      }
+    });
+
+    // Gestão de Slides
+    const slides = Array.from(document.querySelectorAll('.slide'));
+    const totalSlides = slides.length;
+    let currentSlideIndex = 0;
+
+    const progressBar = document.getElementById('progress-bar');
+    const currentSlideNumEl = document.getElementById('current-slide-num');
+    const totalSlidesNumEl = document.getElementById('total-slides-num');
+    const modulePillEl = document.getElementById('module-pill');
+    const notesContentEl = document.getElementById('notes-content');
+    const notesDrawer = document.getElementById('speaker-notes-drawer');
+    const gridModal = document.getElementById('grid-modal');
+    const gridDeckContainer = document.getElementById('grid-deck-container');
+
+    totalSlidesNumEl.textContent = totalSlides;
+
+    // Gerar Cards da Visão Geral (Grid)
+    slides.forEach((slide, index) => {
+      const card = document.createElement('div');
+      card.className = 'grid-item';
+      
+      const titleEl = slide.querySelector('.slide-title') || slide.querySelector('.hero-title');
+      const titleText = titleEl ? titleEl.textContent : `Slide ${index + 1}`;
+      const moduleText = slide.getAttribute('data-module') || 'Apresentação';
+
+      card.innerHTML = `
+        <div class="grid-item-num">Slide ${index + 1} • ${moduleText.split(':')[0]}</div>
+        <div class="grid-item-title">${titleText}</div>
+      `;
+
+      card.addEventListener('click', () => {
+        goToSlide(index);
+        closeGrid();
+      });
+
+      gridDeckContainer.appendChild(card);
+    });
+
+    function updateSlide(index) {
+      if (index < 0) index = 0;
+      if (index >= totalSlides) index = totalSlides - 1;
+
+      slides.forEach((slide, i) => {
+        slide.classList.toggle('active', i === index);
+      });
+
+      currentSlideIndex = index;
+
+      // Progresso e Contador
+      const progressPercent = ((index + 1) / totalSlides) * 100;
+      progressBar.style.width = `${progressPercent}%`;
+      currentSlideNumEl.textContent = index + 1;
+
+      // Atualizar Módulo
+      const activeSlide = slides[index];
+      const moduleName = activeSlide.getAttribute('data-module') || 'Equinox Mobile';
+      modulePillEl.innerHTML = `<span>●</span> ${moduleName}`;
+
+      // Atualizar Notas do Apresentador
+      const notes = activeSlide.getAttribute('data-notes') || 'Sem notas para este slide.';
+      notesContentEl.innerHTML = `
+        <h5>Orientações para Defesa Oral:</h5>
+        <p>${notes}</p>
+      `;
+
+      // Atualizar destaque na grade
+      const gridItems = gridDeckContainer.querySelectorAll('.grid-item');
+      gridItems.forEach((item, i) => {
+        item.classList.toggle('current', i === index);
+      });
+
+      // Salvar hash
+      window.location.hash = `slide-${index + 1}`;
+
+      // Re-centralizar e enquadrar perfeitamente os diagramas do slide ativado
+      setTimeout(() => {
+        const currentActive = slides[index];
+        if (currentActive) {
+          const containers = currentActive.querySelectorAll('.diagram-container');
+          containers.forEach(container => {
+            if (container._panZoomController) {
+              container._panZoomController.centerAndFit();
+            }
+          });
+        }
+      }, 80);
+    }
+
+    function nextSlide() {
+      if (currentSlideIndex < totalSlides - 1) {
+        updateSlide(currentSlideIndex + 1);
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlideIndex > 0) {
+        updateSlide(currentSlideIndex - 1);
+      }
+    }
+
+    function goToSlide(index) {
+      updateSlide(index);
+    }
+
+    // Controles de Gaveta e Modais
+    function toggleNotes() {
+      notesDrawer.classList.toggle('open');
+    }
+    function toggleGrid() {
+      gridModal.classList.toggle('open');
+    }
+    function closeGrid() {
+      gridModal.classList.remove('open');
+    }
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => console.log(err));
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
+    // Event Listeners dos Botões Principais
+    document.getElementById('btn-next').addEventListener('click', nextSlide);
+    document.getElementById('btn-prev').addEventListener('click', prevSlide);
+    document.getElementById('btn-notes').addEventListener('click', toggleNotes);
+    document.getElementById('btn-close-notes').addEventListener('click', toggleNotes);
+    document.getElementById('btn-grid').addEventListener('click', toggleGrid);
+    document.getElementById('btn-close-grid').addEventListener('click', closeGrid);
+    document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
+
+    // ========================================================
+    // MOTOR DE PAN & ZOOM INTERATIVO DE ALTA ROBUSTEZ (FIGMA/MIRO)
+    // ========================================================
+    function setupPanZoom(containerEl, viewportEl, canvasEl, zoomBadgeEl, customInitialScale = null) {
+      let scale = 1.0;
+      let translateX = 0;
+      let translateY = 0;
+      let isDragging = false;
+      let startX = 0;
+      let startY = 0;
+      let defaultScale = 1.0;
+
+      function update(smooth = false) {
+        if (smooth) {
+          canvasEl.style.transition = 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)';
+        } else {
+          canvasEl.style.transition = 'none';
+        }
+        canvasEl.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+        if (zoomBadgeEl) {
+          zoomBadgeEl.textContent = `${Math.round(scale * 100)}%`;
+        }
+      }
+
+      function centerAndFit(targetScale = null, smooth = false) {
+        const svg = canvasEl.querySelector('svg');
+        if (!svg) return;
+
+        const vpW = viewportEl.clientWidth || 800;
+        const vpH = viewportEl.clientHeight || 500;
+
+        let svgW = 0, svgH = 0;
+        if (svg.viewBox && svg.viewBox.baseVal && svg.viewBox.baseVal.width > 0) {
+          svgW = svg.viewBox.baseVal.width;
+          svgH = svg.viewBox.baseVal.height;
+        } else {
+          const bbox = svg.getBBox ? svg.getBBox() : null;
+          svgW = bbox && bbox.width ? bbox.width : (svg.clientWidth || 800);
+          svgH = bbox && bbox.height ? bbox.height : (svg.clientHeight || 500);
+        }
+
+        // Fixar dimensões absolutas em pixels no SVG
+        svg.style.width = svgW + 'px';
+        svg.style.height = svgH + 'px';
+
+        if (targetScale !== null) {
+          scale = targetScale;
+        } else if (customInitialScale !== null) {
+          scale = customInitialScale;
+        } else {
+          const pad = 24;
+          const fitW = (vpW - pad * 2) / svgW;
+          const fitH = (vpH - pad * 2) / svgH;
+          scale = Math.min(fitW, fitH);
+          scale = Math.max(0.45, Math.min(1.15, scale));
+        }
+        defaultScale = scale;
+
+        const renderedW = svgW * scale;
+        const renderedH = svgH * scale;
+
+        // Centralização horizontal
+        translateX = Math.round((vpW - renderedW) / 2);
+
+        // Centralização vertical: se couber no viewport, centraliza;
+        // se for mais alto que o viewport, alinha no topo com 20px de respiro
+        if (renderedH <= vpH) {
+          translateY = Math.round((vpH - renderedH) / 2);
+        } else {
+          translateY = 20; // Alinhado ao topo, perfeitamente legível
+        }
+
+        update(smooth);
+      }
+
+      // Função de Zoom por Wheel calibrada (mouse físico + trackpad + pinch)
+      function onWheel(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const rect = viewportEl.getBoundingClientRect();
+        // Clampar coordenadas do cursor aos limites do viewport
+        const mouseX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+        const mouseY = Math.max(0, Math.min(rect.height, e.clientY - rect.top));
+
+        let delta = -e.deltaY;
+        if (e.deltaMode === 1) delta *= 33; // Linhas no Firefox
+        else if (e.deltaMode === 2) delta *= 300; // Páginas
+
+        if (Math.abs(delta) < 1e-4) return;
+
+        // Fator exponencial suave com proteção contra rolagem ultrarrápida
+        const factor = Math.min(1.35, Math.max(0.72, Math.exp(delta * 0.002)));
+        const newScale = Math.max(0.15, Math.min(6, scale * factor));
+
+        translateX = mouseX - (mouseX - translateX) * (newScale / scale);
+        translateY = mouseY - (mouseY - translateY) * (newScale / scale);
+        scale = newScale;
+
+        update(false); // Resposta imediata 1:1 sem lag de CSS transition
+      }
+
+      // Capturar wheel no viewport e no container (evita scroll indesejado da página)
+      viewportEl.addEventListener('wheel', onWheel, { passive: false });
+      if (containerEl && containerEl !== viewportEl) {
+        containerEl.addEventListener('wheel', onWheel, { passive: false });
+      }
+
+      // Arraste (Pan) usando Pointer Events modernos com Pointer Capture
+      viewportEl.addEventListener('pointerdown', (e) => {
+        if (e.target.closest('button') || e.target.closest('.diagram-controls')) return;
+
+        isDragging = true;
+        startX = e.clientX - translateX;
+        startY = e.clientY - translateY;
+        
+        try {
+          viewportEl.setPointerCapture(e.pointerId);
+        } catch (_) {}
+
+        viewportEl.classList.add('dragging');
+        canvasEl.style.transition = 'none';
+        e.preventDefault(); // Impede seleção de texto do navegador
+      });
+
+      viewportEl.addEventListener('pointermove', (e) => {
+        if (!isDragging) return;
+        translateX = e.clientX - startX;
+        translateY = e.clientY - startY;
+        update(false);
+      });
+
+      function onPointerUp(e) {
+        if (isDragging) {
+          isDragging = false;
+          try {
+            viewportEl.releasePointerCapture(e.pointerId);
+          } catch (_) {}
+          viewportEl.classList.remove('dragging');
+        }
+      }
+
+      viewportEl.addEventListener('pointerup', onPointerUp);
+      viewportEl.addEventListener('pointercancel', onPointerUp);
+
+      function zoomIn() {
+        const vpW = viewportEl.clientWidth || 800;
+        const vpH = viewportEl.clientHeight || 500;
+        const centerX = vpW / 2;
+        const centerY = vpH / 2;
+        const newScale = Math.min(6, scale * 1.25);
+        translateX = centerX - (centerX - translateX) * (newScale / scale);
+        translateY = centerY - (centerY - translateY) * (newScale / scale);
+        scale = newScale;
+        update(true);
+      }
+
+      function zoomOut() {
+        const vpW = viewportEl.clientWidth || 800;
+        const vpH = viewportEl.clientHeight || 500;
+        const centerX = vpW / 2;
+        const centerY = vpH / 2;
+        const newScale = Math.max(0.15, scale * 0.8);
+        translateX = centerX - (centerX - translateX) * (newScale / scale);
+        translateY = centerY - (centerY - translateY) * (newScale / scale);
+        scale = newScale;
+        update(true);
+      }
+
+      function setScale(newScale) {
+        centerAndFit(newScale, true);
+      }
+
+      function reset() {
+        centerAndFit(defaultScale, true);
+      }
+
+      setTimeout(() => centerAndFit(null, false), 60);
+
+      return { zoomIn, zoomOut, reset, setScale, centerAndFit, getScale: () => scale };
+    }
+
+    // Modal Global de Visualização Fullscreen do Diagrama
+    const diagramModal = document.getElementById('diagram-modal');
+    const modalTitleEl = document.getElementById('modal-diagram-title');
+    const modalViewportEl = document.getElementById('modal-viewport');
+    const modalCanvasEl = document.getElementById('modal-canvas');
+    const modalZoomBadge = document.getElementById('modal-zoom-level');
+    let modalPanZoomController = null;
+
+    function openDiagramModal(container) {
+      const title = container.getAttribute('data-diagram-title') || 'Visualizador de Diagrama';
+      modalTitleEl.textContent = title;
+
+      // Clonar SVG renderizado
+      const svg = container.querySelector('svg');
+      if (!svg) return;
+
+      modalCanvasEl.innerHTML = '';
+      const clone = svg.cloneNode(true);
+      clone.style.maxWidth = 'none';
+      clone.style.display = 'block';
+      modalCanvasEl.appendChild(clone);
+
+      diagramModal.classList.add('open');
+
+      const modalInitScale = parseFloat(container.getAttribute('data-modal-scale')) || 1.35;
+
+      if (!modalPanZoomController) {
+        modalPanZoomController = setupPanZoom(diagramModal, modalViewportEl, modalCanvasEl, modalZoomBadge, modalInitScale);
+        document.getElementById('modal-zoom-in').addEventListener('click', () => modalPanZoomController.zoomIn());
+        document.getElementById('modal-zoom-out').addEventListener('click', () => modalPanZoomController.zoomOut());
+        document.getElementById('modal-zoom-reset').addEventListener('click', () => modalPanZoomController.reset());
+        document.getElementById('modal-close').addEventListener('click', closeDiagramModal);
+
+        document.querySelectorAll('.modal-scale-set').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const val = parseFloat(btn.getAttribute('data-scale')) || 1;
+            modalPanZoomController.setScale(val);
+          });
+        });
+      }
+      setTimeout(() => {
+        modalPanZoomController.centerAndFit(modalInitScale, false);
+      }, 50);
+    }
+
+    function closeDiagramModal() {
+      diagramModal.classList.remove('open');
+    }
+
+    function initAllPanZoomControllers() {
+      const diagramContainers = document.querySelectorAll('.diagram-container');
+
+      diagramContainers.forEach(container => {
+        const viewport = container.querySelector('.diagram-viewport');
+        const canvas = container.querySelector('.diagram-canvas');
+        const badge = container.querySelector('.zoom-level-badge');
+
+        if (!viewport || !canvas) return;
+
+        const initScale = parseFloat(container.getAttribute('data-initial-scale')) || null;
+        const controller = setupPanZoom(container, viewport, canvas, badge, initScale);
+        container._panZoomController = controller;
+
+        const btnIn = container.querySelector('.btn-zoom-in');
+        const btnOut = container.querySelector('.btn-zoom-out');
+        const btnReset = container.querySelector('.btn-zoom-reset');
+        const btnFs = container.querySelector('.btn-zoom-fullscreen');
+
+        if (btnIn) btnIn.addEventListener('click', () => controller.zoomIn());
+        if (btnOut) btnOut.addEventListener('click', () => controller.zoomOut());
+        if (btnReset) btnReset.addEventListener('click', () => controller.reset());
+        if (btnFs) btnFs.addEventListener('click', () => openDiagramModal(container));
+
+        container.querySelectorAll('.btn-scale-set').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const val = parseFloat(btn.getAttribute('data-scale')) || 1;
+            controller.setScale(val);
+          });
+        });
+
+        // Duplo clique abre em tela cheia
+        viewport.addEventListener('dblclick', () => openDiagramModal(container));
+      });
+    }
+
+    // Navegação por Teclado
+    window.addEventListener('keydown', (e) => {
+      // Se modal de diagrama estiver aberto, fechar com Esc
+      if (diagramModal.classList.contains('open')) {
+        if (e.key === 'Escape') {
+          closeDiagramModal();
+        }
+        return;
+      }
+
+      // Se modal grid estiver aberto, fechar com Esc ou G
+      if (gridModal.classList.contains('open')) {
+        if (e.key === 'Escape' || e.key.toLowerCase() === 'g') {
+          closeGrid();
+        }
+        return;
+      }
+
+      switch (e.key) {
+        case 'ArrowRight':
+        case 'ArrowDown':
+        case ' ':
+        case 'PageDown':
+          e.preventDefault();
+          nextSlide();
+          break;
+        case 'ArrowLeft':
+        case 'ArrowUp':
+        case 'PageUp':
+          e.preventDefault();
+          prevSlide();
+          break;
+        case 'Home':
+          e.preventDefault();
+          goToSlide(0);
+          break;
+        case 'End':
+          e.preventDefault();
+          goToSlide(totalSlides - 1);
+          break;
+        case 'g':
+        case 'G':
+          toggleGrid();
+          break;
+        case 's':
+        case 'S':
+          toggleNotes();
+          break;
+        case 'f':
+        case 'F':
+          toggleFullscreen();
+          break;
+      }
+    });
+
+    // Suporte a Swipe Touch
+    let touchStartX = 0;
+    let touchEndX = 0;
+    window.addEventListener('touchstart', e => {
+      touchStartX = e.changedTouches[0].screenX;
+    }, false);
+    window.addEventListener('touchend', e => {
+      touchEndX = e.changedTouches[0].screenX;
+      if (touchEndX < touchStartX - 50) nextSlide();
+      if (touchEndX > touchStartX + 50) prevSlide();
+    }, false);
+
+    // Recuperação de slide por Hash
+    const hash = window.location.hash;
+    if (hash && hash.startsWith('#slide-')) {
+      const slideNum = parseInt(hash.replace('#slide-', ''), 10);
+      if (!isNaN(slideNum) && slideNum >= 1 && slideNum <= totalSlides) {
+        currentSlideIndex = slideNum - 1;
+      }
+    }
+
+    updateSlide(currentSlideIndex);
+
+    // Manter centralização dos diagramas em caso de redimensionamento de janela
+    window.addEventListener('resize', () => {
+      const activeSlide = slides[currentSlideIndex];
+      if (activeSlide) {
+        const containers = activeSlide.querySelectorAll('.diagram-container');
+        containers.forEach(container => {
+          if (container._panZoomController) {
+            container._panZoomController.centerAndFit();
+          }
+        });
+      }
+      if (diagramModal.classList.contains('open') && modalPanZoomController) {
+        modalPanZoomController.centerAndFit();
+      }
+    });
+  </script>
+</body>
+</html>
