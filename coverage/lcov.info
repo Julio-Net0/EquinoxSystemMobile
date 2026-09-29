@@ -1,5 +1,5 @@
 TN:
-SF:src/application/use-cases/AutenticarUsuarioUseCase.ts
+SF:src\application\use-cases\AutenticarUsuarioUseCase.ts
 FN:16,(anonymous_0)
 FN:21,(anonymous_1)
 FNF:2
@@ -23,7 +23,7 @@ BRF:2
 BRH:2
 end_of_record
 TN:
-SF:src/application/use-cases/CadastrarUsinaUseCase.ts
+SF:src\application\use-cases\CadastrarUsinaUseCase.ts
 FN:25,(anonymous_0)
 FN:30,(anonymous_1)
 FNF:2
@@ -56,7 +56,7 @@ BRF:2
 BRH:0
 end_of_record
 TN:
-SF:src/application/use-cases/ConsultarUsinasUseCase.ts
+SF:src\application\use-cases\ConsultarUsinasUseCase.ts
 FN:13,(anonymous_0)
 FN:15,(anonymous_1)
 FN:22,(anonymous_2)
@@ -93,7 +93,7 @@ BRF:8
 BRH:8
 end_of_record
 TN:
-SF:src/application/use-cases/RegistrarLeituraUseCase.ts
+SF:src\application\use-cases\RegistrarLeituraUseCase.ts
 FN:26,(anonymous_0)
 FN:32,(anonymous_1)
 FNF:2
@@ -134,7 +134,7 @@ BRF:4
 BRH:2
 end_of_record
 TN:
-SF:src/domain/entities/ActionQueueItem.ts
+SF:src\domain\entities\ActionQueueItem.ts
 FN:25,(anonymous_0)
 FN:37,(anonymous_1)
 FN:41,(anonymous_2)
@@ -167,7 +167,7 @@ BRF:8
 BRH:7
 end_of_record
 TN:
-SF:src/domain/entities/Empresa.ts
+SF:src\domain\entities\Empresa.ts
 FN:17,(anonymous_0)
 FNF:1
 FNH:1
@@ -191,7 +191,7 @@ BRF:6
 BRH:6
 end_of_record
 TN:
-SF:src/domain/entities/Leitura.ts
+SF:src\domain\entities\Leitura.ts
 FN:29,(anonymous_0)
 FN:45,(anonymous_1)
 FN:49,(anonymous_2)
@@ -247,7 +247,7 @@ BRF:14
 BRH:13
 end_of_record
 TN:
-SF:src/domain/entities/Usina.ts
+SF:src\domain\entities\Usina.ts
 FN:26,(anonymous_0)
 FN:47,(anonymous_1)
 FN:51,(anonymous_2)
@@ -305,7 +305,7 @@ BRF:16
 BRH:13
 end_of_record
 TN:
-SF:src/domain/entities/Usuario.ts
+SF:src\domain\entities\Usuario.ts
 FN:21,(anonymous_0)
 FN:38,(anonymous_1)
 FN:42,(anonymous_2)
@@ -348,7 +348,7 @@ BRF:8
 BRH:7
 end_of_record
 TN:
-SF:src/domain/enums/PerfilEnum.ts
+SF:src\domain\enums\PerfilEnum.ts
 FN:1,(anonymous_0)
 FNF:1
 FNH:1
@@ -365,7 +365,7 @@ BRF:2
 BRH:2
 end_of_record
 TN:
-SF:src/domain/enums/StatusSyncEnum.ts
+SF:src\domain\enums\StatusSyncEnum.ts
 FN:1,(anonymous_0)
 FNF:1
 FNH:1
@@ -383,7 +383,7 @@ BRF:2
 BRH:2
 end_of_record
 TN:
-SF:src/domain/enums/StatusUsinaEnum.ts
+SF:src\domain\enums\StatusUsinaEnum.ts
 FN:1,(anonymous_0)
 FNF:1
 FNH:1
@@ -400,7 +400,7 @@ BRF:2
 BRH:2
 end_of_record
 TN:
-SF:src/domain/services/RegraSincronizacaoService.ts
+SF:src\domain\services\RegraSincronizacaoService.ts
 FN:7,(anonymous_0)
 FNF:1
 FNH:1
@@ -417,7 +417,7 @@ BRF:2
 BRH:1
 end_of_record
 TN:
-SF:src/domain/services/ValidadorDistanciaGpsService.ts
+SF:src\domain\services\ValidadorDistanciaGpsService.ts
 FN:7,(anonymous_0)
 FN:27,(anonymous_1)
 FNF:2
@@ -442,7 +442,7 @@ BRF:1
 BRH:0
 end_of_record
 TN:
-SF:src/domain/value-objects/CNPJ.ts
+SF:src\domain\value-objects\CNPJ.ts
 FN:5,(anonymous_0)
 FN:20,(anonymous_1)
 FN:59,(anonymous_2)
@@ -517,7 +517,7 @@ BRF:24
 BRH:18
 end_of_record
 TN:
-SF:src/domain/value-objects/CoordenadasGPS.ts
+SF:src\domain\value-objects\CoordenadasGPS.ts
 FN:6,(anonymous_0)
 FN:18,(anonymous_1)
 FNF:2
@@ -554,7 +554,7 @@ BRF:14
 BRH:13
 end_of_record
 TN:
-SF:src/domain/value-objects/UUIDv4.ts
+SF:src\domain\value-objects\UUIDv4.ts
 FN:7,(anonymous_0)
 FN:15,(anonymous_1)
 FN:19,(anonymous_2)
@@ -597,7 +597,7 @@ BRF:8
 BRH:6
 end_of_record
 TN:
-SF:src/domain/value-objects/ValorKwh.ts
+SF:src\domain\value-objects\ValorKwh.ts
 FN:4,(anonymous_0)
 FN:11,(anonymous_1)
 FNF:2

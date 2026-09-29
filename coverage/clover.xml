@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1790370217566" clover="3.2.0">
-  <project timestamp="1790370217566" name="All files">
+<coverage generated="1790705601786" clover="3.2.0">
+  <project timestamp="1790705601786" name="All files">
     <metrics statements="230" coveredstatements="221" conditionals="130" coveredconditionals="108" methods="51" coveredmethods="50" elements="411" coveredelements="379" complexity="0" loc="230" ncloc="230" packages="5" files="18" classes="18"/>
     <package name="application.use-cases">
       <metrics statements="63" coveredstatements="61" conditionals="16" coveredconditionals="12" methods="10" coveredmethods="10"/>
-      <file name="AutenticarUsuarioUseCase.ts" path="/var/www/EquinoxSystemMobile/src/application/use-cases/AutenticarUsuarioUseCase.ts">
+      <file name="AutenticarUsuarioUseCase.ts" path="C:\Users\Victor\OneDrive\Documentos\CEFET\6° PERÍODO\PROG. MOBILE\PROJETO\EquinoxSystemMobile\src\application\use-cases\AutenticarUsuarioUseCase.ts">
         <metrics statements="9" coveredstatements="9" conditionals="2" coveredconditionals="2" methods="2" coveredmethods="2"/>
         <line num="15" count="1" type="stmt"/>
         <line num="17" count="2" type="stmt"/>
@@ -16,7 +16,7 @@
         <line num="39" count="1" type="stmt"/>
         <line num="41" count="1" type="stmt"/>
       </file>
-      <file name="CadastrarUsinaUseCase.ts" path="/var/www/EquinoxSystemMobile/src/application/use-cases/CadastrarUsinaUseCase.ts">
+      <file name="CadastrarUsinaUseCase.ts" path="C:\Users\Victor\OneDrive\Documentos\CEFET\6° PERÍODO\PROG. MOBILE\PROJETO\EquinoxSystemMobile\src\application\use-cases\CadastrarUsinaUseCase.ts">
         <metrics statements="18" coveredstatements="17" conditionals="2" coveredconditionals="0" methods="2" coveredmethods="2"/>
         <line num="3" count="1" type="stmt"/>
         <line num="4" count="1" type="stmt"/>
@@ -37,7 +37,7 @@
         <line num="65" count="1" type="stmt"/>
         <line num="70" count="0" type="stmt"/>
       </file>
-      <file name="ConsultarUsinasUseCase.ts" path="/var/www/EquinoxSystemMobile/src/application/use-cases/ConsultarUsinasUseCase.ts">
+      <file name="ConsultarUsinasUseCase.ts" path="C:\Users\Victor\OneDrive\Documentos\CEFET\6° PERÍODO\PROG. MOBILE\PROJETO\EquinoxSystemMobile\src\application\use-cases\ConsultarUsinasUseCase.ts">
         <metrics statements="12" coveredstatements="12" conditionals="8" coveredconditionals="8" methods="4" coveredmethods="4"/>
         <line num="3" count="1" type="stmt"/>
         <line num="12" count="1" type="stmt"/>
@@ -52,7 +52,7 @@
         <line num="29" count="2" type="stmt"/>
         <line num="32" count="3" type="stmt"/>
       </file>
-      <file name="RegistrarLeituraUseCase.ts" path="/var/www/EquinoxSystemMobile/src/application/use-cases/RegistrarLeituraUseCase.ts">
+      <file name="RegistrarLeituraUseCase.ts" path="C:\Users\Victor\OneDrive\Documentos\CEFET\6° PERÍODO\PROG. MOBILE\PROJETO\EquinoxSystemMobile\src\application\use-cases\RegistrarLeituraUseCase.ts">
         <metrics statements="24" coveredstatements="23" conditionals="4" coveredconditionals="2" methods="2" coveredmethods="2"/>
         <line num="4" count="1" type="stmt"/>
         <line num="5" count="1" type="stmt"/>
@@ -82,7 +82,7 @@
     </package>
     <package name="domain.entities">
       <metrics statements="75" coveredstatements="69" conditionals="52" coveredconditionals="46" methods="21" coveredmethods="20"/>
-      <file name="ActionQueueItem.ts" path="/var/www/EquinoxSystemMobile/src/domain/entities/ActionQueueItem.ts">
+      <file name="ActionQueueItem.ts" path="C:\Users\Victor\OneDrive\Documentos\CEFET\6° PERÍODO\PROG. MOBILE\PROJETO\EquinoxSystemMobile\src\domain\entities\ActionQueueItem.ts">
         <metrics statements="10" coveredstatements="9" conditionals="8" coveredconditionals="7" methods="3" coveredmethods="3"/>
         <line num="18" count="3" type="stmt"/>
         <line num="26" count="4" type="cond" truecount="3" falsecount="1"/>
@@ -95,7 +95,7 @@
         <line num="38" count="3" type="stmt"/>
         <line num="42" count="1" type="stmt"/>
       </file>
-      <file name="Empresa.ts" path="/var/www/EquinoxSystemMobile/src/domain/entities/Empresa.ts">
+      <file name="Empresa.ts" path="C:\Users\Victor\OneDrive\Documentos\CEFET\6° PERÍODO\PROG. MOBILE\PROJETO\EquinoxSystemMobile\src\domain\entities\Empresa.ts">
         <metrics statements="7" coveredstatements="7" conditionals="6" coveredconditionals="6" methods="1" coveredmethods="1"/>
         <line num="11" count="1" type="stmt"/>
         <line num="18" count="2" type="cond" truecount="4" falsecount="0"/>
@@ -105,7 +105,7 @@
         <line num="23" count="1" type="stmt"/>
         <line num="24" count="1" type="cond" truecount="2" falsecount="0"/>
       </file>
-      <file name="Leitura.ts" path="/var/www/EquinoxSystemMobile/src/domain/entities/Leitura.ts">
+      <file name="Leitura.ts" path="C:\Users\Victor\OneDrive\Documentos\CEFET\6° PERÍODO\PROG. MOBILE\PROJETO\EquinoxSystemMobile\src\domain\entities\Leitura.ts">
         <metrics statements="21" coveredstatements="20" conditionals="14" coveredconditionals="13" methods="6" coveredmethods="6"/>
         <line num="4" count="3" type="stmt"/>
         <line num="18" count="3" type="stmt"/>
@@ -129,7 +129,7 @@
         <line num="62" count="1" type="stmt"/>
         <line num="66" count="1" type="stmt"/>
       </file>
-      <file name="Usina.ts" path="/var/www/EquinoxSystemMobile/src/domain/entities/Usina.ts">
+      <file name="Usina.ts" path="C:\Users\Victor\OneDrive\Documentos\CEFET\6° PERÍODO\PROG. MOBILE\PROJETO\EquinoxSystemMobile\src\domain\entities\Usina.ts">
         <metrics statements="21" coveredstatements="19" conditionals="16" coveredconditionals="13" methods="6" coveredmethods="6"/>
         <line num="3" count="4" type="stmt"/>
         <line num="16" count="4" type="stmt"/>
@@ -153,7 +153,7 @@
         <line num="60" count="1" type="stmt"/>
         <line num="64" count="1" type="cond" truecount="1" falsecount="1"/>
       </file>
-      <file name="Usuario.ts" path="/var/www/EquinoxSystemMobile/src/domain/entities/Usuario.ts">
+      <file name="Usuario.ts" path="C:\Users\Victor\OneDrive\Documentos\CEFET\6° PERÍODO\PROG. MOBILE\PROJETO\EquinoxSystemMobile\src\domain\entities\Usuario.ts">
         <metrics statements="16" coveredstatements="14" conditionals="8" coveredconditionals="7" methods="5" coveredmethods="4"/>
         <line num="13" count="2" type="stmt"/>
         <line num="22" count="5" type="cond" truecount="3" falsecount="1"/>
@@ -175,14 +175,14 @@
     </package>
     <package name="domain.enums">
       <metrics statements="13" coveredstatements="13" conditionals="6" coveredconditionals="6" methods="3" coveredmethods="3"/>
-      <file name="PerfilEnum.ts" path="/var/www/EquinoxSystemMobile/src/domain/enums/PerfilEnum.ts">
+      <file name="PerfilEnum.ts" path="C:\Users\Victor\OneDrive\Documentos\CEFET\6° PERÍODO\PROG. MOBILE\PROJETO\EquinoxSystemMobile\src\domain\enums\PerfilEnum.ts">
         <metrics statements="4" coveredstatements="4" conditionals="2" coveredconditionals="2" methods="1" coveredmethods="1"/>
         <line num="1" count="2" type="cond" truecount="2" falsecount="0"/>
         <line num="2" count="2" type="stmt"/>
         <line num="3" count="2" type="stmt"/>
         <line num="4" count="2" type="stmt"/>
       </file>
-      <file name="StatusSyncEnum.ts" path="/var/www/EquinoxSystemMobile/src/domain/enums/StatusSyncEnum.ts">
+      <file name="StatusSyncEnum.ts" path="C:\Users\Victor\OneDrive\Documentos\CEFET\6° PERÍODO\PROG. MOBILE\PROJETO\EquinoxSystemMobile\src\domain\enums\StatusSyncEnum.ts">
         <metrics statements="5" coveredstatements="5" conditionals="2" coveredconditionals="2" methods="1" coveredmethods="1"/>
         <line num="1" count="3" type="cond" truecount="2" falsecount="0"/>
         <line num="2" count="3" type="stmt"/>
@@ -190,7 +190,7 @@
         <line num="4" count="3" type="stmt"/>
         <line num="5" count="3" type="stmt"/>
       </file>
-      <file name="StatusUsinaEnum.ts" path="/var/www/EquinoxSystemMobile/src/domain/enums/StatusUsinaEnum.ts">
+      <file name="StatusUsinaEnum.ts" path="C:\Users\Victor\OneDrive\Documentos\CEFET\6° PERÍODO\PROG. MOBILE\PROJETO\EquinoxSystemMobile\src\domain\enums\StatusUsinaEnum.ts">
         <metrics statements="4" coveredstatements="4" conditionals="2" coveredconditionals="2" methods="1" coveredmethods="1"/>
         <line num="1" count="4" type="cond" truecount="2" falsecount="0"/>
         <line num="2" count="4" type="stmt"/>
@@ -200,14 +200,14 @@
     </package>
     <package name="domain.services">
       <metrics statements="15" coveredstatements="14" conditionals="3" coveredconditionals="1" methods="3" coveredmethods="3"/>
-      <file name="RegraSincronizacaoService.ts" path="/var/www/EquinoxSystemMobile/src/domain/services/RegraSincronizacaoService.ts">
+      <file name="RegraSincronizacaoService.ts" path="C:\Users\Victor\OneDrive\Documentos\CEFET\6° PERÍODO\PROG. MOBILE\PROJETO\EquinoxSystemMobile\src\domain\services\RegraSincronizacaoService.ts">
         <metrics statements="4" coveredstatements="3" conditionals="2" coveredconditionals="1" methods="1" coveredmethods="1"/>
         <line num="3" count="1" type="stmt"/>
         <line num="8" count="1" type="cond" truecount="1" falsecount="1"/>
         <line num="9" count="1" type="stmt"/>
         <line num="11" count="0" type="stmt"/>
       </file>
-      <file name="ValidadorDistanciaGpsService.ts" path="/var/www/EquinoxSystemMobile/src/domain/services/ValidadorDistanciaGpsService.ts">
+      <file name="ValidadorDistanciaGpsService.ts" path="C:\Users\Victor\OneDrive\Documentos\CEFET\6° PERÍODO\PROG. MOBILE\PROJETO\EquinoxSystemMobile\src\domain\services\ValidadorDistanciaGpsService.ts">
         <metrics statements="11" coveredstatements="11" conditionals="1" coveredconditionals="0" methods="2" coveredmethods="2"/>
         <line num="3" count="1" type="stmt"/>
         <line num="8" count="3" type="stmt"/>
@@ -224,7 +224,7 @@
     </package>
     <package name="domain.value-objects">
       <metrics statements="64" coveredstatements="64" conditionals="53" coveredconditionals="43" methods="14" coveredmethods="14"/>
-      <file name="CNPJ.ts" path="/var/www/EquinoxSystemMobile/src/domain/value-objects/CNPJ.ts">
+      <file name="CNPJ.ts" path="C:\Users\Victor\OneDrive\Documentos\CEFET\6° PERÍODO\PROG. MOBILE\PROJETO\EquinoxSystemMobile\src\domain\value-objects\CNPJ.ts">
         <metrics statements="34" coveredstatements="34" conditionals="24" coveredconditionals="18" methods="4" coveredmethods="4"/>
         <line num="1" count="2" type="stmt"/>
         <line num="6" count="10" type="cond" truecount="1" falsecount="1"/>
@@ -261,7 +261,7 @@
         <line num="67" count="3" type="cond" truecount="1" falsecount="1"/>
         <line num="68" count="3" type="stmt"/>
       </file>
-      <file name="CoordenadasGPS.ts" path="/var/www/EquinoxSystemMobile/src/domain/value-objects/CoordenadasGPS.ts">
+      <file name="CoordenadasGPS.ts" path="C:\Users\Victor\OneDrive\Documentos\CEFET\6° PERÍODO\PROG. MOBILE\PROJETO\EquinoxSystemMobile\src\domain\value-objects\CoordenadasGPS.ts">
         <metrics statements="10" coveredstatements="10" conditionals="14" coveredconditionals="13" methods="2" coveredmethods="2"/>
         <line num="1" count="8" type="stmt"/>
         <line num="7" count="28" type="cond" truecount="4" falsecount="0"/>
@@ -274,7 +274,7 @@
         <line num="19" count="3" type="cond" truecount="1" falsecount="1"/>
         <line num="20" count="3" type="cond" truecount="2" falsecount="0"/>
       </file>
-      <file name="UUIDv4.ts" path="/var/www/EquinoxSystemMobile/src/domain/value-objects/UUIDv4.ts">
+      <file name="UUIDv4.ts" path="C:\Users\Victor\OneDrive\Documentos\CEFET\6° PERÍODO\PROG. MOBILE\PROJETO\EquinoxSystemMobile\src\domain\value-objects\UUIDv4.ts">
         <metrics statements="14" coveredstatements="14" conditionals="8" coveredconditionals="6" methods="6" coveredmethods="6"/>
         <line num="1" count="11" type="stmt"/>
         <line num="3" count="11" type="stmt"/>
@@ -291,7 +291,7 @@
         <line num="33" count="17" type="cond" truecount="1" falsecount="1"/>
         <line num="34" count="17" type="stmt"/>
       </file>
-      <file name="ValorKwh.ts" path="/var/www/EquinoxSystemMobile/src/domain/value-objects/ValorKwh.ts">
+      <file name="ValorKwh.ts" path="C:\Users\Victor\OneDrive\Documentos\CEFET\6° PERÍODO\PROG. MOBILE\PROJETO\EquinoxSystemMobile\src\domain\value-objects\ValorKwh.ts">
         <metrics statements="6" coveredstatements="6" conditionals="7" coveredconditionals="6" methods="2" coveredmethods="2"/>
         <line num="1" count="4" type="stmt"/>
         <line num="5" count="13" type="cond" truecount="5" falsecount="0"/>
