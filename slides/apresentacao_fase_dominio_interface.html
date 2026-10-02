@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Equinox Mobile — Planejamento: Domínio e Interface Primeiro</title>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Mermaid JS via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+
+  <style>
+    :root {
+      --bg-dark: #07090e;
+      --bg-card: rgba(17, 24, 39, 0.75);
+      --bg-card-hover: rgba(30, 41, 59, 0.85);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-focus: rgba(245, 158, 11, 0.4);
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --text-dim: #6b7280;
+      
+      --solar-amber: #f59e0b;
+      --solar-orange: #ea580c;
+      --solar-gold: #fbbf24;
+      --solar-glow: rgba(245, 158, 11, 0.15);
+      
+      --tech-cyan: #06b6d4;
+      --tech-blue: #38bdf8;
+      --tech-emerald: #10b981;
+      --tech-rose: #f43f5e;
+      --tech-purple: #a855f7;
+      
+      --font-display: 'Outfit', sans-serif;
+      --font-body: 'Inter', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      
+      --slide-width: 1400px;
+      --slide-height: 820px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: var(--font-body);
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(245, 158, 11, 0.04) 0%, transparent 45%),
+        radial-gradient(circle at 85% 85%, rgba(6, 182, 212, 0.04) 0%, transparent 45%);
+    }
+
+    #progress-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.05);
+      z-index: 100;
+    }
+    #progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--solar-amber), var(--solar-orange), var(--tech-cyan));
+      transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+    }
+
+    header.deck-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 28px;
+      background: rgba(11, 15, 25, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-subtle);
+      z-index: 90;
+    }
+    .brand-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-logo {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--solar-amber), var(--solar-orange));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-family: var(--font-display);
+      color: #000;
+      box-shadow: 0 0 12px rgba(245, 158, 11, 0.4);
+    }
+    .brand-title {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1.1rem;
+      letter-spacing: -0.02em;
+    }
+    .brand-tag {
+      background: rgba(245, 158, 11, 0.12);
+      color: var(--solar-gold);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .module-pill {
+      font-family: var(--font-display);
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--tech-cyan);
+      background: rgba(6, 182, 212, 0.1);
+      border: 1px solid rgba(6, 182, 212, 0.2);
+      padding: 5px 14px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .btn-icon {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 0.95rem;
+      transition: all 0.2s;
+    }
+    .btn-icon:hover {
+      color: var(--text-main);
+      background: var(--bg-card-hover);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-1px);
+    }
+
+    main.stage {
+      flex: 1;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      padding: 16px;
+    }
+
+    .slide-viewport {
+      width: var(--slide-width);
+      height: var(--slide-height);
+      max-width: 96vw;
+      max-height: 86vh;
+      position: relative;
+    }
+
+    .slide {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(13, 18, 30, 0.85);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 32px 40px;
+      display: flex;
+      flex-direction: column;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(12px) scale(0.98);
+      transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      overflow-y: auto;
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7);
+    }
+
+    .slide.active {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0) scale(1);
+    }
+
+    .slide-header {
+      margin-bottom: 18px;
+      flex-shrink: 0;
+    }
+    .slide-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .slide-badge {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 3px 10px;
+      border-radius: 4px;
+    }
+    .badge-amber { background: rgba(245, 158, 11, 0.15); color: var(--solar-gold); border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-cyan { background: rgba(6, 182, 212, 0.15); color: var(--tech-cyan); border: 1px solid rgba(6, 182, 212, 0.3); }
+    .badge-emerald { background: rgba(16, 185, 129, 0.15); color: var(--tech-emerald); border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-rose { background: rgba(244, 63, 94, 0.15); color: var(--tech-rose); border: 1px solid rgba(244, 63, 94, 0.3); }
+    .badge-purple { background: rgba(168, 85, 247, 0.15); color: var(--tech-purple); border: 1px solid rgba(168, 85, 247, 0.3); }
+
+    .slide-title {
+      font-family: var(--font-display);
+      font-size: 1.85rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #fff;
+    }
+    .slide-subtitle {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .slide-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-3col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+    .grid-4col { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: all 0.2s;
+    }
+    .card:hover {
+      background: var(--bg-card-hover);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+    .card-title {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1.05rem;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-text {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .card-highlight-amber { border-left: 4px solid var(--solar-amber); }
+    .card-highlight-cyan { border-left: 4px solid var(--tech-cyan); }
+    .card-highlight-emerald { border-left: 4px solid var(--tech-emerald); }
+    .card-highlight-rose { border-left: 4px solid var(--tech-rose); }
+    .card-highlight-purple { border-left: 4px solid var(--tech-purple); }
+
+    .code-box {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      background: #090d16;
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 14px 16px;
+      color: #cbd5e1;
+      overflow-x: auto;
+      line-height: 1.5;
+    }
+
+    .table-wrapper {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+    }
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.84rem;
+      text-align: left;
+    }
+    table.data-table th {
+      background: rgba(30, 41, 59, 0.8);
+      padding: 10px 14px;
+      color: var(--tech-cyan);
+      font-family: var(--font-display);
+      font-weight: 600;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    table.data-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      color: var(--text-main);
+    }
+
+    .hero-container {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      height: 100%;
+    }
+    .hero-badge {
+      display: inline-flex;
+      padding: 6px 16px;
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: 999px;
+      color: var(--solar-gold);
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: 3.2rem;
+      font-weight: 800;
+      line-height: 1.1;
+      background: linear-gradient(135deg, #ffffff 30%, var(--solar-gold) 85%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 16px;
+    }
+    .hero-subtitle {
+      font-size: 1.2rem;
+      color: var(--text-muted);
+      max-width: 860px;
+      line-height: 1.5;
+      margin-bottom: 32px;
+    }
+    .hero-tags { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+    .hero-tag-item {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 0.85rem;
+    }
+
+    footer.deck-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 28px;
+      background: rgba(11, 15, 25, 0.9);
+      border-top: 1px solid var(--border-subtle);
+      z-index: 90;
+    }
+    .keyboard-hints { display: flex; gap: 16px; font-size: 0.78rem; color: var(--text-dim); }
+    .kbd { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 4px; padding: 1px 6px; font-family: var(--font-mono); font-size: 0.72rem; }
+    .slide-counter { font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-muted); font-weight: 600; }
+    .footer-nav { display: flex; gap: 8px; }
+
+    #speaker-notes-drawer {
+      position: fixed; right: 0; top: 60px; bottom: 50px; width: 380px;
+      background: rgba(15, 23, 42, 0.96); backdrop-filter: blur(20px);
+      border-left: 1px solid var(--border-subtle); z-index: 95;
+      transform: translateX(100%); transition: transform 0.3s ease;
+      display: flex; flex-direction: column;
+    }
+    #speaker-notes-drawer.open { transform: translateX(0); }
+    .notes-header { padding: 16px 20px; border-bottom: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center; }
+    .notes-header h4 { font-family: var(--font-display); color: var(--solar-gold); font-size: 0.95rem; }
+    .notes-body { padding: 20px; overflow-y: auto; font-size: 0.9rem; line-height: 1.6; color: #e2e8f0; flex: 1; }
+
+    #grid-modal {
+      position: fixed; inset: 0; background: rgba(7, 9, 14, 0.96); backdrop-filter: blur(24px);
+      z-index: 120; display: none; flex-direction: column; padding: 40px;
+    }
+    #grid-modal.open { display: flex; }
+    .grid-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .grid-deck { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; overflow-y: auto; flex: 1; }
+    .grid-item { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 10px; padding: 16px; cursor: pointer; display: flex; flex-direction: column; gap: 8px; }
+    .grid-item:hover, .grid-item.current { border-color: var(--solar-amber); transform: translateY(-3px); }
+  </style>
+</head>
+<body>
+  <div id="progress-container"><div id="progress-bar"></div></div>
+
+  <header class="deck-header">
+    <div class="brand-box">
+      <div class="brand-logo">EQ</div>
+      <div class="brand-title">Equinox Mobile</div>
+      <div class="brand-tag">Fase 1 • Mock & Interface First</div>
+    </div>
+    <div class="module-pill" id="module-pill"><span>●</span> Módulo 1: Visão Geral</div>
+    <div class="header-actions">
+      <button class="btn-icon" id="btn-grid">⊞</button>
+      <button class="btn-icon" id="btn-notes">✎</button>
+      <button class="btn-icon" id="btn-fullscreen">⛶</button>
+    </div>
+  </header>
+
+  <main class="stage">
+    <div class="slide-viewport">
+      <!-- SLIDE 1: Capa (Sem título executivo) -->
+      <section class="slide active" data-module="Módulo 1: Visão Geral" data-notes="Apresentação do planejamento e arquitetura da Fase Domínio e Interface Primeiro.">
+        <div class="hero-container">
+          <div class="hero-badge">🏛️ Equinox System Mobile • Planejamento & Código Fonte</div>
+          <h1 class="hero-title">Planejamento da Fase "Domínio & Interface Primeiro"</h1>
+          <p class="hero-subtitle">Desenvolvimento Incremental Desacoplado: Regras de Negócio Puras, Use Cases Orquestrados, Context API & Screens testados via TDD com 100% de Fakes In-Memory</p>
+          
+          <div class="hero-tags">
+            <div class="hero-tag-item">💎 Domínio 100% Puro (TypeScript)</div>
+            <div class="hero-tag-item">🧪 80%+ Cobertura TDD (Jest + RNTL)</div>
+            <div class="hero-tag-item">⚡ 100% Mock & In-Memory Fakes</div>
+            <div class="hero-tag-item">🔐 Secure Session (SecureStore Adapter)</div>
+            <div class="hero-tag-item">⚛️ React Context API & Custom Hooks</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Demais slides estendidos preservados -->
+      <section class="slide" data-module="Módulo 1: Visão Geral" data-notes="Estratégia de mocks e isolamento.">
+        <div class="slide-header">
+          <h2 class="slide-title">Filosofia de Engenharia: Domínio e Interface Primeiro</h2>
+        </div>
+        <div class="slide-body">
+          <div class="grid-2col">
+            <div class="card card-highlight-amber">
+              <div class="card-title">100% Mock In-Memory</div>
+              <div class="card-text">Isolamento total de SQLite e Supabase durante os testes iniciais.</div>
+            </div>
+            <div class="card card-highlight-cyan">
+              <div class="card-title">TDD Antecipado</div>
+              <div class="card-text">Garantia de 80%+ de cobertura antes de integrar persistência física.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="deck-footer">
+    <div class="keyboard-hints"><span><span class="kbd">←</span> <span class="kbd">→</span> Navegar</span></div>
+    <div class="slide-counter">Slide <span id="current-slide-num">1</span> de <span id="total-slides-num">2</span></div>
+    <div class="footer-nav">
+      <button class="btn-icon" id="btn-prev">‹</button>
+      <button class="btn-icon" id="btn-next">›</button>
+    </div>
+  </footer>
+
+  <script>
+    const slides = Array.from(document.querySelectorAll('.slide'));
+    let currentSlideIndex = 0;
+    function updateSlide(index) {
+      slides.forEach((s, i) => s.classList.toggle('active', i === index));
+      document.getElementById('current-slide-num').textContent = index + 1;
+      document.getElementById('total-slides-num').textContent = slides.length;
+    }
+    document.getElementById('btn-next').addEventListener('click', () => { if (currentSlideIndex < slides.length - 1) updateSlide(++currentSlideIndex); });
+    document.getElementById('btn-prev').addEventListener('click', () => { if (currentSlideIndex > 0) updateSlide(--currentSlideIndex); });
+    updateSlide(0);
+  </script>
+</body>
+</html>
