@@ -257,7 +257,7 @@
   <section class="slide" data-layer="overview" id="slide-1">
     <header class="slide-head">
       <span class="badge">Visão Geral da Arquitetura</span>
-      <span class="num"><b>01</b> / 10</span>
+      <span class="num"><b>01</b> / 12</span>
     </header>
     <div class="grid">
       <div class="col-text">
@@ -304,7 +304,7 @@
   <section class="slide" data-layer="domain" id="slide-2">
     <header class="slide-head">
       <span class="badge">Camada de Domínio · Value Objects</span>
-      <span class="num"><b>02</b> / 10</span>
+      <span class="num"><b>02</b> / 12</span>
     </header>
     <div class="grid">
       <div class="col-text">
@@ -352,7 +352,7 @@ export class CNPJ {
   <section class="slide" data-layer="domain" id="slide-3">
     <header class="slide-head">
       <span class="badge">Camada de Domínio · Aggregate Root</span>
-      <span class="num"><b>03</b> / 10</span>
+      <span class="num"><b>03</b> / 12</span>
     </header>
     <div class="grid">
       <div class="col-text">
@@ -397,7 +397,7 @@ export class Usina {
   <section class="slide" data-layer="domain" id="slide-4">
     <header class="slide-head">
       <span class="badge">Camada de Domínio · Contratos</span>
-      <span class="num"><b>04</b> / 10</span>
+      <span class="num"><b>04</b> / 12</span>
     </header>
     <div class="grid">
       <div class="col-text">
@@ -438,7 +438,7 @@ export interface IActionQueueRepository {
   <section class="slide" data-layer="app" id="slide-5">
     <header class="slide-head">
       <span class="badge">Camada de Aplicação · Use Cases</span>
-      <span class="num"><b>05</b> / 10</span>
+      <span class="num"><b>05</b> / 12</span>
     </header>
     <div class="grid">
       <div class="col-text">
@@ -492,7 +492,7 @@ export class RegistrarLeituraUseCase {
   <section class="slide" data-layer="fakes" id="slide-6">
     <header class="slide-head">
       <span class="badge">Infraestrutura · Fakes</span>
-      <span class="num"><b>06</b> / 10</span>
+      <span class="num"><b>06</b> / 12</span>
     </header>
     <div class="grid">
       <div class="col-text">
@@ -539,7 +539,7 @@ export class CameraGatewayFake implements CameraGateway {
   <section class="slide" data-layer="adapters" id="slide-7">
     <header class="slide-head">
       <span class="badge">Infraestrutura · Sincronização</span>
-      <span class="num"><b>07</b> / 10</span>
+      <span class="num"><b>07</b> / 12</span>
     </header>
     <div class="grid">
       <div class="col-text">
@@ -578,7 +578,7 @@ export class ActionQueueSQLite implements IActionQueueRepository {
   <section class="slide" data-layer="ui" id="slide-8">
     <header class="slide-head">
       <span class="badge">Presentation · Telas</span>
-      <span class="num"><b>08</b> / 10</span>
+      <span class="num"><b>08</b> / 12</span>
     </header>
     <div class="grid">
       <div class="col-text">
@@ -626,7 +626,7 @@ export function NovaLeituraScreen({ usinaId }) {
   <section class="slide" data-layer="tests" id="slide-9">
     <header class="slide-head">
       <span class="badge">Testes · Pirâmide (Parte 1)</span>
-      <span class="num"><b>09</b> / 10</span>
+      <span class="num"><b>09</b> / 12</span>
     </header>
     <div class="grid">
       <div class="col-text">
@@ -667,7 +667,7 @@ it('lança erro para capacidade nominal inválida', () => {
   <section class="slide" data-layer="tests" id="slide-10">
     <header class="slide-head">
       <span class="badge">Testes · Pirâmide (Parte 2)</span>
-      <span class="num"><b>10</b> / 10</span>
+      <span class="num"><b>10</b> / 12</span>
     </header>
     <div class="grid">
       <div class="col-text">
@@ -703,6 +703,68 @@ it('registra leitura e enfileira na action queue', async () => {
   expect(queueRepo.items.length).toBe(1); // Foi para a fila offline!
 });
 </script>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SLIDE 11 ===================== -->
+  <section class="slide" data-layer="adapters" id="slide-11">
+    <header class="slide-head">
+      <span class="badge">Infraestrutura · Ecossistema</span>
+      <span class="num"><b>11</b> / 12</span>
+    </header>
+    <div class="grid">
+      <div class="col-text">
+        <h2 class="anim">Tecnologias e<br><span class="hl">Bibliotecas</span></h2>
+        <ul class="points">
+          <li><strong>React Native &amp; Expo SDK 57</strong>: A base móvel robusta</li>
+          <li><strong>SQLite Local</strong>: Persistência garantida offline</li>
+          <li><strong>Supabase</strong>: Backend como serviço para sincronização</li>
+          <li><strong>Módulos Nativos</strong>: <code class="inline">expo-camera</code> e <code class="inline">expo-location</code> isolados</li>
+        </ul>
+      </div>
+      <div class="col-code">
+        <div class="window anim">
+          <div class="window-bar"><i></i><i></i><i></i><span><b>package.json</b> (Resumo)</span></div>
+<script type="text/plain" data-lang="json">
+{
+  "dependencies": {
+    "expo": "~57.0.0",
+    "expo-camera": "~14.0.0",
+    "expo-location": "~16.0.0",
+    "expo-sqlite": "~13.2.0",
+    "@supabase/supabase-js": "^2.38.0",
+    "react-native": "0.73.0"
+  }
+}
+</script>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SLIDE 12 ===================== -->
+  <section class="slide" data-layer="overview" id="slide-12">
+    <header class="slide-head">
+      <span class="badge">Conclusão · Benefícios</span>
+      <span class="num"><b>12</b> / 12</span>
+    </header>
+    <div class="grid">
+      <div class="col-text">
+        <h2 class="anim">Auditoria e<br><span class="hl">Resiliência</span></h2>
+        <ul class="points">
+          <li><strong>Auditoria Georreferenciada</strong>: Coordenadas e timestamps imutáveis</li>
+          <li><strong>Compressão de Mídia</strong>: Fotos redimensionadas antes do envio</li>
+          <li><strong>Fluxo de Trabalho Resiliente</strong>: Execução fluida sem internet</li>
+          <li>Elimina falhas na coleta e garante <strong>alta confiabilidade operacional</strong></li>
+        </ul>
+      </div>
+      <div class="col-code">
+        <div class="stats anim" style="flex-direction: column; gap: 20px;">
+          <div class="stat"><b>100%</b><span>Disponibilidade Offline</span></div>
+          <div class="stat"><b>-70%</b><span>No Tamanho de Imagens</span></div>
+          <div class="stat"><b>0</b><span>Perda de Dados em Zona Rural</span></div>
         </div>
       </div>
     </div>
