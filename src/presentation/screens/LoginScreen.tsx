@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useAuth } from '../hooks/useAuth';
 
 export const LoginScreen: React.FC = () => {
+  const router = useRouter();
   const { loginOnline, desbloquearComPin, isLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [pin, setPin] = useState('');
@@ -74,6 +76,15 @@ export const LoginScreen: React.FC = () => {
               onPress={() => setModoOffline(true)}
             >
               <Text style={styles.linkText}>Modo Offline (Acessar com PIN Local)</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.linkButton, { marginTop: 12 }]}
+              onPress={() => router.push('/cadastro')}
+            >
+              <Text style={[styles.linkText, { color: '#F9A825', fontWeight: 'bold' }]}>
+                Não tem uma conta? Criar conta →
+              </Text>
             </TouchableOpacity>
           </>
         ) : (

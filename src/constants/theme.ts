@@ -3,26 +3,43 @@
  * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
  */
 
-import '@/global.css';
+// Styles centralizados via React Native StyleSheet
+
 
 import { Platform } from 'react-native';
 
 export const Colors = {
   light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
+    text: '#0F172A',
+    background: '#F8FAFC',
+    backgroundElement: '#E2E8F0',
+    backgroundSelected: '#CBD5E1',
+    textSecondary: '#64748B',
+    primary: '#F9A825',
+    surfaceContainer: '#FFFFFF',
+    surfaceContainerHigh: '#F1F5F9',
+    emerald: '#10B981',
+    amber: '#F59E0B',
+    rose: '#EF4444',
+    indigo: '#6366F1',
   },
   dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
+    text: '#F8FAFC',
+    background: '#0F172A',
+    backgroundElement: '#1E293B',
+    backgroundSelected: '#334155',
+    textSecondary: '#94A3B8',
+    primary: '#F9A825',
+    surfaceContainer: '#1E293B',
+    surfaceContainerHigh: '#2A374E',
+    emerald: '#10B981',
+    amber: '#F59E0B',
+    rose: '#EF4444',
+    indigo: '#6366F1',
   },
 } as const;
+
+export const SolarTheme = Colors.dark;
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
+import { SolarTheme } from '@/constants/theme';
 
 export default function TabsLayout() {
   return (
@@ -7,11 +8,11 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#1E293B',
-          borderTopColor: '#334155',
+          backgroundColor: SolarTheme.surfaceContainer,
+          borderTopColor: 'rgba(255, 255, 255, 0.05)',
         },
-        tabBarActiveTintColor: '#38BDF8',
-        tabBarInactiveTintColor: '#64748B',
+        tabBarActiveTintColor: SolarTheme.primary,
+        tabBarInactiveTintColor: SolarTheme.textSecondary,
       }}
     >
       <Tabs.Screen
@@ -24,6 +25,18 @@ export default function TabsLayout() {
         name="usinas"
         options={{
           title: 'Usinas',
+        }}
+      />
+      <Tabs.Screen
+        name="admin"
+        options={{
+          title: 'Painel Admin',
+        }}
+      />
+      <Tabs.Screen
+        name="perfil"
+        options={{
+          title: 'Meu Perfil',
         }}
       />
     </Tabs>
