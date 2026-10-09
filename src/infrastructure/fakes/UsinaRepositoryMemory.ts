@@ -24,6 +24,10 @@ export class UsinaRepositoryMemory implements IUsinaRepository {
     return result;
   }
 
+  async listarTodas(): Promise<Usina[]> {
+    return Array.from(this.items.values());
+  }
+
   async atualizar(usina: Usina): Promise<void> {
     this.items.set(usina.id.value, usina);
   }

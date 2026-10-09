@@ -5,5 +5,6 @@ export interface IUsinaRepository {
   salvar(usina: Usina): Promise<void>;
   buscarPorId(id: UUIDv4): Promise<Usina | null>;
   listarPorEmpresa(empresaId: UUIDv4): Promise<Usina[]>;
+  listarTodas(): Promise<Usina[]>;
   atualizar(usina: Usina): Promise<void>;
 }

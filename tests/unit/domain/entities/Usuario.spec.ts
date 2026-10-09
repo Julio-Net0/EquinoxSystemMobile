@@ -40,20 +40,39 @@ describe('Usuario Entity', () => {
     ).toThrow('Email inválido');
   });
 
-  it('deve permitir inativar e ativar um usuário', () => {
+  it('deve permitir recusar, alterar perfil e vincular usinas', () => {
+    const usuarioId = UUIDv4.gerar();
+    const empresaId = UUIDv4.gerar();
+    const usinaId1 = UUIDv4.gerar();
+    const usinaId2 = UUIDv4.gerar();
+
     const usuario = new Usuario({
-      id: UUIDv4.gerar(),
-      empresaId: UUIDv4.gerar(),
-      nome: 'Maria',
-      email: 'maria@solartech.com',
-      perfil: PerfilEnum.ADMIN,
+      id: usuarioId,
+      empresaId,
+      nome: 'Carlos Eduardo',
+      usuario: 'carlosedu',
+      email: 'carlos@empresa.com',
+      perfil: PerfilEnum.TECNICO,
       status: 'Pendente',
+      usinasVinculadas: [usinaId1],
     });
 
+    expect(usuario.usuario).toBe('carlosedu');
+    expect(usuario.status).toBe('Pendente');
+    expect(usuario.usinasVinculadas.length).toBe(1);
+
+    usuario.recusar();
+    expect(usuario.status).toBe('Recusado');
     expect(usuario.isAtivo()).toBe(false);
+
+    usuario.atualizarPerfil(PerfilEnum.ADMIN);
+    expect(usuario.perfil).toBe(PerfilEnum.ADMIN);
+
+    usuario.vincularUsinas([usinaId1, usinaId2]);
+    expect(usuario.usinasVinculadas.length).toBe(2);
+
     usuario.ativar();
+    expect(usuario.status).toBe('Ativo');
     expect(usuario.isAtivo()).toBe(true);
-    usuario.inativar();
-    expect(usuario.isAtivo()).toBe(false);
   });
 });
