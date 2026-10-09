@@ -196,3 +196,77 @@ Para cada decisão, listamos o contexto, as opções consideradas, a decisão to
 * **Contexto:** O Técnico se recusa ou nega permanentemente a permissão de Câmera ou Localização.
 * **Decisão:** **Bloqueio de Funcionalidade Direcionado (Fallback UI).**
 * **Justificativa:** A foto é pré-requisito rígido para auditoria. Caso negado, o fluxo da Nova Leitura exibe uma *Fallback UI* (tela de bloqueio interativa) instruindo e fornecendo um botão direto para as Configurações do SO (`Linking.openSettings()`). A medição não pode ser iniciada sem estas permissões.
+
+---
+
+## 6. Implementação Completa das Telas por Papel de Acesso (User, Admin e SuperAdmin)
+
+### 6.1 Consolidação dos Perfis e Adaptabilidade Visual do Protótipo
+* **Contexto:** O sistema demandava finalizar todas as interfaces móveis adaptando a experiência visual demonstrada no protótipo `example/Equinox.MOBILE` para React Native e Expo SDK 57.
+* **Opções Consideradas:**
+  1. Utilizar utilitários ad-hoc de terceiros ou bibliotecas genéricas sem padrão visual unificado.
+  2. Construir um Design System Solar Dark Mode nativo via React Native `StyleSheet` ancorado no `theme.ts` centralizado e estruturado por Clean Architecture + DDD.
+* **Decisão:** **Opção 2 (Design System Solar Dark Mode + Clean Architecture).**
+* **Justificativa:** Garante alta fidelidade estética ao protótipo de referência com performance nativa superior (Slate Obsidian `#0F172A`, Solar Gold `#F9A825`, Surface Containers `#1E293B`), desacoplando completamente as telas da camada de infraestrutura e viabilizando validação TDD prévia.
+
+### 6.2 Mapeamento de Casos de Uso e Telas Desenvolvidas
+
+| Rota / Arquivo | Componente de Tela | Papéis Autorizados | Funcionalidade e Casos de Uso |
+|:---|:---|:---|:---|
+| `src/app/login.tsx` | `LoginScreen` | Público | Autenticação online, acesso por PIN local (offline) e atalho para pré-cadastro. |
+| `src/app/cadastro.tsx` | `CadastroScreen` | Público | Cadastro em 2 etapas com busca de empresa em modal e registro de status `Pendente` (`CadastrarUsuarioPendenteUseCase`). |
+| `src/app/(tabs)/dashboard.tsx` | `DashboardScreen` | Técnico, Admin, SuperAdmin | Dashboard com métricas visuais, contagem da `action_queue`, banner de conectividade e ações rápidas. |
+| `src/app/leitura/nova.tsx` | `NovaLeituraScreen` | Técnico, Admin, SuperAdmin | Leitura de medidor em kWh com foto nativa (`expo-camera`), compressão JPEG (~300KB), GPS (`expo-location`) e Fallback UI para permissões. |
+| `src/app/(tabs)/usinas.tsx` | `ListaUsinasScreen` | Técnico, Admin, SuperAdmin | Catálogo offline de usinas com busca, filtro e cadastro emergencial em campo (status `Em Comissionamento`). |
+| `src/app/(tabs)/perfil.tsx` | `PerfilScreen` | Técnico, Admin, SuperAdmin | Avatar com iniciais, dados pessoais, badge do perfil, alteração de senha e encerramento de sessão. |
+| `src/app/(tabs)/admin.tsx` | `AdminHubScreen` | Admin, SuperAdmin | Hub do Painel Administrativo com atalhos para Autorizações, Usuários, Estrutura, Notificações e Empresas. |
+| `src/app/admin/autorizacoes.tsx` | `AutorizacoesPendentesScreen` | Admin, SuperAdmin | Gestão de solicitações pendentes: atribuição de nível de acesso (Técnico/Admin/SuperAdmin) e vinculo multi-select de usinas (`AutorizarUsuarioUseCase`). |
+| `src/app/admin/usuarios.tsx` | `GestaoUsuariosScreen` | Admin, SuperAdmin | Gestão de integrantes da empresa: busca por texto, filtro por status, ativação/desativação e exclusão (`GerenciarUsuariosEmpresaUseCase`). |
+| `src/app/admin/estrutura.tsx` | `GestaoEstruturaScreen` | Admin, SuperAdmin | Cadastro e manutenção de Usinas/Endereços da empresa e inclusão de padrões de medidores (CEMIG/Energisa, multiplicadores). |
+| `src/app/admin/notificacoes.tsx` | `CentralNotificacoesAdminScreen` | Admin, SuperAdmin | Central de alertas administrativos: leituras atrasadas, resoluções de conflitos (Last Write Wins) e medições menores que a anterior. |
+| `src/app/admin/empresas.tsx` | `GestaoEmpresasScreen` | SuperAdmin (Exclusivo) | Visão Multi-Tenant global da plataforma: listagem, busca e cadastro de novas Empresas/Tenants clientes com validação de CNPJ (`GerenciarEmpresasUseCase`). |
+
+### 6.3 Garantia de Cobertura e Qualidade (TDD)
+* **Resultado:** Todas as entidades e casos de uso associados aos fluxos das telas foram testados unitariamente utilizando repositórios em memória (`src/infrastructure/fakes/`). A suíte de testes passou com **19 test suites e 54 unit tests executados com 100% de sucesso**.
+
+---
+
+## 7. Backend Cloud Supabase & Row Level Security (Fase 4)
+
+### 7.1 Cliente Supabase API Singleton (`supabaseClient.ts`)
+* **Contexto:** Necessidade de comunicação reativa e segura com as APIs REST/Realtime e Auth do Supabase no ambiente React Native.
+* **Decisão:** **Inicialização de cliente singleton via `getSupabaseClient()` em `src/infrastructure/database/supabase/supabaseClient.ts`.**
+* **Justificativa:** Centraliza o tratamento de variáveis de ambiente (`EXPO_PUBLIC_SUPABASE_URL` e `EXPO_PUBLIC_SUPABASE_ANON_KEY`), desativa a persistência padrão do SDK (`persistSession: false`) para evitar concorrência com o `SessionStorageSecureStore` do app, e oferece fallback transparente para execução de testes unitários isolados sob Node.js/Jest.
+
+### 7.2 Migrações SQL Remotas e Isolamento Multi-Tenant (`001_initial_supabase_rls.sql`)
+* **Contexto:** Garantir que empresas (Tenants) concorrentes não acessem dados umas das outras na nuvem e que técnicos tenham permissões estritas de inserção.
+* **Decisão:** **Uso de scripts SQL versionados em `supabase/migrations/` com Row Level Security (RLS) obrigatório.**
+* **Justificativa:**
+  * Habilitação de `ENABLE ROW LEVEL SECURITY` em todas as tabelas PostgreSQL (`empresas`, `usuarios`, `usinas`, `leituras`).
+  * Políticas de isolamento baseadas no claim JWT `empresa_id` e no papel `perfil` (`SuperAdmin`, `Admin`, `Leitor`).
+  * `SuperAdmin` possui visão global cross-tenant; Admins e Leitores ficam estritamente limitados ao `empresa_id` correspondente.
+
+### 7.3 Gateways Concretos e Tolerância a Desconexões (`SupabaseGateways`)
+* **Contexto:** Integrar o envio e recebimento de dados remotos sem bloquear o aplicativo em ambientes sem sinal de celular.
+* **Decisão:** **Implementação dos Gateways Concretos (`SupabaseStorageGateway`, `SupabaseAuthGateway`, `SupabaseDatabaseGateway`) com padrão `comTimeout`.**
+* **Justificativa:** 
+  * `SupabaseStorageGateway`: Realiza upload de imagens array buffer para o bucket `comprovantes` com estrutura `{empresa_id}/{usina_id}/{leitura_id}.jpg` e URL pública formatada.
+  * `SupabaseAuthGateway`: Valida credenciais e obtém perfis estendidos no banco remoto.
+  * `SupabaseDatabaseGateway`: Implementa a interface `IRemoteDatabaseGateway` para operações de push/pull delta de leituras, usinas, usuários e empresas com proteção `comTimeout` de 300ms, assegurando que o app responda instantaneamente em modo offline sem travar nem falhar a suíte de testes (25 test suites e 73 testes unitários com 100% de sucesso).
+
+---
+
+## 8. Testes de UI & Observabilidade Sentry (Fase 5)
+
+### 8.1 Gerenciador de Crash Reporting Offline-First (`CrashReporterManager.ts`)
+* **Contexto:** Necessidade de capturar exceções não tratadas em campo e rastrear bugs sem depender de conexões contínuas.
+* **Decisão:** **Implementação do `CrashReporterManager.ts` em `src/infrastructure/monitoring/`.**
+* **Justificativa:** Centraliza o registro de erros, vinculação de contexto de usuário (sem dados PII sensíveis) e mantém um buffer de logs locais em memória. Quando houver o DSN do Sentry configurado e conectividade ativa, faz o envio automático dos relatórios de exceção.
+
+### 8.2 Suíte de Testes de Componentes Visuais (`tests/component/`)
+* **Contexto:** Validar a renderização, os fluxos de navegação e as interações dos componentes visuais do ecossistema React Native.
+* **Decisão:** **Adopção de testes de componentes integrados via `@testing-library/react-native`.**
+* **Justificativa:** Foram criadas suítes de testes de componentes cobrindo `LoginScreen.spec.tsx`, `DashboardScreen.spec.tsx`, `AutorizacoesPendentesScreen.spec.tsx` e `GestaoEmpresasScreen.spec.tsx`. A suíte completa expandiu para **30 test suites e 80 testes unitários/componentes 100% aprovados**.
+
+
+
