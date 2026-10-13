@@ -13,7 +13,7 @@ export default function RootLayout() {
     // Popula usuário fake inicial para testes/demonstração em tempo real
     repo.salvar(
       new Usuario({
-        id: new UUIDv4('a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d'),
+        id: new UUIDv4('a1b2c3d4-e5f6-4a8b-8c0d-1e2f3a4b5c6d'),
         empresaId: new UUIDv4('550e8400-e29b-41d4-a716-446655440000'),
         nome: 'João da Silva (Técnico)',
         email: 'tecnico@equinox.com',
