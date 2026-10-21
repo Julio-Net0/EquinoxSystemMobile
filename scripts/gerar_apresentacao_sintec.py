@@ -20,6 +20,7 @@ from pptx.util import Emu, Inches, Pt
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATE = os.path.join(RAIZ, "Template-Apresentacao-SINTEC-2026.pptx")
 SAIDA = os.path.join(RAIZ, "Apresentacao-SINTEC-2026-Equinox-Mobile.pptx")
+DIR_PRINTS = os.path.join(RAIZ, "assets", "sintec")
 
 # ---------- Paleta (idêntica aos slides HTML) ----------
 BG1, BG2 = "0A1020", "070B14"
@@ -401,14 +402,23 @@ def main():
         texto(s, x + 0.3, 2.0, 1.3, 1.05, n, tam=38, cor=CYAN, bold=True, anchor=MSO_ANCHOR.MIDDLE)
         texto(s, x + 1.35, 2.0, 1.4, 1.05, l.upper(), tam=11, cor=MUTED, fonte=MONO,
               anchor=MSO_ANCHOR.MIDDLE)
-    telas = ["Login", "Painel / Dashboard", "Nova leitura (câmera + GPS)", "Administração"]
+    telas = ["Login", "Painel Usuário", "Painel Administrador", "Super Administrador"]
     cores = [DOMAIN, APP, UI, ADAPT]
-    for i, (t, c) in enumerate(zip(telas, cores)):
+    prints = [
+        os.path.join(DIR_PRINTS, "print_01_login.png"),
+        os.path.join(DIR_PRINTS, "print_02_usuario.png"),
+        os.path.join(DIR_PRINTS, "print_03_admin.png"),
+        os.path.join(DIR_PRINTS, "print_04_superadmin.png"),
+    ]
+    for i, (t, c, img_path) in enumerate(zip(telas, cores, prints)):
         x = 0.6 + i * 3.07
         fr = rrect(s, x + 0.45, 3.3, 1.95, 3.15, fill="0F172A", line=c, raio=0.12)
-        rrect(s, x + 1.05, 3.4, 0.75, 0.07, fill=BORDER, line=None, raio=0.5)
-        texto(s, x + 0.45, 3.3, 1.95, 3.15, [[("INSERIR PRINT", c, True)], [("da tela", MUTED, False)]],
-              tam=12, fonte=MONO, alinh=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE)
+        if os.path.exists(img_path):
+            s.shapes.add_picture(img_path, Inches(x + 0.45), Inches(3.3), Inches(1.95), Inches(3.15))
+        else:
+            rrect(s, x + 1.05, 3.4, 0.75, 0.07, fill=BORDER, line=None, raio=0.5)
+            texto(s, x + 0.45, 3.3, 1.95, 3.15, [[("INSERIR PRINT", c, True)], [("da tela", MUTED, False)]],
+                  tam=12, fonte=MONO, alinh=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE)
         texto(s, x, 6.55, 2.85, 0.4, t, tam=13, cor=SOFT, bold=True, alinh=PP_ALIGN.CENTER)
     rodape(s, 7)
 
