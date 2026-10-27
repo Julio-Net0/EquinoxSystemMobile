@@ -38,9 +38,10 @@ export class SyncManager {
             if (item.payloadJSON) {
               try {
                 const payload = JSON.parse(item.payloadJSON);
-                if (payload.leituraId) {
+                const idParaAtualizar = payload.leituraId || payload.id;
+                if (idParaAtualizar) {
                   await this.leituraRepo.atualizarStatus(
-                    new UUIDv4(payload.leituraId),
+                    new UUIDv4(idParaAtualizar),
                     StatusSyncEnum.SINCRONIZADA,
                     'https://supabase.co/storage/v1/object/public/comprovantes/medidor_sync.jpg'
                   );

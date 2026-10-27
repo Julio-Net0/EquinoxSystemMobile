@@ -96,7 +96,7 @@ export const GestaoEmpresasScreen: React.FC = () => {
             key={e.id}
             style={styles.card}
             activeOpacity={0.8}
-            onPress={() => router.push('/admin/estrutura')}
+            onPress={() => router.push('/admin/estrutura' as any)}
           >
             <View style={styles.cardHeader}>
               <View style={{ flex: 1 }}>

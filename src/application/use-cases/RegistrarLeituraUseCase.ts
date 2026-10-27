@@ -64,6 +64,7 @@ export class RegistrarLeituraUseCase {
         tipoOperacao: 'INSERT_LEITURA',
         payloadJSON: JSON.stringify({
           id: leituraId.value,
+          leituraId: leituraId.value,
           usinaId: usinaId.value,
           usuarioId: usuarioId.value,
           valorKwh: valorKwh.valor,

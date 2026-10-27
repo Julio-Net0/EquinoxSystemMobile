@@ -80,7 +80,7 @@ export const LoginScreen: React.FC = () => {
 
             <TouchableOpacity
               style={[styles.linkButton, { marginTop: 12 }]}
-              onPress={() => router.push('/cadastro')}
+              onPress={() => router.push('/cadastro' as any)}
             >
               <Text style={[styles.linkText, { color: '#F9A825', fontWeight: 'bold' }]}>
                 Não tem uma conta? Criar conta →

@@ -275,10 +275,10 @@
 ├── <span class="ap">application/use-cases/</span>
 │   └── <span class="ap">RegistrarLeituraUseCase.ts</span> <span class="c">← Salva Leitura + Enfileira Sync</span>
 ├── <span class="ad">infrastructure/</span>
-│   ├── fakes/           <span class="c">← CameraGatewayFake.ts, LocationGatewayFake.ts</span>
-│   ├── database/sqlite/ <span class="c">← LeituraRepositorySQLite.ts, ActionQueueRepositorySQLite.ts</span>
-│   ├── database/supabase/<span class="c">← SupabaseStorageGateway.ts, SupabaseDatabaseGateway.ts</span>
-│   └── sync/            <span class="c">← SyncManager.ts (processarFilaPush)</span>
+│   ├── fakes/                        <span class="c">← CameraGatewayFake.ts, LocationGatewayFake.ts</span>
+│   ├── database/sqlite/repositories/ <span class="c">← LeituraRepositorySQLite.ts, ActionQueueRepositorySQLite.ts</span>
+│   ├── database/supabase/gateways/   <span class="c">← SupabaseStorageGateway.ts, SupabaseDatabaseGateway.ts</span>
+│   └── sync/                         <span class="c">← SyncManager.ts (processarFilaPush)</span>
 └── <span class="ui">presentation/</span> &amp; <span class="ui">app/</span>
     ├── hooks/           <span class="c">← useNovaLeituraController.ts, useLeitura.ts</span>
     ├── screens/         <span class="c">← NovaLeituraScreen.tsx</span>
@@ -499,25 +499,30 @@ export class Leitura {
 const capturarFoto = async () => {
   setErro(null);
   const permissao = await cameraGateway.solicitarPermissao();
-  if (!permissao) {
-    setPermissaoNegada(true);
-    setErro('Permissão de acesso à câmera negada.');
-    return;
-  }
+  if (!permissao) { setPermissaoNegada(true); setErro('Permissão de acesso à câmera negada.'); return; }
   const res = await cameraGateway.capturarEComprimirFoto();
-  if (res && res.uri) setFotoUri(res.uri);
+  if (res?.uri) setFotoUri(res.uri);
 };
 
 const obterGps = async () => {
   setErro(null);
   const permissao = await locationGateway.solicitarPermissao();
-  if (!permissao) {
-    setPermissaoNegada(true);
-    setErro('Permissão de localização GPS negada.');
-    return;
-  }
+  if (!permissao) { setPermissaoNegada(true); setErro('Permissão de localização GPS negada.'); return; }
   const coords = await locationGateway.obterCoordenadas();
   if (coords) setCoordenadas({ lat: coords.latitude, lng: coords.longitude });
+};
+
+const salvarLeitura = async (): Promise<boolean> => {
+  if (!usinaId) { setErro('Selecione a usina.'); return false; }
+  if (!fotoUri) { setErro('Capture a foto do relógio medidor.'); return false; }
+  if (!coordenadas) { setErro('Obtenha as coordenadas GPS antes de salvar.'); return false; }
+
+  const useCase = new RegistrarLeituraUseCase(leituraRepo, usinaRepo, queueRepo);
+  const res = await useCase.executar({
+    usinaId, usuarioId: usuarioId || usinaId, valorKwh: Number(valorKwh),
+    fotoLocalUri: fotoUri, latitude: coordenadas.lat, longitude: coordenadas.lng,
+  });
+  return res.sucesso;
 };
 </script>
         </div>
@@ -611,9 +616,14 @@ const queueItem = new ActionQueueItem({
   id: UUIDv4.gerar(),
   tipoOperacao: 'INSERT_LEITURA',
   payloadJSON: JSON.stringify({
-    id: leituraId.value, usinaId: usinaId.value, usuarioId: usuarioId.value,
-    valorKwh: valorKwh.valor, caminhoImagemLocal: input.fotoLocalUri,
-    latitude: input.latitude, longitude: input.longitude,
+    id: leituraId.value,
+    leituraId: leituraId.value,
+    usinaId: usinaId.value,
+    usuarioId: usuarioId.value,
+    valorKwh: valorKwh.valor,
+    caminhoImagemLocal: input.fotoLocalUri,
+    latitude: input.latitude,
+    longitude: input.longitude,
     dataHora: leitura.dataHora.toISOString(),
   }),
 });
