@@ -26,3 +26,31 @@ describe('UUIDv4 Value Object', () => {
     expect(id1.equals(id3)).toBe(false);
   });
 });
+
+describe('UUIDv4 — fonte de aleatoriedade injetável', () => {
+  afterEach(() => UUIDv4.restaurarFonteFallback());
+
+  it('usa a fonte configurada em vez do fallback', () => {
+    // 16 bytes de 0xab: o byte 6 vira 0x4b (versao 4) e o byte 8 vira 0xab (variante).
+    UUIDv4.configurarFonte(() => new Array(16).fill(0xab));
+    expect(UUIDv4.gerar().value).toBe('abababab-abab-4bab-abab-abababababab');
+  });
+
+  it('corrige os bits de versão e variante seja qual for a fonte', () => {
+    UUIDv4.configurarFonte(() => new Array(16).fill(0xff));
+    const gerado = UUIDv4.gerar().value;
+    expect(gerado[14]).toBe('4');
+    expect(['8', '9', 'a', 'b']).toContain(gerado[19]);
+    expect(UUIDv4.validar(gerado)).toBe(true);
+  });
+
+  it('rejeita uma fonte que não devolva 16 bytes', () => {
+    UUIDv4.configurarFonte(() => [1, 2, 3]);
+    expect(() => UUIDv4.gerar()).toThrow('Fonte de aleatoriedade deve devolver 16 bytes');
+  });
+
+  it('volta a gerar UUID válido com o fallback', () => {
+    UUIDv4.restaurarFonteFallback();
+    expect(UUIDv4.validar(UUIDv4.gerar().value)).toBe(true);
+  });
+});

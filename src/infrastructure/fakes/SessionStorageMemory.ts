@@ -9,7 +9,7 @@ export class SessionStorageMemory implements ISessionStorage {
   }
 
   async obterSessao(): Promise<SessaoUsuarioData | null> {
-    return this.sessao;
+    return this.sessao ? { ...this.sessao } : null;
   }
 
   async salvarPinLocal(pin: string): Promise<void> {
@@ -18,6 +18,10 @@ export class SessionStorageMemory implements ISessionStorage {
 
   async validarPinLocal(pin: string): Promise<boolean> {
     return this.pinLocal !== null && this.pinLocal === pin;
+  }
+
+  async temPinLocal(): Promise<boolean> {
+    return this.pinLocal !== null;
   }
 
   async limparSessao(): Promise<void> {

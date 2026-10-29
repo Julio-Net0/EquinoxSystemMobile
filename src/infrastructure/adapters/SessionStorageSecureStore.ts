@@ -1,62 +1,53 @@
 import * as SecureStore from 'expo-secure-store';
 import { ISessionStorage, SessaoUsuarioData } from '@/domain/gateways/ISessionStorage';
 
-const KEY_SESSION = 'equinox_user_session_v1';
-const KEY_PIN = 'equinox_user_pin_v1';
+const CHAVE_SESSAO = 'equinox_user_session_v1';
+const CHAVE_PIN = 'equinox_user_pin_v1';
+
+/**
+ * Sessão no armazenamento seguro da plataforma (Keychain no iOS, Keystore no
+ * Android).
+ *
+ * AFTER_FIRST_UNLOCK em vez do padrão WHEN_UNLOCKED porque o técnico abre o app
+ * em campo logo após ligar o aparelho; ALWAYS está deprecado no SDK 57.
+ */
+const OPCOES: SecureStore.SecureStoreOptions = {
+  keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,
+};
 
 export class SessionStorageSecureStore implements ISessionStorage {
-  private memoryFallbackSession: SessaoUsuarioData | null = null;
-  private memoryFallbackPin: string | null = null;
-
   async salvarSessao(dados: SessaoUsuarioData): Promise<void> {
-    const json = JSON.stringify(dados);
-    try {
-      await SecureStore.setItemAsync(KEY_SESSION, json);
-    } catch {
-      this.memoryFallbackSession = { ...dados };
-    }
+    await SecureStore.setItemAsync(CHAVE_SESSAO, JSON.stringify(dados), OPCOES);
   }
 
   async obterSessao(): Promise<SessaoUsuarioData | null> {
+    const json = await SecureStore.getItemAsync(CHAVE_SESSAO, OPCOES);
+    if (!json) return null;
+
     try {
-      const json = await SecureStore.getItemAsync(KEY_SESSION);
-      if (json) {
-        return JSON.parse(json) as SessaoUsuarioData;
-      }
+      return JSON.parse(json) as SessaoUsuarioData;
     } catch {
-      return this.memoryFallbackSession;
+      // Conteúdo corrompido não deve travar o app: trata como sem sessão.
+      await SecureStore.deleteItemAsync(CHAVE_SESSAO, OPCOES);
+      return null;
     }
-    return this.memoryFallbackSession;
   }
 
   async salvarPinLocal(pin: string): Promise<void> {
-    try {
-      await SecureStore.setItemAsync(KEY_PIN, pin);
-    } catch {
-      this.memoryFallbackPin = pin;
-    }
+    await SecureStore.setItemAsync(CHAVE_PIN, pin, OPCOES);
   }
 
   async validarPinLocal(pin: string): Promise<boolean> {
-    try {
-      const savedPin = await SecureStore.getItemAsync(KEY_PIN);
-      if (savedPin) {
-        return savedPin === pin;
-      }
-    } catch {
-      return this.memoryFallbackPin !== null && this.memoryFallbackPin === pin;
-    }
-    return this.memoryFallbackPin !== null && this.memoryFallbackPin === pin;
+    const salvo = await SecureStore.getItemAsync(CHAVE_PIN, OPCOES);
+    return salvo !== null && salvo === pin;
+  }
+
+  async temPinLocal(): Promise<boolean> {
+    return (await SecureStore.getItemAsync(CHAVE_PIN, OPCOES)) !== null;
   }
 
   async limparSessao(): Promise<void> {
-    try {
-      await SecureStore.deleteItemAsync(KEY_SESSION);
-      await SecureStore.deleteItemAsync(KEY_PIN);
-    } catch {
-      // Ignora erro de exclusão se a chave não existir
-    }
-    this.memoryFallbackSession = null;
-    this.memoryFallbackPin = null;
+    await SecureStore.deleteItemAsync(CHAVE_SESSAO, OPCOES);
+    await SecureStore.deleteItemAsync(CHAVE_PIN, OPCOES);
   }
 }

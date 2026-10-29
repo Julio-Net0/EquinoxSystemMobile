@@ -1,25 +1,17 @@
-import React, { useEffect } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useAuth } from '@/presentation/hooks/useAuth';
+import React from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { SolarTheme } from '@/constants/theme';
 
-export default function IndexScreen() {
-  const { isAuthenticated, isLoading } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!isLoading) {
-      if (isAuthenticated) {
-        router.replace('/(tabs)/dashboard' as any);
-      } else {
-        router.replace('/login' as any);
-      }
-    }
-  }, [isAuthenticated, isLoading, router]);
-
+/**
+ * Tela de abertura provisória. O redirecionamento por sessão entra no G6, junto
+ * com a árvore de rotas e as guardas.
+ */
+export default function Index() {
   return (
     <View style={styles.container}>
-      <ActivityIndicator size="large" color="#0284C7" />
+      <Text style={styles.marca}>EQUINOX</Text>
+      <Text style={styles.produto}>MOBILE</Text>
+      <ActivityIndicator color={SolarTheme.primary} style={styles.carregando} />
     </View>
   );
 }
@@ -27,8 +19,23 @@ export default function IndexScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: SolarTheme.background,
+  },
+  marca: {
+    color: SolarTheme.text,
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: 5,
+  },
+  produto: {
+    color: SolarTheme.primary,
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: 5,
+  },
+  carregando: {
+    marginTop: 32,
   },
 });

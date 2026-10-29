@@ -22,14 +22,14 @@ export class ValidadorDistanciaGpsService {
   }
 
   /**
-   * Verifica se as coordenadas do técnico estão dentro do raio máximo em metros das coordenadas da usina.
+   * Verifica se as coordenadas do técnico estão dentro do raio máximo em metros das coordenadas do endereço.
    */
   public static estaDentroDoRaio(
     coordsTecnico: CoordenadasGPS,
-    coordsUsina: CoordenadasGPS,
+    coordsEndereco: CoordenadasGPS,
     raioMaximoMetros: number = 500
   ): boolean {
-    const distancia = this.calcularDistanciaMetros(coordsTecnico, coordsUsina);
+    const distancia = this.calcularDistanciaMetros(coordsTecnico, coordsEndereco);
     return distancia <= raioMaximoMetros;
   }
 }

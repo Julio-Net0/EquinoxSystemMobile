@@ -17,5 +17,15 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "example",
+    "coverage",
+    "dist",
+    ".expo",
+    "scripts",
+    "slides",
+    "supabase"
   ]
 }
