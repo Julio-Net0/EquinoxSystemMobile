@@ -29,8 +29,7 @@ export class NotificacaoRepositoryMemory implements INotificacaoRepository {
       .filter((n) => this.noEscopo(n, filtro.empresaId))
       .sort((a, b) => b.criadaEm.getTime() - a.criadaEm.getTime());
 
-    const inicio = (filtro.pagina - 1) * filtro.tamanho;
-    return visiveis.slice(inicio, inicio + filtro.tamanho);
+    return visiveis.slice(filtro.offset, filtro.offset + filtro.limite);
   }
 
   async contarNaoLidas(empresaId: UUIDv4 | null): Promise<number> {

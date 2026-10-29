@@ -4,8 +4,13 @@ import { UUIDv4 } from '../value-objects/UUIDv4';
 export interface ListarNotificacoesFiltro {
   /** Nulo lista as globais junto com todas: é o escopo do super admin. */
   empresaId: UUIDv4 | null;
-  pagina: number;
-  tamanho: number;
+  /**
+   * Janela em offset/limite, não em página. A camada de aplicação pede um item
+   * além da página para saber se existe próxima, e derivar o offset do tamanho
+   * inflado pularia registros.
+   */
+  offset: number;
+  limite: number;
 }
 
 export interface INotificacaoRepository {

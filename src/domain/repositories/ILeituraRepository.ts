@@ -32,6 +32,10 @@ export interface ILeituraRepository {
   /** Leituras ainda sem decisão com dia local anterior ao informado. */
   listarRegistradasAntesDe(dataLocal: DataLocal): Promise<Leitura[]>;
 
-  /** Expurgo: remove leituras já decididas mais antigas que o corte. */
-  excluirDecididasAntesDe(dataLocal: DataLocal): Promise<number>;
+  /**
+   * Expurgo: remove leituras já decididas mais antigas que o corte e devolve
+   * as removidas, para quem chamou poder apagar as fotos correspondentes.
+   * Leitura ainda sem decisão nunca é removida.
+   */
+  excluirDecididasAntesDe(dataLocal: DataLocal): Promise<Leitura[]>;
 }

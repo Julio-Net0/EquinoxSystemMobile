@@ -73,14 +73,14 @@ export class LeituraRepositoryMemory implements ILeituraRepository {
     );
   }
 
-  async excluirDecididasAntesDe(dataLocal: DataLocal): Promise<number> {
+  async excluirDecididasAntesDe(dataLocal: DataLocal): Promise<Leitura[]> {
     // Leitura ainda REGISTRADA nunca é expurgada: ela aguarda decisão do
     // administrador, e apagá-la perderia o caso em aberto.
     const alvos = Array.from(this.items.values()).filter(
       (l) => l.status !== StatusLeituraEnum.REGISTRADA && l.dataLocal.antesDe(dataLocal),
     );
     alvos.forEach((l) => this.items.delete(l.id.value));
-    return alvos.length;
+    return alvos;
   }
 
   private ordenarPorMedicao(leituras: Leitura[]): Leitura[] {

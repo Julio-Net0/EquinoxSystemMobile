@@ -30,3 +30,25 @@ describe('CoordenadasGPS Value Object', () => {
     expect(coords1.equals(coords3)).toBe(false);
   });
 });
+
+describe('CoordenadasGPS — precisão do GPS', () => {
+  it('nasce sem precisão quando o aparelho não informa', () => {
+    expect(new CoordenadasGPS(-19.9191, -43.9386).precisaoMetros).toBeNull();
+  });
+
+  it('guarda a precisão informada', () => {
+    expect(new CoordenadasGPS(-19.9191, -43.9386, 8).precisaoMetros).toBe(8);
+  });
+
+  it('recusa precisão negativa', () => {
+    expect(() => new CoordenadasGPS(-19.9191, -43.9386, -1)).toThrow(
+      'Precisão do GPS não pode ser negativa',
+    );
+  });
+
+  it('a igualdade ignora a precisão', () => {
+    const a = new CoordenadasGPS(-19.9191, -43.9386, 8);
+    const b = new CoordenadasGPS(-19.9191, -43.9386, 400);
+    expect(a.equals(b)).toBe(true);
+  });
+});

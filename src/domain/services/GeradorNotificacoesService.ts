@@ -70,6 +70,16 @@ export class GeradorNotificacoesService {
     });
   }
 
+  /**
+   * Aviso de atraso para uma leitura que envelheceu sem novo registro.
+   *
+   * Offline uma leitura pode cruzar o limite de 7 dias sem ninguém mexer nela,
+   * então o varredor de boot precisa gerar o aviso fora do fluxo de registro.
+   */
+  public static paraAtrasoDetectado(contexto: ContextoLeituraRegistrada): Notificacao | null {
+    return GeradorNotificacoesService.atraso(contexto);
+  }
+
   private static atraso(contexto: ContextoLeituraRegistrada): Notificacao | null {
     const { leitura, hoje } = contexto;
     if (!RegraLeituraAtrasadaService.estaAtrasada(leitura.dataLocal, hoje)) return null;
