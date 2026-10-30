@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Câmera, Geolocalização e Persistência de Dados — Equinox Mobile</title>
-<meta name="description" content="Apresentação técnica sobre Câmera, Geolocalização (GPS) e Salvamento Local em SQLite no Equinox Mobile.">
+<meta name="description" content="Apresentação técnica sobre Câmera, Geolocalização (GPS) e Persistência Local em SQLite no Equinox Mobile.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -12,7 +12,7 @@
 <style>
   :root {
     --bg: #070b14;
-    --panel: rgba(17, 24, 39, 0.78);
+    --panel: rgba(17, 24, 39, 0.82);
     --border: rgba(148, 163, 184, 0.16);
     --text: #e6ebf5;
     --muted: #94a3b8;
@@ -52,7 +52,7 @@
   /* ---------- Slides ---------- */
   .slide {
     position: absolute; inset: 0;
-    padding: 44px 64px 80px;
+    padding: 40px 64px 76px;
     display: flex; flex-direction: column;
     opacity: 0; visibility: hidden;
     transform: translateX(60px) scale(0.985);
@@ -70,11 +70,11 @@
   .slide[data-layer="sqlite"]   { --accent: #10b981; }
   .slide[data-layer="ui"]       { --accent: var(--ui); }
 
-  .slide-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .slide-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
   .badge {
     display: inline-flex; align-items: center; gap: 10px;
-    padding: 8px 18px; border-radius: 999px;
-    font-size: 15px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 7px 18px; border-radius: 999px;
+    font-size: 14.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
     color: var(--accent);
     background: color-mix(in srgb, var(--accent) 12%, transparent);
     border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
@@ -90,81 +90,81 @@
   }
   .num b { color: var(--accent); font-weight: 700; }
 
-  .grid { flex: 1; display: grid; grid-template-columns: 0.88fr 1.12fr; gap: 44px; min-height: 0; }
-  .col-text { display: flex; flex-direction: column; justify-content: center; gap: 20px; }
-  .col-code { display: flex; flex-direction: column; justify-content: center; gap: 14px; min-height: 0; }
+  .grid { flex: 1; display: grid; grid-template-columns: 0.88fr 1.12fr; gap: 40px; min-height: 0; }
+  .col-text { display: flex; flex-direction: column; justify-content: center; gap: 18px; }
+  .col-code { display: flex; flex-direction: column; justify-content: center; gap: 12px; min-height: 0; }
 
   h1 {
-    font-size: 56px; font-weight: 800; line-height: 1.05; letter-spacing: -0.03em;
+    font-size: 52px; font-weight: 800; line-height: 1.05; letter-spacing: -0.03em;
     background: linear-gradient(120deg, #ffffff 0%, #38bdf8 45%, #34d399 100%);
     -webkit-background-clip: text; background-clip: text; color: transparent;
   }
-  .subtitle { font-size: 21px; color: var(--muted); font-weight: 400; margin-top: -6px; line-height: 1.35; }
+  .subtitle { font-size: 20px; color: var(--muted); font-weight: 400; margin-top: -6px; line-height: 1.35; }
   .subtitle b { color: var(--text); font-weight: 600; }
-  h2 { font-size: 40px; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; }
+  h2 { font-size: 38px; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; }
   .hl { color: var(--accent); text-shadow: 0 0 40px color-mix(in srgb, var(--accent) 40%, transparent); }
 
-  ul.points { list-style: none; display: flex; flex-direction: column; gap: 14px; }
+  ul.points { list-style: none; display: flex; flex-direction: column; gap: 12px; }
   ul.points li {
-    position: relative; padding-left: 28px;
-    font-size: 19px; line-height: 1.4; color: #cbd5e1; font-weight: 400;
+    position: relative; padding-left: 26px;
+    font-size: 17.5px; line-height: 1.4; color: #cbd5e1; font-weight: 400;
   }
   ul.points li::before {
-    content: ""; position: absolute; left: 0; top: 11px;
-    width: 13px; height: 3px; border-radius: 2px;
+    content: ""; position: absolute; left: 0; top: 10px;
+    width: 12px; height: 3px; border-radius: 2px;
     background: var(--accent); box-shadow: 0 0 10px var(--accent);
   }
   ul.points strong { color: #fff; font-weight: 600; }
   code.inline {
-    font-family: 'JetBrains Mono', monospace; font-size: 0.82em;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.85em;
     padding: 2px 7px; border-radius: 6px;
     background: color-mix(in srgb, var(--accent) 12%, rgba(15,23,42,0.8));
     color: color-mix(in srgb, var(--accent) 70%, #fff);
     border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
   }
 
-  /* Cards de Problema vs Solução */
+  /* Cards de Destaque */
   .card-box {
-    background: rgba(15, 23, 42, 0.7);
+    background: rgba(15, 23, 42, 0.72);
     border-radius: 14px;
     border: 1px solid var(--border);
-    padding: 16px 20px;
-    display: flex; flex-direction: column; gap: 8px;
+    padding: 14px 18px;
+    display: flex; flex-direction: column; gap: 6px;
   }
   .card-box.alert {
     border-color: rgba(244, 63, 94, 0.35);
-    background: rgba(244, 63, 94, 0.06);
+    background: rgba(244, 63, 94, 0.07);
   }
   .card-box.success {
     border-color: rgba(52, 211, 153, 0.35);
-    background: rgba(52, 211, 153, 0.06);
+    background: rgba(52, 211, 153, 0.07);
   }
   .card-title {
-    font-size: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+    font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
     display: flex; align-items: center; gap: 8px;
   }
   .card-box.alert .card-title { color: #fb7185; }
   .card-box.success .card-title { color: #34d399; }
-  .card-box p { font-size: 16.5px; line-height: 1.42; color: #cbd5e1; }
+  .card-box p { font-size: 15.5px; line-height: 1.42; color: #cbd5e1; }
 
   /* Tabela de Camadas da Arquitetura */
   .arch-table {
     width: 100%; border-collapse: separate; border-spacing: 0;
     border-radius: 12px; overflow: hidden; border: 1px solid var(--border);
-    background: var(--panel); font-size: 15px;
+    background: var(--panel); font-size: 14.5px;
   }
   .arch-table th {
     background: rgba(255, 255, 255, 0.04);
-    padding: 10px 14px; text-align: left; font-weight: 700; color: #f1f5f9;
+    padding: 9px 12px; text-align: left; font-weight: 700; color: #f1f5f9;
     border-bottom: 1px solid var(--border);
   }
   .arch-table td {
-    padding: 10px 14px; border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+    padding: 9px 12px; border-bottom: 1px solid rgba(148, 163, 184, 0.08);
     color: #cbd5e1; vertical-align: top;
   }
   .arch-table tr:last-child td { border-bottom: none; }
   .arch-tag {
-    display: inline-block; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 12px;
+    display: inline-block; padding: 2px 7px; border-radius: 6px; font-weight: 700; font-size: 11.5px;
     text-transform: uppercase; letter-spacing: 0.04em;
   }
   .tag-domain { background: rgba(52, 211, 153, 0.15); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.3); }
@@ -176,38 +176,38 @@
   .window {
     background: var(--panel);
     border: 1px solid var(--border);
-    border-radius: 16px;
+    border-radius: 14px;
     backdrop-filter: blur(14px);
-    box-shadow: 0 30px 60px -20px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.02) inset,
-                0 0 60px -30px var(--accent);
+    box-shadow: 0 24px 50px -15px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.03) inset,
+                0 0 50px -25px var(--accent);
     overflow: hidden; min-height: 0;
     transition: transform 0.3s ease, box-shadow 0.3s ease;
   }
-  .window:hover { transform: translateY(-2px); box-shadow: 0 36px 70px -20px rgba(0,0,0,0.7), 0 0 80px -25px var(--accent); }
+  .window:hover { transform: translateY(-2px); box-shadow: 0 32px 64px -18px rgba(0,0,0,0.7), 0 0 70px -25px var(--accent); }
   .window-bar {
     display: flex; align-items: center; gap: 8px;
-    padding: 10px 16px;
+    padding: 8px 14px;
     background: rgba(255,255,255,0.03);
     border-bottom: 1px solid var(--border);
   }
-  .window-bar i { width: 11px; height: 11px; border-radius: 50%; background: #ff5f57; }
+  .window-bar i { width: 10px; height: 10px; border-radius: 50%; background: #ff5f57; }
   .window-bar i:nth-child(2) { background: #febc2e; }
   .window-bar i:nth-child(3) { background: #28c840; }
   .window-bar span {
-    margin-left: 10px; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--muted);
+    margin-left: 8px; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--muted);
   }
   .window-bar span b { color: var(--accent); font-weight: 600; }
   pre { margin: 0; }
   pre code, .tree {
     display: block;
     font-family: 'JetBrains Mono', monospace !important;
-    font-size: 13.5px; line-height: 1.5;
-    padding: 12px 18px !important;
+    font-size: 12.8px; line-height: 1.48;
+    padding: 10px 16px !important;
     background: transparent !important;
     color: #d6deeb;
     white-space: pre;
   }
-  .tree { font-size: 13.5px; line-height: 1.54; }
+  .tree { font-size: 12.8px; line-height: 1.5; }
   .tree .d  { color: #e2e8f0; font-weight: 700; }
   .tree .c  { color: #64748b; font-style: italic; }
   .tree .dm { color: var(--domain); font-weight: 700; }
@@ -217,38 +217,40 @@
 
   .stats { display: flex; gap: 12px; }
   .stat {
-    flex: 1; padding: 12px 16px; border-radius: 12px;
+    flex: 1; padding: 10px 14px; border-radius: 12px;
     background: var(--panel); border: 1px solid var(--border);
   }
   .stat b {
-    display: block; font-size: 28px; font-weight: 800; line-height: 1.1;
+    display: block; font-size: 26px; font-weight: 800; line-height: 1.1;
     background: linear-gradient(120deg, var(--accent), #a78bfa);
     -webkit-background-clip: text; background-clip: text; color: transparent;
   }
-  .stat span { font-size: 12.5px; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .stat span { font-size: 12px; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
 
   /* Animações */
-  .slide .anim { opacity: 0; transform: translateY(16px); }
-  .slide.active .anim { animation: rise 0.55s cubic-bezier(.2,.8,.2,1) forwards; }
-  .slide.active .anim:nth-child(1) { animation-delay: 0.06s; }
-  .slide.active .anim:nth-child(2) { animation-delay: 0.12s; }
-  .slide.active .anim:nth-child(3) { animation-delay: 0.18s; }
-  .slide.active .anim:nth-child(4) { animation-delay: 0.24s; }
-  .slide.active .anim:nth-child(5) { animation-delay: 0.30s; }
-  .slide.active ul.points li { animation: rise 0.45s cubic-bezier(.2,.8,.2,1) both; }
-  .slide.active ul.points li:nth-child(1) { animation-delay: 0.16s; }
-  .slide.active ul.points li:nth-child(2) { animation-delay: 0.22s; }
-  .slide.active ul.points li:nth-child(3) { animation-delay: 0.28s; }
-  .slide.active ul.points li:nth-child(4) { animation-delay: 0.34s; }
-  .slide.active ul.points li:nth-child(5) { animation-delay: 0.40s; }
-  @keyframes rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+  .slide .anim { opacity: 0; transform: translateY(14px); }
+  .slide.active .anim { animation: rise 0.52s cubic-bezier(.2,.8,.2,1) forwards; }
+  .slide.active .anim:nth-child(1) { animation-delay: 0.05s; }
+  .slide.active .anim:nth-child(2) { animation-delay: 0.10s; }
+  .slide.active .anim:nth-child(3) { animation-delay: 0.16s; }
+  .slide.active .anim:nth-child(4) { animation-delay: 0.22s; }
+  .slide.active .anim:nth-child(5) { animation-delay: 0.28s; }
+  .slide.active ul.points li { animation: rise 0.42s cubic-bezier(.2,.8,.2,1) both; }
+  .slide.active ul.points li:nth-child(1) { animation-delay: 0.14s; }
+  .slide.active ul.points li:nth-child(2) { animation-delay: 0.20s; }
+  .slide.active ul.points li:nth-child(3) { animation-delay: 0.26s; }
+  .slide.active ul.points li:nth-child(4) { animation-delay: 0.32s; }
+  .slide.active ul.points li:nth-child(5) { animation-delay: 0.38s; }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 
   /* HUD */
   .hud {
-    position: absolute; left: 0; right: 0; bottom: 0; height: 56px;
+    position: absolute; left: 0; right: 0; bottom: 0; height: 52px;
     display: flex; align-items: center; justify-content: space-between;
     padding: 0 64px; z-index: 10;
-    font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--muted);
+    background: linear-gradient(180deg, transparent, rgba(7, 11, 20, 0.95));
+    border-top: 1px solid rgba(148, 163, 184, 0.08);
+    font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--muted);
   }
   .progress { position: absolute; left: 0; bottom: 0; height: 4px; width: 100%; background: rgba(148,163,184,0.1); }
   .progress > div {
@@ -259,12 +261,12 @@
   .hud .brand { display: flex; align-items: center; gap: 10px; }
   .hud .brand b { color: var(--text); font-weight: 600; }
   .hud .keys kbd {
-    display: inline-block; min-width: 22px; padding: 2px 6px; margin: 0 2px;
+    display: inline-block; min-width: 20px; padding: 2px 6px; margin: 0 2px;
     border-radius: 5px; border: 1px solid var(--border); background: rgba(255,255,255,0.04);
-    color: var(--text); font-family: inherit; font-size: 11.5px; text-align: center;
+    color: var(--text); font-family: inherit; font-size: 11px; text-align: center;
   }
 
-  .nav-zone { position: absolute; top: 0; bottom: 56px; width: 10%; z-index: 5; cursor: pointer; }
+  .nav-zone { position: absolute; top: 0; bottom: 52px; width: 10%; z-index: 5; cursor: pointer; }
   .nav-zone.left { left: 0; } .nav-zone.right { right: 0; }
 </style>
 </head>
@@ -279,23 +281,23 @@
     </header>
     <div class="grid">
       <div class="col-text">
-        <h1 class="anim">Equinox Mobile:<br>Câmera &amp; GPS</h1>
-        <p class="subtitle anim">Vistorias em Usinas Fotovoltaicas com <b>Prova de Presença</b> e <b>Auditoria Visual</b> em arquitetura <b>Offline-First</b></p>
+        <h1 class="anim">Equinox Mobile:<br>Câmera, GPS &amp; SQLite</h1>
+        <p class="subtitle anim">Vistorias em Padrões e Usinas com <b>Auditoria Visual</b>, <b>Prova de Apoio Geográfica</b> e <b>Persistência 100% Offline-First</b></p>
         
         <div class="card-box alert anim">
-          <div class="card-title">⚠️ O Problema</div>
-          <p>Usinas solares em zonas rurais sofrem com <b>ausência de sinal de internet</b>. Processos tradicionais de vistoria geram alto risco de <b>leituras fraudulentas</b> (feitas longe da usina) e <b>erros manuais de digitação</b> sem registro fotográfico auditável.</p>
+          <div class="card-title">⚠️ O Problema em Campo</div>
+          <p>Medidores de energia ficam em áreas rurais e subsolos com <b>ausência de sinal 4G/internet</b>. Processos manuais acarretam alto risco de <b>leituras fraudulentas</b> fora do local, valores divergentes digitados sem comprovante e técnico travado por falha de conectividade.</p>
         </div>
 
         <div class="card-box success anim">
-          <div class="card-title">✓ A Solução</div>
-          <p>O <b>Equinox Mobile</b> impõe <b>Proof of Presence</b> (validação de proximidade geográfica em raio de 500m via GPS Haversine) e exige <b>foto comprobatória do visor do medidor</b> (comprimida a ~300KB), persistindo tudo localmente no <b>SQLite</b> de forma imediata.</p>
+          <div class="card-title">✓ A Solução de Engenharia</div>
+          <p>O <b>Equinox Mobile</b> impõe <b>foto obrigatória do visor</b> (comprimida e salva em armazenamento seguro do app), utiliza <b>GPS de alta precisão como prova de apoio auditável</b> e grava tudo atomicamente em banco local <b>SQLite com índice parcial único</b>, operando 100% offline.</p>
         </div>
 
         <div class="stats anim">
-          <div class="stat"><b>500 m</b><span>Raio Presença GPS</span></div>
-          <div class="stat"><b>~300 KB</b><span>Foto Comprimida</span></div>
-          <div class="stat"><b>100%</b><span>Offline-First</span></div>
+          <div class="stat"><b>1080p</b><span>~300 KB em Disco</span></div>
+          <div class="stat"><b>500 m</b><span>Raio Apoio GPS</span></div>
+          <div class="stat"><b>100%</b><span>Offline-First SQLite</span></div>
         </div>
       </div>
       <div class="col-code">
@@ -303,20 +305,23 @@
           <div class="window-bar"><i></i><i></i><i></i><span>Estrutura Real do Fluxo no Projeto</span></div>
 <div class="tree"><span class="d">src/</span>
 ├── <span class="dm">domain/</span>
-│   ├── gateways/        <span class="c">← ICameraGateway.ts, ILocationGateway.ts</span>
-│   ├── value-objects/   <span class="c">← CoordenadasGPS.ts, ValorKwh.ts, UUIDv4.ts</span>
-│   ├── services/        <span class="c">← ValidadorDistanciaGpsService.ts (Haversine)</span>
-│   └── entities/        <span class="c">← Leitura.ts (Invariantes de Foto e GPS)</span>
+│   ├── gateways/        <span class="c">← ICameraGateway.ts, ILocationGateway.ts, IArquivoFotoGateway.ts</span>
+│   ├── value-objects/   <span class="c">← CoordenadasGPS.ts, ValorKwh.ts, DataLocal.ts, UUIDv4.ts</span>
+│   ├── services/        <span class="c">← ValidadorDistanciaGpsService.ts, RegraLocalizacaoLeituraService.ts</span>
+│   └── entities/        <span class="c">← Leitura.ts, PadraoCemig.ts, Endereco.ts</span>
 ├── <span class="ap">application/use-cases/</span>
-│   └── <span class="ap">RegistrarLeituraUseCase.ts</span> <span class="c">← Salva Leitura + Enfileira Sync</span>
+│   └── <span class="ap">RegistrarLeituraUseCase.ts</span> <span class="c">← Valida + Move Foto + Salva no SQLite + Notifica</span>
 ├── <span class="ad">infrastructure/</span>
-│   ├── hardware/                     <span class="c">← ExpoCameraGateway.ts, ExpoLocationGateway.ts</span>
-│   ├── fakes/                        <span class="c">← CameraGatewayFake.ts, LocationGatewayFake.ts</span>
-│   └── database/sqlite/repositories/ <span class="c">← LeituraRepositorySQLite.ts, ActionQueue...</span>
+│   ├── hardware/
+│   │   ├── camera/      <span class="c">← CameraGatewayExpo.ts (respeita 1 preview por vez)</span>
+│   │   ├── location/    <span class="c">← LocationGatewayExpo.ts (GPS com timeout resiliente 10s)</span>
+│   │   └── midia/       <span class="c">← ArquivoFotoGatewayExpo.ts (1080p, JPEG ~300KB em Paths.document)</span>
+│   ├── database/sqlite/ <span class="c">← LeituraRepositorySQLite.ts, emTransacao.ts, migrar.ts</span>
+│   └── fakes/           <span class="c">← CameraGatewayFake.ts, LocationGatewayFake.ts (dublês rápidos)</span>
 └── <span class="ui">presentation/</span> &amp; <span class="ui">app/</span>
-    ├── hooks/           <span class="c">← useNovaLeituraController.ts, useLeitura.ts</span>
-    ├── screens/         <span class="c">← NovaLeituraScreen.tsx</span>
-    └── app/leitura/     <span class="c">← nova.tsx (Rota Expo Router)</span></div>
+    ├── components/      <span class="c">← CapturaMedidorCamera.tsx (CameraView + guia de visor)</span>
+    ├── hooks/           <span class="c">← useNovaLeitura.ts (busca GPS em background + formulário)</span>
+    └── app/(app)/leitura/<span class="c">← [padraoId].tsx (Rota conectada ao Container SQLite)</span></div>
         </div>
       </div>
     </div>
@@ -330,12 +335,12 @@
     </header>
     <div class="grid">
       <div class="col-text">
-        <h2 class="anim">Onde aparecem a<br><span class="hl">Câmera e a Geolocalização?</span></h2>
+        <h2 class="anim">Onde residem a<br><span class="hl">Câmera, o GPS e o Banco?</span></h2>
         <ul class="points">
-          <li><strong>Domínio Puro (Núcleo)</strong>: Câmera e GPS entram como contratos de interface (<code class="inline">ICameraGateway</code>, <code class="inline">ILocationGateway</code>), o Value Object <code class="inline">CoordenadasGPS</code> e o serviço puro <code class="inline">ValidadorDistanciaGpsService</code>. <em>Zero dependências de bibliotecas de terceiros ou Expo</em>.</li>
-          <li><strong>Aplicação</strong>: <code class="inline">RegistrarLeituraUseCase</code> orquestra a lógica sem conhecer detalhes de hardware nem saber como a foto foi obtida.</li>
-          <li><strong>Infraestrutura</strong>: Adaptadores concretos modernos (<code class="inline">ExpoCameraGateway</code> e <code class="inline">ExpoLocationGateway</code>) e Fakes (<code class="inline">CameraGatewayFake</code>) que se moldam às interfaces do domínio.</li>
-          <li><strong>Apresentação</strong>: O hook controller <code class="inline">useNovaLeituraController</code> gerencia o ciclo de permissões e entrega dados tratados à tela <code class="inline">NovaLeituraScreen</code>.</li>
+          <li><strong>Domínio Puro (Centro)</strong>: Declara as portas puras (<code class="inline">ICameraGateway</code>, <code class="inline">ILocationGateway</code>, <code class="inline">IArquivoFotoGateway</code>), o VO <code class="inline">CoordenadasGPS</code>, os Domain Services <code class="inline">ValidadorDistanciaGpsService</code> e <code class="inline">RegraLocalizacaoLeituraService</code> (ADR 9.4), e a entidade <code class="inline">Leitura</code>. <em>Zero dependências de Expo ou bibliotecas de terceiros</em>.</li>
+          <li><strong>Aplicação</strong>: <code class="inline">RegistrarLeituraUseCase</code> orquestra a validação de regras de negócio, aciona a compressão definitiva da foto, cria a entidade e persiste no SQLite.</li>
+          <li><strong>Infraestrutura</strong>: Adaptadores concretos modernos (<code class="inline">CameraGatewayExpo</code>, <code class="inline">ArquivoFotoGatewayExpo</code>, <code class="inline">LocationGatewayExpo</code>) e o repositório SQLite (<code class="inline">LeituraRepositorySQLite</code>).</li>
+          <li><strong>Apresentação</strong>: O hook <code class="inline">useNovaLeitura</code>, a modal <code class="inline">CapturaMedidorCamera</code> e a rota <code class="inline">[padraoId].tsx</code> integrados via container de injeção de dependência.</li>
         </ul>
       </div>
       <div class="col-code">
@@ -345,30 +350,30 @@
             <thead>
               <tr>
                 <th>Camada</th>
-                <th>Elemento de Câmera &amp; GPS</th>
+                <th>Elemento de Câmera &amp; GPS &amp; Banco</th>
                 <th>Responsabilidade Arquitetural</th>
               </tr>
             </thead>
             <tbody>
               <tr>
                 <td><span class="arch-tag tag-domain">Domínio</span></td>
-                <td><code class="inline">ICameraGateway</code><br><code class="inline">ILocationGateway</code><br><code class="inline">CoordenadasGPS</code><br><code class="inline">Leitura</code></td>
-                <td>Define o contrato das portas de hardware, validação geográfica (-90 a 90 / -180 a 180) e impõe foto e GPS como campos obrigatórios.</td>
+                <td><code class="inline">ICameraGateway</code><br><code class="inline">ILocationGateway</code><br><code class="inline">IArquivoFotoGateway</code><br><code class="inline">CoordenadasGPS</code><br><code class="inline">Leitura</code></td>
+                <td>Define contratos das portas de hardware, validação geográfica (-90 a 90 / -180 a 180), distância Haversine e impõe foto obrigatória. Localização é prova de apoio e auditoria (não trava o técnico).</td>
               </tr>
               <tr>
                 <td><span class="arch-tag tag-app">Aplicação</span></td>
                 <td><code class="inline">RegistrarLeituraUseCase</code></td>
-                <td>Valida usina local, instancia entidades e persiste dados no repositório local e na fila offline.</td>
+                <td>Valida padrão, detecta valor menor, persiste foto no disco permanente, invoca repositório SQLite e gera notificações de auditoria.</td>
               </tr>
               <tr>
                 <td><span class="arch-tag tag-infra">Infra</span></td>
-                <td><code class="inline">ExpoCameraGateway</code><br><code class="inline">ExpoLocationGateway</code><br><code class="inline">LeituraRepositorySQLite</code></td>
-                <td>Consome as APIs nativas do Expo (câmera, manipulator, location) e executa SQL nativo na tabela local <code class="inline">leituras</code>.</td>
+                <td><code class="inline">CameraGatewayExpo</code><br><code class="inline">ArquivoFotoGatewayExpo</code><br><code class="inline">LocationGatewayExpo</code><br><code class="inline">LeituraRepositorySQLite</code></td>
+                <td>Encapsula Expo SDK 57 (CameraView com 1 preview ativo, ImageManipulator 1080p/300KB, expo-location com timeout 10s) e transações SQLite nativas.</td>
               </tr>
               <tr>
                 <td><span class="arch-tag tag-ui">UI</span></td>
-                <td><code class="inline">useNovaLeituraController</code><br><code class="inline">NovaLeituraScreen</code></td>
-                <td>Solicita permissões ao usuário, exibe feedback de carregamento/erro e botões de ação nativos.</td>
+                <td><code class="inline">CapturaMedidorCamera</code><br><code class="inline">useNovaLeitura</code><br><code class="inline">NovaLeituraScreen</code></td>
+                <td>Guia visual do visor do medidor, ciclo de permissões nativas, busca de GPS assíncrona em background e feedback imediato de salvamento.</td>
               </tr>
             </tbody>
           </table>
@@ -385,21 +390,21 @@
     </header>
     <div class="grid">
       <div class="col-text">
-        <h2 class="anim">Como testamos<br><span class="hl">Câmera e Geolocalização?</span></h2>
+        <h2 class="anim">Como testamos Hardware e Banco<br><span class="hl">sem Celular Conectado?</span></h2>
         
         <div class="card-box anim">
-          <div class="card-title" style="color: var(--tests)">🧪 Como foi feito:</div>
-          <p>Aplicamos o ciclo rigoroso <b>Red → Green → Refactor</b>. Para isolar o hardware real durante os testes automatizados, criamos <b>Test Doubles (Fakes em Memória)</b>: <code class="inline">CameraGatewayFake</code> e <code class="inline">LocationGatewayFake</code>. Isso permite rodar a suíte inteira no Jest em milissegundos sem emulador, sem celular plugado e sem pedir permissões reais de sistema operacional.</p>
+          <div class="card-title" style="color: var(--tests)">🧪 Ciclo Red → Green → Refactor:</div>
+          <p>Para isolar o hardware real durante os testes de domínio e aplicação, criamos <b>Test Doubles (Fakes em Memória)</b>: <code class="inline">CameraGatewayFake</code>, <code class="inline">LocationGatewayFake</code> e <code class="inline">ArquivoFotoGatewayFake</code>. Isso permite rodar a suíte inteira no Jest em milissegundos sem emulador, sem celular físico e sem permissões do SO.</p>
         </div>
 
         <div class="card-box anim">
-          <div class="card-title" style="color: var(--domain)">🛡️ Nossos testes garantem que:</div>
+          <div class="card-title" style="color: var(--domain)">🛡️ Garantias Comprovadas por Testes:</div>
           <ul class="points" style="gap: 8px; margin-top: 4px;">
-            <li style="font-size: 16px;"><strong>Permissão de Hardware</strong>: Se permissão for negada, o sistema bloqueia e notifica a UI.</li>
-            <li style="font-size: 16px;"><strong>Compressão de Mídia</strong>: A foto gerada obedece à meta de <b>&le; 300 KB</b> em JPEG.</li>
-            <li style="font-size: 16px;"><strong>Invariantes de GPS</strong>: Coordenadas absurdas (lat &gt; 90 ou long &lt; -180) lançam exceções imediatas.</li>
-            <li style="font-size: 16px;"><strong>Fórmula de Haversine</strong>: Distâncias geodésicas exatas bloqueiam técnicos fora do raio de 500m.</li>
-            <li style="font-size: 16px;"><strong>Integridade da Entidade</strong>: A entidade <code class="inline">Leitura</code> recusa criação sem foto comprobatória.</li>
+            <li style="font-size: 15.5px;"><strong>Foto Obrigatória</strong>: A entidade <code class="inline">Leitura</code> e o caso de uso barram imediatamente qualquer registro sem foto.</li>
+            <li style="font-size: 15.5px;"><strong>Simulação de Câmera</strong>: Fakes simulam permissão concedida, negada e arquivo de imagem temporário.</li>
+            <li style="font-size: 15.5px;"><strong>Fórmula de Haversine</strong>: Distâncias geodésicas exatas conferem se o técnico estava no raio de 500m.</li>
+            <li style="font-size: 15.5px;"><strong>Resiliência sem GPS</strong>: Se o GPS falhar em subsolo, o teste comprova que a leitura é salva e gera notificação de exceção.</li>
+            <li style="font-size: 15.5px;"><strong>Substituição Atômica no SQLite</strong>: Testes de integração com <code class="inline">node:sqlite</code> validam que duas leituras no mesmo dia não geram colisão no índice parcial.</li>
           </ul>
         </div>
       </div>
@@ -409,27 +414,24 @@
 <script type="text/plain" data-lang="typescript">
 export class CameraGatewayFake implements ICameraGateway {
   public permissaoConcedida: boolean = true;
-  public fotoFakeUri: string = 'file:///cache/medidor_fake_1080p.jpg';
-  public tamanhoFakeBytes: number = 307200; // ~300KB
+  public fotoFake: FotoCapturada | null = {
+    uri: 'file:///cache/medidor_raw.jpg', largura: 1920, altura: 1080
+  };
 
-  async solicitarPermissao(): Promise<boolean> { 
-    return this.permissaoConcedida; 
-  }
-
-  async capturarEComprimirFoto(): Promise<CapturarFotoResultado | null> {
+  async temPermissao(): Promise<boolean> { return this.permissaoConcedida; }
+  async solicitarPermissao(): Promise<boolean> { return this.permissaoConcedida; }
+  async capturar(): Promise<FotoCapturada | null> {
     if (!this.permissaoConcedida) return null;
-    return { uri: this.fotoFakeUri, sizeBytes: this.tamanhoFakeBytes };
+    return this.fotoFake;
   }
 }
 
 export class LocationGatewayFake implements ILocationGateway {
   public permissaoConcedida: boolean = true;
-  public coordenadasFake = new CoordenadasGPS(-19.9208, -43.9378);
+  public coordenadasFake = new CoordenadasGPS(-19.9208, -43.9378, 5);
 
-  async solicitarPermissao(): Promise<boolean> { 
-    return this.permissaoConcedida; 
-  }
-
+  async temPermissao(): Promise<boolean> { return this.permissaoConcedida; }
+  async solicitarPermissao(): Promise<boolean> { return this.permissaoConcedida; }
   async obterCoordenadas(): Promise<CoordenadasGPS | null> {
     return this.permissaoConcedida ? this.coordenadasFake : null;
   }
@@ -448,49 +450,58 @@ export class LocationGatewayFake implements ILocationGateway {
     </header>
     <div class="grid">
       <div class="col-text">
-        <h2 class="anim">Contratos e Invariantes<br><span class="hl">no Domínio Puro</span></h2>
+        <h2 class="anim">Contratos Puros e Invariantes<br><span class="hl">no Domínio do Negócio</span></h2>
         <ul class="points">
-          <li><strong>Portas de Hardware</strong>: As interfaces <code class="inline">ICameraGateway</code> e <code class="inline">ILocationGateway</code> declaram apenas o que o negócio precisa, sem conhecer detalhes do Expo ou SO.</li>
-          <li><strong>Value Object Geográfico</strong>: <code class="inline">CoordenadasGPS</code> encapsula latitude, longitude e timestamp, garantindo validação matemática invariante no construtor.</li>
-          <li><strong>Domain Service de Presença</strong>: <code class="inline">ValidadorDistanciaGpsService</code> implementa a fórmula de Haversine pura para atestar o raio de 500m.</li>
-          <li><strong>Entidade Leitura</strong>: Obriga foto comprobatória válida (<code class="inline">caminhoImagemLocal</code>) e coordenadas geográficas válidas.</li>
+          <li><strong>Portas Desacopladas</strong>: <code class="inline">ICameraGateway</code>, <code class="inline">ILocationGateway</code> e <code class="inline">IArquivoFotoGateway</code> declaram estritamente o que a regra de negócio exige, sem saber se a captura usa Expo, React Native CLI ou Android nativo.</li>
+          <li><strong>Compressão Definida no Contrato</strong>: <code class="inline">IArquivoFotoGateway.comprimirEPersistir()</code> impõe o salvamento definitivo no disco e devolve o caminho permanente e o tamanho em bytes.</li>
+          <li><strong>Value Object Imutável</strong>: <code class="inline">CoordenadasGPS</code> valida latitude (-90 a 90) e longitude (-180 a 180) diretamente no construtor.</li>
+          <li><strong>Invariante da Leitura</strong>: A entidade <code class="inline">Leitura</code> exige foto local obrigatória. Coordenadas são opcionais para não travar o técnico em áreas de sombra de satélite (ADR 9.4).</li>
         </ul>
       </div>
       <div class="col-code">
         <div class="window anim">
-          <div class="window-bar"><i></i><i></i><i></i><span>src/domain/gateways/<b>ICameraGateway.ts</b> &amp; <b>ILocationGateway.ts</b></span></div>
+          <div class="window-bar"><i></i><i></i><i></i><span>src/domain/gateways/<b>ICameraGateway.ts</b> &amp; <b>IArquivoFotoGateway.ts</b></span></div>
 <script type="text/plain" data-lang="typescript">
-export interface CapturarFotoResultado {
+export interface FotoCapturada {
   uri: string;
-  sizeBytes: number;
+  largura: number;
+  altura: number;
 }
 
 export interface ICameraGateway {
+  temPermissao(): Promise<boolean>;
   solicitarPermissao(): Promise<boolean>;
-  capturarEComprimirFoto(): Promise<CapturarFotoResultado | null>;
+  capturar(): Promise<FotoCapturada | null>;
 }
 
-export interface ILocationGateway {
-  solicitarPermissao(): Promise<boolean>;
-  obterCoordenadas(): Promise<CoordenadasGPS | null>;
+export interface FotoPersistida {
+  uri: string;
+  bytes: number;
+  largura: number;
+  altura: number;
+}
+
+export interface IArquivoFotoGateway {
+  comprimirEPersistir(uriTemporaria: string, nomeBase: string): Promise<FotoPersistida>;
 }
 </script>
         </div>
         <div class="window anim">
-          <div class="window-bar"><i></i><i></i><i></i><span>src/domain/entities/<b>Leitura.ts</b> (Invariante de Foto)</span></div>
+          <div class="window-bar"><i></i><i></i><i></i><span>src/domain/entities/<b>Leitura.ts</b> (Invariante de Foto &amp; Prova de GPS)</span></div>
 <script type="text/plain" data-lang="typescript">
 export class Leitura {
   constructor(props: LeituraProps) {
-    if (!props.caminhoImagemLocal || props.caminhoImagemLocal.trim() === '') {
+    if (!props.fotoLocalUri || props.fotoLocalUri.trim() === '') {
       throw new Error('Foto comprobatória do medidor é obrigatória');
     }
-    this.id = props.id;
-    this.usinaId = props.usinaId;
-    this.usuarioId = props.usuarioId;
-    this.valorKwh = props.valorKwh;
-    this.caminhoImagemLocal = props.caminhoImagemLocal.trim();
-    this.coordenadas = props.coordenadas;
-    this._statusSync = props.statusSync ?? StatusSyncEnum.PENDENTE;
+    this._id = props.id;
+    this._padraoId = props.padraoId;
+    this._usuarioId = props.usuarioId;
+    this._valorConsumo = props.valorConsumo;
+    this._valorInjecao = props.valorInjecao ?? null;
+    this._fotoLocalUri = props.fotoLocalUri.trim();
+    this._coordenadas = props.coordenadas ?? null; // Prova de apoio auditável
+    this._status = props.status ?? StatusLeituraEnum.REGISTRADA;
   }
 }
 </script>
@@ -502,50 +513,46 @@ export class Leitura {
   <!-- ===================== SLIDE 5 ===================== -->
   <section class="slide" data-layer="tests" id="slide-5">
     <header class="slide-head">
-      <span class="badge">5. O Teste · TDD na Prática</span>
+      <span class="badge">5. A Suíte Automatizada · Cobertura &amp; Confiabilidade</span>
       <span class="num"><b>05</b> / 08</span>
     </header>
     <div class="grid">
       <div class="col-text">
-        <h2 class="anim">Suíte Automatizada:<br><span class="hl">88 Testes Passando</span></h2>
+        <h2 class="anim">Qualidade Comprovada:<br><span class="hl">765 Testes Passando</span></h2>
         <ul class="points">
-          <li><strong>Teste de Hardware Fake</strong>: Valida simulação de captura em JPEG com tamanho &le; 300KB e retorno nulo em caso de permissão negada.</li>
-          <li><strong>Teste de Geometria e Haversine</strong>: Valida distâncias geodésicas reais entre técnicos e usinas no raio de 500m.</li>
-          <li><strong>Teste do Caso de Uso</strong>: Comprova salvamento da Leitura no repositório com status <code class="inline">PENDENTE</code> e gravação de <code class="inline">INSERT_LEITURA</code> na <code class="inline">ActionQueue</code>.</li>
-          <li><strong>Desempenho</strong>: 32 suítes de teste executam em menos de 1 minuto no terminal via Jest.</li>
+          <li><strong>Quatro Projetos Jest Integrados</strong>: <code class="inline">dominio</code>, <code class="inline">infra</code>, <code class="inline">integracao</code> e <code class="inline">ui</code> com o preset único <code class="inline">jest-expo</code>, eliminando conflitos de medição de cobertura.</li>
+          <li><strong>Integração com SQLite Real</strong>: O projeto <code class="inline">integracao</code> executa 61 testes contra o <code class="inline">node:sqlite</code> real em memória, testando o schema, o índice parcial, transações com <code class="inline">emTransacao</code> e os repositórios.</li>
+          <li><strong>Testes Unitários de Hardware</strong>: Adaptadores de câmera, GPS e manipulação de imagem testados com mocks dedicados.</li>
+          <li><strong>Teste de Componentes</strong>: <code class="inline">NovaLeituraScreen.spec.tsx</code> valida a tela de leitura inteira com `@testing-library/react-native`.</li>
         </ul>
         <div class="stats anim">
-          <div class="stat"><b>32</b><span>Suítes de Teste</span></div>
-          <div class="stat"><b>88 / 88</b><span>Testes Passando</span></div>
-          <div class="stat"><b>0 mocks vazios</b><span>Test Doubles Concretos</span></div>
+          <div class="stat"><b>765 / 765</b><span>Testes Aprovados</span></div>
+          <div class="stat"><b>98,7%</b><span>Cobertura de Código</span></div>
+          <div class="stat"><b>54</b><span>Suítes de Teste</span></div>
         </div>
       </div>
       <div class="col-code">
         <div class="window anim">
-          <div class="window-bar"><i></i><i></i><i></i><span>tests/unit/presentation/hooks/<b>useNovaLeituraController.spec.ts</b></span></div>
+          <div class="window-bar"><i></i><i></i><i></i><span>tests/unit/infrastructure/hardware/<b>ArquivoFotoGatewayExpo.spec.ts</b></span></div>
 <script type="text/plain" data-lang="typescript">
-it('deve simular captura de foto comprimida através do CameraGatewayFake', async () => {
-  const fotoRes = await cameraFake.capturarEComprimirFoto();
-  expect(fotoRes).not.toBeNull();
-  expect(fotoRes?.uri).toContain('.jpg');
-  expect(fotoRes?.sizeBytes).toBeLessThanOrEqual(307200);
-});
+it('comprime redimensionando para 1080p e grava na pasta de leituras', async () => {
+  const gateway = new ArquivoFotoGatewayExpo();
+  const resultado = await gateway.comprimirEPersistir('file:///cache/foto.jpg', 'leitura-123');
 
-it('deve retornar permissaoNegada quando a câmera não for autorizada', async () => {
-  cameraFake.permissaoConcedida = false;
-  const res = await cameraFake.capturarEComprimirFoto();
-  expect(res).toBeNull();
+  expect(resultado.uri).toContain('leituras/leitura-123.jpg');
+  expect(resultado.largura).toBe(1080);
+  expect(resultado.bytes).toBeLessThanOrEqual(320000); // Orçamento de ~300KB
 });
 </script>
         </div>
         <div class="window anim">
-          <div class="window-bar"><i></i><i></i><i></i><span>tests/unit/domain/services/<b>ValidadorDistanciaGpsService.spec.ts</b></span></div>
+          <div class="window-bar"><i></i><i></i><i></i><span>tests/unit/domain/services/<b>ValidadorDistanciaGpsService.spec.ts</b> (Haversine)</span></div>
 <script type="text/plain" data-lang="typescript">
-it('deve aprovar técnico dentro do raio de 500 metros da usina', () => {
-  const usina = new CoordenadasGPS(-19.9208, -43.9378);
+it('aprova leitura dentro do raio de 500 metros do padrão', () => {
+  const padrao = new CoordenadasGPS(-19.9208, -43.9378);
   const tecnicoProximo = new CoordenadasGPS(-19.9215, -43.9385); // ~100m de distância
 
-  const dentroDoRaio = ValidadorDistanciaGpsService.estaDentroDoRaio(tecnicoProximo, usina, 500);
+  const dentroDoRaio = ValidadorDistanciaGpsService.estaDentroDoRaio(tecnicoProximo, padrao, 500);
   expect(dentroDoRaio).toBe(true);
 });
 </script>
@@ -557,56 +564,57 @@ it('deve aprovar técnico dentro do raio de 500 metros da usina', () => {
   <!-- ===================== SLIDE 6 ===================== -->
   <section class="slide" data-layer="adapters" id="slide-6">
     <header class="slide-head">
-      <span class="badge">6. A Implementação da Infraestrutura · Os Adaptadores Expo</span>
+      <span class="badge">6. A Implementação de Hardware · Os Adaptadores Expo SDK 57</span>
       <span class="num"><b>06</b> / 08</span>
     </header>
     <div class="grid">
       <div class="col-text">
-        <h2 class="anim">APIs Modernas do Expo:<br><span class="hl">Inversão de Dependência</span></h2>
+        <h2 class="anim">APIs Nativas Modernas:<br><span class="hl">Câmera, Compressão e GPS</span></h2>
         <ul class="points">
-          <li><strong>Princípio Fundamental</strong>: <em>A infraestrutura se adequa ao domínio, e não o contrário</em>. O domínio estabelece a interface; o Expo é apenas um detalhe de implementação.</li>
-          <li><code class="inline">ExpoCameraGateway</code>: Consome <code class="inline">expo-camera</code> para solicitar permissões e orquestra a compressão via <code class="inline">expo-image-manipulator</code> (<code class="inline">width: 1080</code>, qualidade JPEG 0.75 para atingir ~300KB).</li>
-          <li><code class="inline">ExpoLocationGateway</code>: Utiliza <code class="inline">expo-location</code> com <code class="inline">Accuracy.High</code> e converte a resposta nativa diretamente no Value Object <code class="inline">CoordenadasGPS</code> do Domínio.</li>
-          <li><strong>Desacoplamento</strong>: Se o Expo for substituído por outra biblioteca, nenhuma linha de código do Domínio, Casos de Uso ou Telas precisa ser alterada.</li>
+          <li><code class="inline">CameraGatewayExpo</code>: No Expo SDK 57, a <code class="inline">CameraView</code> só admite um preview ativo por vez e a função de captura vive numa ref React. O gateway implementa o padrão de <em>registro de capturador</em>, mantendo a camada de domínio desacoplada do ciclo de vida da tela.</li>
+          <li><code class="inline">ArquivoFotoGatewayExpo</code>: Utiliza a nova API contextual <code class="inline">ImageManipulator.manipulate</code> do SDK 57, redimensiona a largura para 1080px e executa um laço de compressão progressivo (0.8, 0.7, 0.6, 0.5) até a foto caber no orçamento de <b>~300KB</b>, movendo-a com <code class="inline">expo-file-system</code> para o armazenamento permanente (<code class="inline">Paths.document</code>).</li>
+          <li><code class="inline">LocationGatewayExpo</code>: Dispara <code class="inline">expo-location</code> com <code class="inline">Accuracy.High</code> em uma corrida assíncrona (<code class="inline">Promise.race</code>) contra um timeout de 10 segundos. Em casas de medidor com blindagem ou subsolo, devolve <code class="inline">null</code> graciosamente em vez de travar o técnico em campo.</li>
         </ul>
       </div>
       <div class="col-code">
         <div class="window anim">
-          <div class="window-bar"><i></i><i></i><i></i><span>src/infrastructure/hardware/<b>ExpoCameraGateway.ts</b> (Código Real)</span></div>
+          <div class="window-bar"><i></i><i></i><i></i><span>src/infrastructure/hardware/camera/<b>CameraGatewayExpo.ts</b> (Preview Seguro)</span></div>
 <script type="text/plain" data-lang="typescript">
-export class ExpoCameraGateway implements ICameraGateway {
-  async solicitarPermissao(): Promise<boolean> {
-    const response = await Camera.requestCameraPermissionsAsync();
-    return response.status === 'granted';
+export class CameraGatewayExpo implements ICameraGateway {
+  private capturador: Capturador | null = null;
+
+  public registrarCapturador(capturador: Capturador): () => void {
+    this.capturador = capturador;
+    return () => {
+      if (this.capturador === capturador) this.capturador = null;
+    };
   }
 
-  async capturarEComprimirFoto(): Promise<CapturarFotoResultado | null> {
-    const rawUri = this.captureProvider ? await this.captureProvider() : 'file:///cache/raw.jpg';
-    if (!rawUri) return null;
-
-    // Regra Arquitetural: Redimensionamento 1080p + compressão JPEG (~300KB)
-    const manipulated = await manipulateAsync(
-      rawUri,
-      [{ resize: { width: 1080 } }],
-      { compress: 0.75, format: SaveFormat.JPEG }
-    );
-    return { uri: manipulated.uri, sizeBytes: 307200 };
+  async capturar(): Promise<FotoCapturada | null> {
+    if (!this.capturador) throw new PreviewNaoMontadoError();
+    return this.capturador();
   }
 }
 </script>
         </div>
         <div class="window anim">
-          <div class="window-bar"><i></i><i></i><i></i><span>src/infrastructure/hardware/<b>ExpoLocationGateway.ts</b> (Código Real)</span></div>
+          <div class="window-bar"><i></i><i></i><i></i><span>src/infrastructure/hardware/midia/<b>ArquivoFotoGatewayExpo.ts</b> (Compressão 1080p)</span></div>
 <script type="text/plain" data-lang="typescript">
-export class ExpoLocationGateway implements ILocationGateway {
-  async solicitarPermissao(): Promise<boolean> {
-    const response = await Location.requestForegroundPermissionsAsync();
-    return response.status === 'granted';
-  }
+export class ArquivoFotoGatewayExpo implements IArquivoFotoGateway {
+  async comprimirEPersistir(uriTemporaria: string, nomeBase: string): Promise<FotoPersistida> {
+    const contexto = ImageManipulator.manipulate(uriTemporaria);
+    contexto.resize({ width: 1080 }); // Lado maior em retrato
+    const renderizada = await contexto.renderAsync();
 
-  async obterCoordenadas(): Promise<CoordenadasGPS | null> {
-    const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-    return new CoordenadasGPS(location.coords.latitude, location.coords.longitude);
+    let salva = await renderizada.saveAsync({ format: SaveFormat.JPEG, compress: 0.8 });
+    for (const q of [0.7, 0.6, 0.5]) {
+      if (new File(salva.uri).size <= 320000) break; // Orçamento de ~300KB
+      salva = await renderizada.saveAsync({ format: SaveFormat.JPEG, compress: q });
+    }
+
+    const destino = new File(Paths.document, `leituras/${nomeBase}.jpg`);
+    await new File(salva.uri).move(destino);
+    return { uri: destino.uri, bytes: destino.size ?? 0, largura: salva.width, altura: salva.height };
   }
 }
 </script>
@@ -618,17 +626,18 @@ export class ExpoLocationGateway implements ILocationGateway {
   <!-- ===================== SLIDE 7 ===================== -->
   <section class="slide" data-layer="sqlite" id="slide-7">
     <header class="slide-head">
-      <span class="badge">7. Salvando os Dados no Banco Local do Celular · SQLite</span>
+      <span class="badge">7. Persistência Local no Celular · SQLite 100% Offline-First</span>
       <span class="num"><b>07</b> / 08</span>
     </header>
     <div class="grid">
       <div class="col-text">
-        <h2 class="anim">Persistência Local:<br><span class="hl">SQLite &amp; ActionQueue</span></h2>
+        <h2 class="anim">Salvando os Dados no SQLite:<br><span class="hl">Integridade e Atomicidade</span></h2>
         <ul class="points">
-          <li><strong>Banco de Dados Embutido</strong>: <code class="inline">SQLiteDatabaseManager</code> abre o arquivo <code class="inline">equinox_mobile.db</code> via <code class="inline">expo-sqlite</code> configurado com <code class="inline">PRAGMA journal_mode = WAL</code> para máxima performance e concorrência.</li>
-          <li><strong>Tabela de Leituras</strong>: Grava a foto local e coordenadas geográficas nas colunas <code class="inline">foto_local_uri</code>, <code class="inline">latitude</code>, <code class="inline">longitude</code>, <code class="inline">valor_kwh</code> e <code class="inline">status_sync = 'Pendente'</code>.</li>
-          <li><strong>Fila de Resiliência Offline</strong>: <code class="inline">RegistrarLeituraUseCase</code> cria instantaneamente um item na tabela <code class="inline">action_queue</code> com <code class="inline">tipo_acao = 'INSERT_LEITURA'</code> contendo o payload JSON completo.</li>
-          <li><strong>Garantia Offline-First</strong>: O técnico sai de campo com o registro 100% gravado no aparelho, mesmo se a bateria acabar ou não houver sinal 4G.</li>
+          <li><strong>Banco de Dados Local Embutido</strong>: Opera através de <code class="inline">expo-sqlite</code> nativo no dispositivo. Migrações versionadas por <code class="inline">PRAGMA user_version</code> e sem fallbacks silenciosos em memória (ADR 9.9).</li>
+          <li><strong>Tabela de Leituras</strong>: Grava a foto local e coordenadas nas colunas <code class="inline">foto_local_uri</code>, <code class="inline">latitude</code>, <code class="inline">longitude</code>, <code class="inline">precisao_metros</code>, <code class="inline">valor_consumo</code>, <code class="inline">valor_injecao</code> e <code class="inline">status</code>.</li>
+          <li><strong>Índice Parcial Único</strong>: <code class="inline">idx_leituras_vigente_dia</code> garante rigorosamente que só exista <b>uma leitura vigente por padrão por dia local</b>.</li>
+          <li><strong>Transação de Substituição Atômica</strong>: Se o técnico refizer a leitura no mesmo dia, <code class="inline">salvarSubstituindo</code> executa em transação exclusiva marcando a anterior como <code class="inline">substituida</code> antes do novo insert.</li>
+          <li><strong>Auditoria Geográfica Desacoplada</strong>: O <code class="inline">RegraLocalizacaoLeituraService</code> analisa a distância: fora de 500m grava e gera <code class="inline">LEITURA_FORA_DE_RAIO</code>; sem GPS grava e gera <code class="inline">LEITURA_SEM_GPS</code> (ADR 9.4). O técnico nunca é impedido de trabalhar.</li>
         </ul>
       </div>
       <div class="col-code">
@@ -636,45 +645,49 @@ export class ExpoLocationGateway implements ILocationGateway {
           <div class="window-bar"><i></i><i></i><i></i><span>src/infrastructure/database/sqlite/repositories/<b>LeituraRepositorySQLite.ts</b></span></div>
 <script type="text/plain" data-lang="typescript">
 export class LeituraRepositorySQLite implements ILeituraRepository {
-  async salvar(leitura: Leitura): Promise<void> {
-    const db = await SQLiteDatabaseManager.getDatabase();
-    if (!db) { await this.fallbackMemory.salvar(leitura); return; }
+  constructor(private readonly db: SQLiteDatabase) {}
 
-    await db.runAsync(
-      `INSERT OR REPLACE INTO leituras 
-       (id, usina_id, usuario_id, valor_kwh, foto_local_uri, latitude, longitude, data_hora, status_sync, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        leitura.id.value, leitura.usinaId.value, leitura.usuarioId.value,
-        leitura.valorKwh.valor, leitura.caminhoImagemLocal,
-        leitura.coordenadas.latitude, leitura.coordenadas.longitude,
-        leitura.dataHora.toISOString(), leitura.statusSync, new Date().toISOString(),
-      ]
+  async salvar(leitura: Leitura): Promise<void> {
+    await this.db.runAsync(
+      `INSERT INTO leituras (id, padrao_id, usuario_id, valor_consumo, valor_injecao,
+                             foto_local_uri, latitude, longitude, precisao_metros,
+                             medido_em, data_local, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      valoresDe(leitura)
     );
+  }
+
+  async salvarSubstituindo(nova: Leitura, vigente: Leitura): Promise<void> {
+    // Executa em transação exclusiva: a antiga SAI de vigente ANTES de a nova entrar
+    await emTransacao(this.db, async (tx) => {
+      await tx.runAsync(
+        `UPDATE leituras SET status = ?, substituida_em = ?, substituida_por_id = ? WHERE id = ?`,
+        [vigente.status, vigente.substituidaEm?.toISOString() ?? null, vigente.substituidaPorId?.value ?? null, vigente.id.value]
+      );
+      await tx.runAsync(
+        `INSERT INTO leituras (...) VALUES (...)`,
+        valoresDe(nova)
+      );
+    });
   }
 }
 </script>
         </div>
         <div class="window anim">
-          <div class="window-bar"><i></i><i></i><i></i><span>src/application/use-cases/<b>RegistrarLeituraUseCase.ts</b> (Enfileirando Sync)</span></div>
+          <div class="window-bar"><i></i><i></i><i></i><span>src/application/use-cases/<b>RegistrarLeituraUseCase.ts</b> (Persistência &amp; Auditoria)</span></div>
 <script type="text/plain" data-lang="typescript">
-// 1. Grava no banco de dados local SQLite
-await this.leituraRepo.salvar(leitura);
+// 1. Move e comprime a foto para o disco permanente do celular
+const foto = await this.arquivoFoto.comprimirEPersistir(entrada.fotoTemporariaUri, leituraId.value);
 
-// 2. Enfileira na ActionQueue para sincronização assíncrona com Supabase
-const queueItem = new ActionQueueItem({
-  id: UUIDv4.gerar(),
-  tipoOperacao: 'INSERT_LEITURA',
-  payloadJSON: JSON.stringify({
-    id: leituraId.value,
-    usinaId: usinaId.value,
-    valorKwh: valorKwh.valor,
-    caminhoImagemLocal: input.fotoLocalUri,
-    latitude: input.latitude,
-    longitude: input.longitude,
-  }),
+// 2. Persiste a leitura no SQLite (com substituição atômica se já houver leitura hoje)
+const substituida = await this.persistir(leitura, agora);
+
+// 3. Avalia coordenadas como prova de apoio e gera notificações para auditoria
+const localizacao = RegraLocalizacaoLeituraService.avaliar(coordenadas, endereco.coordenadas);
+const notificacoes = GeradorNotificacoesService.paraLeituraRegistrada({
+  leitura, referencia, substituida, localizacao, ...
 });
-await this.queueRepo.enfileirar(queueItem);
+if (notificacoes.length > 0) await this.notificacaoRepo.salvarVarias(notificacoes);
 </script>
         </div>
       </div>
@@ -684,50 +697,62 @@ await this.queueRepo.enfileirar(queueItem);
   <!-- ===================== SLIDE 8 ===================== -->
   <section class="slide" data-layer="ui" id="slide-8">
     <header class="slide-head">
-      <span class="badge">Demonstração Visual da UI &amp; Nuvem · Conclusão</span>
+      <span class="badge">8. Demonstração Visual da UI &amp; Conclusão</span>
       <span class="num"><b>08</b> / 08</span>
     </header>
     <div class="grid">
       <div class="col-text">
-        <h2 class="anim">Do Celular à Nuvem:<br><span class="hl">Experiência Completa</span></h2>
+        <h2 class="anim">Da Captura à Persistência:<br><span class="hl">Experiência Completa</span></h2>
         <ul class="points">
-          <li><strong>UI Reativa</strong>: Rota <code class="inline">src/app/leitura/nova.tsx</code> conecta <code class="inline">ExpoCameraGateway</code>, <code class="inline">ExpoLocationGateway</code> e <code class="inline">LeituraRepositorySQLite</code> à tela.</li>
-          <li><strong>Feedback Imediato ao Técnico</strong>:
-            <br>• Confirmação de foto salva e comprimida (~300KB)
-            <br>• Coordenadas GPS formatadas em tempo real
-            <br>• Fallback amigável em caso de permissão negada
+          <li><strong>UI Reativa &amp; Desacoplada</strong>: A rota <code class="inline">src/app/(app)/leitura/[padraoId].tsx</code> utiliza o hook <code class="inline">useNovaLeitura</code> alimentado pelo Container de Injeção de Dependências.</li>
+          <li><strong>Ciclo Fluido em Campo</strong>:
+            <br>• <strong>GPS em segundo plano</strong>: Obtido de forma transparente enquanto o técnico observa o padrão.
+            <br>• <strong>Guia de Enquadramento</strong>: Modal <code class="inline">CapturaMedidorCamera</code> com moldura visual do visor.
+            <br>• <strong>Feedback de Compressão</strong>: Prévia imediata da foto salva em disco (~300KB).
+            <br>• <strong>Validação Inteligente</strong>: Alerta se o valor em kWh for menor que a medição anterior.
           </li>
-          <li><strong>Sincronização em Nuvem (<code class="inline">SyncManager</code>)</strong>: Ao detectar conexão à internet, a foto é enviada ao Supabase Storage (bucket <code class="inline">comprovantes</code>) e os dados são consolidados no PostgreSQL remoto.</li>
-          <li><strong>Conclusão</strong>: Engenharia de software sólida aliando Clean Architecture, DDD, TDD e arquitetura Offline-First no ecossistema Expo.</li>
+          <li><strong>Gravação Instantânea</strong>: Salva no SQLite local em milissegundos com feedback háptico e mensagem de confirmação.</li>
+          <li><strong>Conclusão Técnica</strong>: Uma arquitetura robusta, resiliente a falhas de hardware, com 100% de testes automatizados e independência total de internet.</li>
         </ul>
       </div>
       <div class="col-code">
         <div class="window anim">
-          <div class="window-bar"><i></i><i></i><i></i><span>src/app/leitura/<b>nova.tsx</b> (Rota com Injeção de Dependências Reais)</span></div>
+          <div class="window-bar"><i></i><i></i><i></i><span>src/app/(app)/leitura/<b>[padraoId].tsx</b> (Rota com Injeção de Container)</span></div>
 <script type="text/plain" data-lang="typescript">
 export default function NovaLeituraRoute() {
   const router = useRouter();
+  const voltar = useVoltar('/(app)/(tabs)/leituras');
+  const { padraoId } = useLocalSearchParams<{ padraoId: string }>();
+  const [cameraAberta, setCameraAberta] = useState(false);
 
-  // Repositórios locais SQLite
-  const leituraRepo = useMemo(() => new LeituraRepositorySQLite(), []);
-  const queueRepo = useMemo(() => new ActionQueueRepositorySQLite(), []);
-  const usinaRepo = useMemo(() => new UsinaRepositorySQLite(), []);
-
-  // Adaptadores modernos de hardware Expo
-  const cameraGateway = useMemo(() => new ExpoCameraGateway(), []);
-  const locationGateway = useMemo(() => new ExpoLocationGateway(), []);
+  const estado = useNovaLeitura(padraoId ?? '');
 
   return (
-    <NovaLeituraScreen
-      usinaId={targetUsinaId}
-      usuarioId={targetUsuarioId}
-      leituraRepo={leituraRepo}
-      usinaRepo={usinaRepo}
-      queueRepo={queueRepo}
-      cameraGateway={cameraGateway}
-      locationGateway={locationGateway}
-      onSucesso={() => router.back()}
-    />
+    <>
+      <NovaLeituraScreen
+        carregando={estado.carregando}
+        endereco={estado.endereco}
+        padrao={estado.padrao}
+        consumo={estado.consumo}
+        injecao={estado.injecao}
+        fotoUri={estado.fotoUri}
+        onAbrirCamera={() => setCameraAberta(true)}
+        gps={estado.gps}
+        onTentarGps={() => void estado.obterGps()}
+        onSalvar={() => void estado.salvar()}
+        onVoltar={voltar}
+        onConcluir={() => router.replace('/(app)/(tabs)/home')}
+      />
+
+      <CapturaMedidorCamera
+        visivel={cameraAberta}
+        onFechar={() => setCameraAberta(false)}
+        onCapturada={async () => {
+          await estado.capturarFoto();
+          setCameraAberta(false);
+        }}
+      />
+    </>
   );
 }
 </script>
