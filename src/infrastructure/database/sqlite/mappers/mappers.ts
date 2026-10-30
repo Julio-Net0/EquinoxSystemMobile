@@ -195,13 +195,8 @@ export interface LeituraRow {
   decidida_por_id: string | null;
 }
 
-/**
- * Reconstrói a leitura e reaplica as transições de estado, porque `status`,
- * `substituida*` e `decidida*` são privados na entidade — é o que garante que
- * um registro vindo do banco respeite as mesmas regras de transição.
- */
-export const leituraDeRow = (row: LeituraRow): Leitura => {
-  const leitura = new Leitura({
+export const leituraDeRow = (row: LeituraRow): Leitura =>
+  new Leitura({
     id: new UUIDv4(row.id),
     padraoId: new UUIDv4(row.padrao_id),
     usuarioId: new UUIDv4(row.usuario_id),
@@ -215,10 +210,11 @@ export const leituraDeRow = (row: LeituraRow): Leitura => {
     medidoEm: new Date(row.medido_em),
     dataLocal: DataLocal.parse(row.data_local),
     status: row.status as StatusLeituraEnum,
+    substituidaEm: paraData(row.substituida_em),
+    substituidaPorId: paraUUID(row.substituida_por_id),
+    decididaEm: paraData(row.decidida_em),
+    decididaPorId: paraUUID(row.decidida_por_id),
   });
-
-  return leitura;
-};
 
 export const leituraParaRow = (leitura: Leitura): LeituraRow => ({
   id: leitura.id.value,

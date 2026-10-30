@@ -1,7 +1,11 @@
 import {
   DDL_SCHEMA_INICIAL,
-  migracaoSchemaInicial,
-} from '@/infrastructure/database/sqlite/migrations/001_schema_inicial';
+  SENHA_DEMO,
+  criarMigracoes,
+} from '@/infrastructure/database/sqlite/migrations';
+import { HashSenhaFake } from '@/infrastructure/fakes/HashSenhaFake';
+
+const migracoes = criarMigracoes(new HashSenhaFake());
 
 /**
  * Confere o texto do DDL em vez de abrir um banco: expo-sqlite não carrega sob
@@ -9,14 +13,29 @@ import {
  * quebradas, só apareceriam no aparelho.
  */
 describe('migrações SQLite', () => {
-  describe('migração de schema', () => {
-    it('é a versão 1', () => {
-      expect(migracaoSchemaInicial.versao).toBe(1);
+  describe('lista de migrações', () => {
+    it('começa na versão 1', () => {
+      expect(migracoes[0].versao).toBe(1);
     });
 
-    it('tem nome e função de aplicar', () => {
-      expect(migracaoSchemaInicial.nome).toBe('001_schema_inicial');
-      expect(typeof migracaoSchemaInicial.aplicar).toBe('function');
+    it('tem versões estritamente crescentes e sem lacuna', () => {
+      migracoes.forEach((m, i) => expect(m.versao).toBe(i + 1));
+    });
+
+    it('cada migração tem nome e função de aplicar', () => {
+      for (const m of migracoes) {
+        expect(m.nome).not.toBe('');
+        expect(typeof m.aplicar).toBe('function');
+      }
+    });
+
+    it('a versão 1 cria o schema e a 2 popula o seed', () => {
+      expect(migracoes[0].nome).toContain('schema');
+      expect(migracoes[1].nome).toContain('seed');
+    });
+
+    it('a senha demo é longa o bastante para o próprio cadastro aceitar', () => {
+      expect(SENHA_DEMO.length).toBeGreaterThanOrEqual(6);
     });
   });
 
@@ -50,12 +69,8 @@ describe('migrações SQLite', () => {
       for (const pk of pks) expect(pk).toContain('TEXT');
     });
 
-    it('liga as chaves estrangeiras', () => {
-      expect(DDL_SCHEMA_INICIAL).toContain('PRAGMA foreign_keys = ON');
-    });
-
-    it('usa journal WAL', () => {
-      expect(DDL_SCHEMA_INICIAL).toContain('PRAGMA journal_mode = WAL');
+    it('não traz PRAGMA: journal_mode não pode rodar dentro de transação', () => {
+      expect(DDL_SCHEMA_INICIAL).not.toContain('PRAGMA');
     });
   });
 

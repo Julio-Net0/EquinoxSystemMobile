@@ -15,6 +15,15 @@ export interface LeituraProps {
   medidoEm: Date;
   dataLocal: DataLocal;
   status?: StatusLeituraEnum;
+  /**
+   * Rastros de substituição e decisão. Só são informados ao reconstruir a
+   * leitura a partir do banco — no fluxo normal eles são preenchidos pelos
+   * métodos de transição.
+   */
+  substituidaEm?: Date | null;
+  substituidaPorId?: UUIDv4 | null;
+  decididaEm?: Date | null;
+  decididaPorId?: UUIDv4 | null;
 }
 
 /**
@@ -64,6 +73,10 @@ export class Leitura {
     this.medidoEm = props.medidoEm;
     this.dataLocal = props.dataLocal;
     this._status = props.status ?? StatusLeituraEnum.REGISTRADA;
+    this._substituidaEm = props.substituidaEm ?? null;
+    this._substituidaPorId = props.substituidaPorId ?? null;
+    this._decididaEm = props.decididaEm ?? null;
+    this._decididaPorId = props.decididaPorId ?? null;
   }
 
   public get status(): StatusLeituraEnum {

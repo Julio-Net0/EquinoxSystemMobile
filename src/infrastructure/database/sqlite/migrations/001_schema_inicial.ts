@@ -10,9 +10,6 @@ import { Migracao } from './Migracao';
  * calado e o erro só apareceria numa consulta, muito depois.
  */
 export const DDL_SCHEMA_INICIAL = `
-PRAGMA journal_mode = WAL;
-PRAGMA foreign_keys = ON;
-
 CREATE TABLE empresas (
   id         TEXT PRIMARY KEY NOT NULL,
   nome       TEXT NOT NULL,
