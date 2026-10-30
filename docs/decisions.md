@@ -268,5 +268,191 @@ Para cada decisão, listamos o contexto, as opções consideradas, a decisão to
 * **Decisão:** **Adopção de testes de componentes integrados via `@testing-library/react-native`.**
 * **Justificativa:** Foram criadas suítes de testes de componentes cobrindo `LoginScreen.spec.tsx`, `DashboardScreen.spec.tsx`, `AutorizacoesPendentesScreen.spec.tsx` e `GestaoEmpresasScreen.spec.tsx`. A suíte completa expandiu para **30 test suites e 80 testes unitários/componentes 100% aprovados**.
 
+---
 
+## 9. Reconstrução Offline-First sobre o Modelo do App Legado (Fase 6)
 
+Esta fase reescreve o app para rodar **100% local**, sem Supabase e sem
+sincronização, portando as nove telas do app em produção
+(`example/Equinox.MOBILE`, Tauri + Vite + IndexedDB) e mantendo as duas
+features que ele não tinha: foto comprobatória do medidor e GPS.
+
+As decisões abaixo substituem, onde houver conflito, as das seções 5, 7 e 8.
+
+### 9.1 Adoção do Modelo de Domínio do Legado
+
+**Contexto.** O domínio desta base era `Empresa -> Usina (codigoUC,
+capacidadeNominal, coordenadas) -> Leitura (valorKwh)`. O app em produção usa
+`Empresa -> Endereco (ehUsina, uc, logradouro) -> PadraoCemig -> Leitura
+(consumo 003 + injecao 103)`. As telas de Estrutura, Leitura de Padrão e
+Usuários do legado não têm equivalente no modelo antigo: não existia o conceito
+de padrão de medição, que é a unidade real de leitura.
+
+**Opções.** (a) Manter `Usina` e adaptar as telas, perdendo padrões e leitura
+de injeção. (b) Manter `Usina` e pendurar `Padrao` embaixo, convivendo com dois
+conceitos sobrepostos. (c) Adotar o modelo do legado e aposentar `Usina`.
+
+**Decisão.** (c). "Usina" passa a ser a flag `ehUsina` do `Endereco`, que é
+exatamente o que ela significa no negócio: um endereço que também injeta
+energia e por isso exige a leitura do campo 103.
+
+**Consequências.** `Usina`, `StatusUsinaEnum`, `IUsinaRepository`,
+`CadastrarUsinaUseCase` e `ConsultarUsinasUseCase` foram removidos. Entraram
+`Endereco`, `PadraoCemig`, `Notificacao` e a tabela N:N `usuario_enderecos`.
+
+### 9.2 Remoção da Nuvem e da Sincronização
+
+**Decisão.** Supabase (cliente, três gateways e `@supabase/supabase-js`),
+`SyncManager`, `NetworkMonitor`, `DataPurgeService` e `CrashReporterManager`
+saíram do caminho do app. `@react-native-community/netinfo` não foi instalado.
+
+**Justificativa.** O escopo desta fase é o app funcionando sozinho no aparelho.
+Manter um cliente de nuvem configurado com placeholders cria a ilusão de
+integração e caminhos de código que ninguém exercita.
+
+**Consequência.** `supabase/migrations/001_initial_supabase_rls.sql` fica no
+repositório como referência para quando houver backend. A `action_queue`
+continua no schema e com repositório implementado (AGENTS.md seção 6), mas
+**nada enfileira hoje**: sem destino remoto ela não tem consumidor.
+
+### 9.3 "Enviar para a Planilha" virou "Aprovar"
+
+**Contexto.** No legado, a decisão do administrador sobre uma leitura em
+exceção era enviá-la para uma planilha do Google Sheets.
+
+**Decisão.** A decisão passa a ser `aprovar` / `descartar`, gravada localmente.
+
+**Justificativa.** Offline não existe planilha. Um botão "Enviar para a
+planilha" prometeria algo que não acontece.
+
+**Consequência.** `StatusLeituraEnum` usa `registrada | aprovada | substituida
+| descartada`. O conflito entre administradores do legado (HTTP 409) não
+existe: com um banco por aparelho não há decisão concorrente. O que a entidade
+protege é o duplo toque.
+
+### 9.4 Localização é Prova de Apoio, não Condição
+
+**Contexto.** `ValidadorDistanciaGpsService` existia desde a fase 2 e **nunca
+era chamado**. A regra prevista era raio de 500 m.
+
+**Decisão.** A regra passa a ser aplicada, via
+`RegraLocalizacaoLeituraService`, mas **nenhuma situação impede o registro**:
+
+| Situação | Comportamento |
+|---|---|
+| Dentro do raio | grava |
+| Fora do raio | grava e gera `LEITURA_FORA_DE_RAIO` |
+| Endereço sem coordenada | não confere nada |
+| GPS negado ou sem resposta em 10s | grava sem coordenadas e gera `LEITURA_SEM_GPS` |
+
+**Justificativa.** GPS falha de verdade em casa de medidor, garagem e subsolo.
+Bloquear a leitura deixaria o técnico sem saída no local, e a foto já é o
+comprovante do valor. A divergência vira trabalho do administrador, não do
+técnico em campo.
+
+**Consequência.** `Leitura.coordenadas` é opcional; `fotoLocalUri` não é.
+
+### 9.5 Hash de Senha sem KDF — Dívida Consciente
+
+**Contexto.** A autenticação passou a ser local e exige verificar senha.
+`expo-crypto` oferece SHA-256/512 e bytes aleatórios, **não** PBKDF2, scrypt
+nem Argon2. Cada `digestStringAsync` é uma chamada à camada nativa.
+
+**Opções.** (a) Encadear as centenas de milhares de iterações de um KDF, o que
+travaria o login por vários segundos. (b) Adicionar uma dependência nativa de
+cripto. (c) SHA-256 encadeado com salt e um número modesto de iterações.
+
+**Decisão.** (c), com 1000 iterações e salt de 16 bytes
+(`HashSenhaExpoCrypto`). A verificação usa as iterações **gravadas no hash**,
+não as atuais, para um usuário criado numa versão anterior continuar
+autenticando.
+
+**Consequência — risco aceito.** Se o arquivo do banco for extraído do
+aparelho, estas senhas resistem muito menos a força bruta offline do que
+resistiriam com bcrypt ou Argon2id. É aceitável para um app de demonstração com
+dados locais e **não é aceitável em produção**: a troca por um KDF nativo é
+pré-requisito de qualquer uso real.
+
+### 9.6 Formatação pt-BR Feita à Mão
+
+**Decisão.** `FormatadorKwh` implementa a formatação de número, kWh e distância
+sem `Intl`.
+
+**Justificativa.** O Hermes não garante ICU completo. `Intl.NumberFormat`
+poderia devolver `1234.56` no aparelho e `1.234,56` no Node dos testes — e os
+textos de aviso de leitura são comparados em teste e mostrados ao técnico.
+
+### 9.7 Migrações Versionadas por `PRAGMA user_version`
+
+**Decisão.** O runner (`migrar.ts`) compara a lista de migrações com o
+`PRAGMA user_version` do banco. Cada migração roda na própria transação
+exclusiva e a versão só avança **depois** do commit.
+
+**Justificativa.** O runner anterior executava um bloco único de
+`CREATE TABLE IF NOT EXISTS` e nunca era chamado pelo app. Com `IF NOT EXISTS`,
+um schema desatualizado passa calado e o erro aparece numa consulta, muito
+depois.
+
+**Consequências.** Os `PRAGMA journal_mode` e `foreign_keys` saíram do DDL para
+o runner: o primeiro não roda dentro de transação e o segundo é por conexão. O
+seed é a migração 2, separada do schema, e recebe o gateway de hash porque as
+senhas demo precisam ser calculadas.
+
+### 9.8 Uma Leitura Vigente por Padrão por Dia Local
+
+**Decisão.** Índice parcial único
+`idx_leituras_vigente_dia ON leituras(padrao_id, data_local) WHERE status IN
+('registrada', 'aprovada')`, com `DataLocal` (UTC-3 fixo) como chave do dia.
+
+**Consequência operacional.** A substituição é `UPDATE` da vigente **antes** do
+`INSERT` da nova, na mesma transação (`salvarSubstituindo`). A ordem inversa
+falha sempre, porque o índice recusaria duas vigentes.
+
+### 9.9 Fim do Fallback Silencioso em Memória
+
+**Contexto.** `SQLiteDatabaseManager.getDatabase()` devolvia `null` em qualquer
+falha e cada repositório caía calado num dublê em memória.
+
+**Decisão.** Ambos removidos. Os repositórios recebem o handle do banco por
+injeção e propagam erro; os dublês continuam existindo, mas **só os testes os
+injetam**.
+
+**Justificativa.** Foi esse fallback que escondeu por toda a fase anterior o
+fato de `expo-sqlite` nunca ter sido instalado: a suíte passava, o app parecia
+funcionar, e nada era persistido.
+
+### 9.10 Raiz de Composição Única
+
+**Contexto.** A fiação estava em três lugares: props do layout, `useMemo` em
+arquivo de rota e **singletons no escopo do módulo das telas**. Cada tela tinha
+um armazenamento isolado — um usuário cadastrado em `/cadastro` nunca aparecia
+em `/admin/autorizacoes`.
+
+**Decisão.** `Container` + `montarCasos`, compartilhada entre
+`criarContainerSQLite` e `criarContainerFake`, entregue às telas por
+`ContainerProvider`. Dois testes de arquitetura verificam a regra: o domínio
+não importa biblioteca de terceiros, e nenhuma tela monta dependências.
+
+### 9.11 Testes: Três Projetos Jest
+
+**Decisão.** `dominio` (ts-jest, Node) para domínio, aplicação e arquitetura;
+`infra` e `ui` (jest-expo) para o que depende de módulos do Expo.
+
+**Justificativa.** `ts-jest` em Node não renderiza React Native, e o preset
+`jest-expo` penalizaria os testes puros com o transform de RN.
+
+**Atenção.** `jest-expo` transpila com Babel e **não checa tipos**: um erro de
+tipo passa pela suíte. `npx tsc --noEmit` é obrigatório no gate.
+
+### 9.12 Guardas de Rota
+
+**Contexto.** Não havia guarda nenhuma: `/(tabs)/admin` e `/admin/empresas`
+abriam sem login, bastando o link.
+
+**Decisão.** `(app)/_layout.tsx` barra quem não tem sessão;
+`(app)/admin/_layout.tsx` barra perfil abaixo de Administrador. Os dois usam
+`<Redirect>` declarativo, não `router.replace` em efeito, para a tela protegida
+não aparecer por um instante.
+
+**Escopo de dados** não é guarda de rota: continua nos casos de uso, que
+recebem o ator da sessão e aplicam `RegraAutorizacaoUsuarioService`.
