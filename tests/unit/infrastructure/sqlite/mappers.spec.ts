@@ -10,7 +10,7 @@ import { Empresa } from '@/domain/entities/Empresa';
 import { Endereco } from '@/domain/entities/Endereco';
 import { PadraoCemig } from '@/domain/entities/PadraoCemig';
 import { Usuario } from '@/domain/entities/Usuario';
-import { Leitura } from '@/domain/entities/Leitura';
+import { Leitura, LeituraProps } from '@/domain/entities/Leitura';
 import { Notificacao } from '@/domain/entities/Notificacao';
 import { UUIDv4 } from '@/domain/value-objects/UUIDv4';
 import { CNPJ } from '@/domain/value-objects/CNPJ';
@@ -168,7 +168,7 @@ describe('mappers SQLite', () => {
   });
 
   describe('Leitura', () => {
-    const base = (sobrescrita: Partial<Parameters<typeof Leitura.prototype.constructor>[0]> = {}) =>
+    const base = (sobrescrita: Partial<LeituraProps> = {}) =>
       new Leitura({
         id: UUIDv4.gerar(), padraoId: UUIDv4.gerar(), usuarioId: UUIDv4.gerar(),
         valorConsumo: new ValorKwh(12_345),
