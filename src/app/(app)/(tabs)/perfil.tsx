@@ -1,10 +1,12 @@
 import React from 'react';
+import { useRouter } from 'expo-router';
 import { PerfilEnum } from '@/domain/enums/PerfilEnum';
 import { PerfilScreen } from '@/presentation/screens/PerfilScreen';
 import { useAuth } from '@/presentation/hooks/useAuth';
 import { useCasos } from '@/presentation/context/ContainerProvider';
 
 export default function PerfilRoute() {
+  const router = useRouter();
   const { usuario, perfil, recarregar, sair } = useAuth();
   const casos = useCasos();
 
@@ -35,6 +37,7 @@ export default function PerfilRoute() {
         return saida;
       }}
       onSair={() => void sair()}
+      onDiagnostico={() => router.push('/(app)/diagnostico')}
     />
   );
 }

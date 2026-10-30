@@ -13,6 +13,7 @@ import { LocationGatewayExpo } from '../hardware/location/LocationGatewayExpo';
 import { ArquivoFotoGatewayExpo } from '../hardware/midia/ArquivoFotoGatewayExpo';
 import { HashSenhaExpoCrypto } from '../security/HashSenhaExpoCrypto';
 import { SessionStorageSecureStore } from '../adapters/SessionStorageSecureStore';
+import { DiagnosticoLocalSQLite } from '../database/sqlite/DiagnosticoLocalSQLite';
 
 /**
  * Montagem de produção. Síncrona de propósito: nada aqui faz I/O, só liga
@@ -29,6 +30,7 @@ export interface ContainerSQLite extends Container {
 export function criarContainerSQLite(
   db: SQLiteDatabase,
   relogio: IRelogio = relogioSistema,
+  nomeDoBanco = 'equinox.db',
 ): ContainerSQLite {
   const repos: Container['repos'] = {
     empresa: new EmpresaRepositorySQLite(db),
@@ -48,6 +50,7 @@ export function criarContainerSQLite(
     arquivoFoto: new ArquivoFotoGatewayExpo(),
     hashSenha: new HashSenhaExpoCrypto(),
     sessao: new SessionStorageSecureStore(),
+    diagnostico: new DiagnosticoLocalSQLite(db, nomeDoBanco),
   };
 
   return {

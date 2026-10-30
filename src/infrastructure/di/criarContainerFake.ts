@@ -12,6 +12,7 @@ import { LocationGatewayFake } from '../fakes/LocationGatewayFake';
 import { ArquivoFotoGatewayFake } from '../fakes/ArquivoFotoGatewayFake';
 import { HashSenhaFake } from '../fakes/HashSenhaFake';
 import { SessionStorageMemory } from '../fakes/SessionStorageMemory';
+import { DiagnosticoLocalFake } from '../fakes/DiagnosticoLocalFake';
 
 /** Instante fixo padrão dos testes: 10/03/2026, 12:00 em Brasília. */
 export const AGORA_FIXO = new Date(Date.UTC(2026, 2, 10, 15));
@@ -38,6 +39,7 @@ export interface ContainerFake extends Container {
     arquivoFoto: ArquivoFotoGatewayFake;
     hashSenha: HashSenhaFake;
     sessao: SessionStorageMemory;
+    diagnostico: DiagnosticoLocalFake;
   };
 }
 
@@ -55,6 +57,7 @@ export function criarContainerFake(relogio: IRelogio = relogioFixo(AGORA_FIXO)):
     arquivoFoto: new ArquivoFotoGatewayFake(),
     hashSenha: new HashSenhaFake(),
     sessao: new SessionStorageMemory(),
+    diagnostico: new DiagnosticoLocalFake(),
   };
 
   const repos: Container['repos'] = {
@@ -73,6 +76,7 @@ export function criarContainerFake(relogio: IRelogio = relogioFixo(AGORA_FIXO)):
     arquivoFoto: fakes.arquivoFoto,
     hashSenha: fakes.hashSenha,
     sessao: fakes.sessao,
+    diagnostico: fakes.diagnostico,
   };
 
   return {

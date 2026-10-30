@@ -10,6 +10,7 @@ import { ILocationGateway } from '@/domain/gateways/ILocationGateway';
 import { IArquivoFotoGateway } from '@/domain/gateways/IArquivoFotoGateway';
 import { IHashSenhaGateway } from '@/domain/gateways/IHashSenhaGateway';
 import { ISessionStorage } from '@/domain/gateways/ISessionStorage';
+import { IDiagnosticoLocalGateway } from '@/domain/gateways/IDiagnosticoLocalGateway';
 import { IRelogio } from '@/domain/services/Relogio';
 import { AutenticarUsuarioUseCase } from '@/application/use-cases/AutenticarUsuarioUseCase';
 import { CadastrarUsuarioPendenteUseCase } from '@/application/use-cases/CadastrarUsuarioPendenteUseCase';
@@ -24,6 +25,7 @@ import { DecidirLeituraUseCase } from '@/application/use-cases/DecidirLeituraUse
 import { GerenciarNotificacoesUseCase } from '@/application/use-cases/GerenciarNotificacoesUseCase';
 import { AvaliarLeiturasAtrasadasUseCase } from '@/application/use-cases/AvaliarLeiturasAtrasadasUseCase';
 import { PurgarLeiturasAntigasUseCase } from '@/application/use-cases/PurgarLeiturasAntigasUseCase';
+import { ConsultarDiagnosticoUseCase } from '@/application/use-cases/ConsultarDiagnosticoUseCase';
 
 /**
  * Grafo de dependências do app, montado uma única vez.
@@ -52,6 +54,7 @@ export interface Container {
     arquivoFoto: IArquivoFotoGateway;
     hashSenha: IHashSenhaGateway;
     sessao: ISessionStorage;
+    diagnostico: IDiagnosticoLocalGateway;
   };
 
   relogio: IRelogio;
@@ -70,6 +73,7 @@ export interface Container {
     notificacoes: GerenciarNotificacoesUseCase;
     avaliarAtrasadas: AvaliarLeiturasAtrasadasUseCase;
     purgar: PurgarLeiturasAntigasUseCase;
+    diagnostico: ConsultarDiagnosticoUseCase;
   };
 }
 
@@ -132,5 +136,10 @@ export function montarCasos(
       relogio,
     ),
     purgar: new PurgarLeiturasAntigasUseCase(repos.leitura, gateways.arquivoFoto, relogio),
+    diagnostico: new ConsultarDiagnosticoUseCase(
+      gateways.diagnostico,
+      repos.leitura,
+      gateways.arquivoFoto,
+    ),
   };
 }

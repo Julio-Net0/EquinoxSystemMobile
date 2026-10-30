@@ -22,6 +22,7 @@ export interface PerfilScreenProps {
     confirmacao: string;
   }): Promise<{ sucesso: boolean; erro?: string }>;
   onSair(): void;
+  onDiagnostico(): void;
 }
 
 type Aviso = { tom: 'sucesso' | 'erro'; texto: string } | null;
@@ -43,6 +44,7 @@ export function PerfilScreen({
   onSalvarDados,
   onAlterarSenha,
   onSair,
+  onDiagnostico,
 }: PerfilScreenProps) {
   const { bottom } = useSafeAreaInsets();
 
@@ -187,6 +189,13 @@ export function PerfilScreen({
           </View>
 
           <View style={styles.divisor} />
+
+          <SolarButton
+            titulo="Diagnóstico local"
+            variante="fantasma"
+            icone="storage"
+            onPress={onDiagnostico}
+          />
 
           <SolarButton titulo="Sair da conta" variante="perigo" icone="logout" onPress={onSair} />
         </ScrollView>
