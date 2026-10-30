@@ -288,3 +288,18 @@ describe('GerenciarEstruturaUseCase', () => {
     });
   });
 });
+
+describe('GerenciarEstruturaUseCase — listarPadroes', () => {
+  it('lista os padrões de um endereço', async () => {
+    const { caso, sede, padraoSede } = await cenario();
+
+    const saida = await caso.listarPadroes({ enderecoId: sede.id.value });
+
+    expect(saida.padroes).toEqual([{ padraoId: padraoSede.id.value, numero: '778811' }]);
+  });
+
+  it('devolve vazio para endereço sem padrão', async () => {
+    const { caso, alheio } = await cenario();
+    expect((await caso.listarPadroes({ enderecoId: alheio.id.value })).padroes).toEqual([]);
+  });
+});

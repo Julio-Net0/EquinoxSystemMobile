@@ -22,6 +22,8 @@ export interface UsuarioResumoDTO {
   perfil: PerfilEnum;
   status: StatusUsuarioEnum;
   enderecos: EnderecoResumoDTO[];
+  /** Ids dos vínculos, para a tela de edição pré-marcar a seleção. */
+  enderecoIds: string[];
 }
 
 export interface ListarUsuariosInput {
@@ -223,6 +225,7 @@ export class GerenciarUsuariosEmpresaUseCase {
       enderecos: enderecos
         .filter((e) => vinculados.has(e.id.value))
         .map((e) => ({ apelido: e.apelido, uc: e.uc })),
+      enderecoIds: usuario.enderecosVinculados.map((i) => i.value),
     };
   }
 }

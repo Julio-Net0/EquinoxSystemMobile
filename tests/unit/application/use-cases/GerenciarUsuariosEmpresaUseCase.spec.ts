@@ -207,3 +207,14 @@ describe('GerenciarUsuariosEmpresaUseCase', () => {
     });
   });
 });
+
+describe('GerenciarUsuariosEmpresaUseCase — ids dos vínculos', () => {
+  it('o resumo carrega os ids dos endereços, para a edição pré-marcar a seleção', async () => {
+    const { caso, admin, tecnico, endereco } = await cenario();
+
+    const saida = await caso.listar({ atorId: admin.id.value, termoBusca: 'joao' });
+
+    const resumo = saida.usuarios.find((u) => u.usuarioId === tecnico.id.value);
+    expect(resumo?.enderecoIds).toEqual([endereco.id.value]);
+  });
+});

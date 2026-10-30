@@ -93,6 +93,17 @@ export class GerenciarEstruturaUseCase {
     return { enderecos };
   }
 
+  /** Padrões de um endereço, carregados sob demanda ao expandir o card. */
+  public async listarPadroes(entrada: {
+    enderecoId: string;
+  }): Promise<{ padroes: { padraoId: string; numero: string }[] }> {
+    const padroes = await this.padraoRepo.listarPorEndereco(new UUIDv4(entrada.enderecoId));
+
+    return {
+      padroes: padroes.map((p) => ({ padraoId: p.id.value, numero: p.numero })),
+    };
+  }
+
   public async criarEndereco(
     entrada: { atorId: string; empresaId: string; numerosDePadrao: string[] } & CamposEndereco,
   ): Promise<ResultadoEstrutura & { enderecoId?: string }> {

@@ -99,7 +99,7 @@ export function montarCasos(
       repos.endereco,
       relogio,
     ),
-    gerenciarEmpresas: new GerenciarEmpresasUseCase(repos.empresa),
+    gerenciarEmpresas: new GerenciarEmpresasUseCase(repos.empresa, repos.usuario),
     gerenciarEstrutura: new GerenciarEstruturaUseCase(
       repos.endereco,
       repos.padrao,
