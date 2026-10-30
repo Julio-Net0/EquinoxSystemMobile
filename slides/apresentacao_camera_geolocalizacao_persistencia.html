@@ -631,58 +631,61 @@ export class ArquivoFotoGatewayExpo implements IArquivoFotoGateway {
     </header>
     <div class="grid">
       <div class="col-text">
-        <h2 class="anim">Salvando os Dados no SQLite:<br><span class="hl">Integridade e Atomicidade</span></h2>
-        <ul class="points">
-          <li><strong>Banco de Dados Local Embutido</strong>: Opera através de <code class="inline">expo-sqlite</code> nativo no dispositivo. Migrações versionadas por <code class="inline">PRAGMA user_version</code> e sem fallbacks silenciosos em memória (ADR 9.9).</li>
-          <li><strong>Tabela de Leituras</strong>: Grava a foto local e coordenadas nas colunas <code class="inline">foto_local_uri</code>, <code class="inline">latitude</code>, <code class="inline">longitude</code>, <code class="inline">precisao_metros</code>, <code class="inline">valor_consumo</code>, <code class="inline">valor_injecao</code> e <code class="inline">status</code>.</li>
-          <li><strong>Índice Parcial Único</strong>: <code class="inline">idx_leituras_vigente_dia</code> garante rigorosamente que só exista <b>uma leitura vigente por padrão por dia local</b>.</li>
-          <li><strong>Transação de Substituição Atômica</strong>: Se o técnico refizer a leitura no mesmo dia, <code class="inline">salvarSubstituindo</code> executa em transação exclusiva marcando a anterior como <code class="inline">substituida</code> antes do novo insert.</li>
-          <li><strong>Auditoria Geográfica Desacoplada</strong>: O <code class="inline">RegraLocalizacaoLeituraService</code> analisa a distância: fora de 500m grava e gera <code class="inline">LEITURA_FORA_DE_RAIO</code>; sem GPS grava e gera <code class="inline">LEITURA_SEM_GPS</code> (ADR 9.4). O técnico nunca é impedido de trabalhar.</li>
+        <h2 class="anim">Salvando no SQLite:<br><span class="hl">Transação &amp; Atomicidade</span></h2>
+
+        <div class="card-box success anim">
+          <div class="card-title">🔒 Garantia de Consistência Offline:</div>
+          <p>O índice parcial único <code class="inline">idx_leituras_vigente_dia</code> garante <b>uma única leitura vigente por padrão por dia</b>. Substituições ocorrem via transação exclusiva (<code class="inline">emTransacao</code>), protegendo o histórico sem conflito concorrente nem perda de dados.</p>
+        </div>
+
+        <ul class="points" style="gap: 8px;">
+          <li style="font-size: 15.5px;"><strong>Foto Permanente &amp; GPS</strong>: Salva <code class="inline">foto_local_uri</code> no disco permanente (<code class="inline">Paths.document</code>), latitude, longitude e precisão métrica.</li>
+          <li style="font-size: 15.5px;"><strong>Substituição Atômica</strong>: A leitura anterior tem seu status alterado para <code class="inline">'substituida'</code> antes da nova ser inserida.</li>
+          <li style="font-size: 15.5px;"><strong>Auditoria Desacoplada</strong>: Se o GPS falhar ou estiver fora de 500m, o app grava normalmente e gera notificação de auditoria (ADR 9.4).</li>
         </ul>
+
+        <div class="stats anim">
+          <div class="stat"><b>1 / Dia</b><span>Índice Parcial Único</span></div>
+          <div class="stat"><b>emTransacao</b><span>Transação Exclusiva</span></div>
+          <div class="stat"><b>UUIDv4</b><span>Chave Primária Pura</span></div>
+        </div>
       </div>
       <div class="col-code">
         <div class="window anim">
           <div class="window-bar"><i></i><i></i><i></i><span>src/infrastructure/database/sqlite/repositories/<b>LeituraRepositorySQLite.ts</b></span></div>
 <script type="text/plain" data-lang="typescript">
-export class LeituraRepositorySQLite implements ILeituraRepository {
-  constructor(private readonly db: SQLiteDatabase) {}
-
-  async salvar(leitura: Leitura): Promise<void> {
-    await this.db.runAsync(
-      `INSERT INTO leituras (id, padrao_id, usuario_id, valor_consumo, valor_injecao,
-                             foto_local_uri, latitude, longitude, precisao_metros,
-                             medido_em, data_local, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      valoresDe(leitura)
+// Substituição atômica: a antiga SAI de vigente ANTES de a nova entrar
+async salvarSubstituindo(nova: Leitura, vigente: Leitura): Promise<void> {
+  await emTransacao(this.db, async (tx) => {
+    // 1. Atualiza leitura existente para status 'substituida'
+    await tx.runAsync(
+      `UPDATE leituras SET status = ?, substituida_em = ?, substituida_por_id = ?
+       WHERE id = ?`,
+      [vigente.status, vigente.substituidaEm?.toISOString() ?? null,
+       vigente.substituidaPorId?.value ?? null, vigente.id.value]
     );
-  }
 
-  async salvarSubstituindo(nova: Leitura, vigente: Leitura): Promise<void> {
-    // Executa em transação exclusiva: a antiga SAI de vigente ANTES de a nova entrar
-    await emTransacao(this.db, async (tx) => {
-      await tx.runAsync(
-        `UPDATE leituras SET status = ?, substituida_em = ?, substituida_por_id = ? WHERE id = ?`,
-        [vigente.status, vigente.substituidaEm?.toISOString() ?? null, vigente.substituidaPorId?.value ?? null, vigente.id.value]
-      );
-      await tx.runAsync(
-        `INSERT INTO leituras (...) VALUES (...)`,
-        valoresDe(nova)
-      );
-    });
-  }
+    // 2. Insere a nova leitura vigente do dia com foto e coordenadas
+    await tx.runAsync(
+      `INSERT INTO leituras (${COLUNAS}) VALUES (${MARCADORES})`,
+      valoresDe(nova)
+    );
+  });
 }
 </script>
         </div>
         <div class="window anim">
           <div class="window-bar"><i></i><i></i><i></i><span>src/application/use-cases/<b>RegistrarLeituraUseCase.ts</b> (Persistência &amp; Auditoria)</span></div>
 <script type="text/plain" data-lang="typescript">
-// 1. Move e comprime a foto para o disco permanente do celular
-const foto = await this.arquivoFoto.comprimirEPersistir(entrada.fotoTemporariaUri, leituraId.value);
+// 1. Move a foto do cache e comprime para o disco permanente do celular
+const foto = await this.arquivoFoto.comprimirEPersistir(
+  entrada.fotoTemporariaUri, leituraId.value
+);
 
-// 2. Persiste a leitura no SQLite (com substituição atômica se já houver leitura hoje)
+// 2. Grava no SQLite com transação exclusiva (substituição atômica)
 const substituida = await this.persistir(leitura, agora);
 
-// 3. Avalia coordenadas como prova de apoio e gera notificações para auditoria
+// 3. Avalia coordenadas (prova de apoio) e dispara notificações de auditoria
 const localizacao = RegraLocalizacaoLeituraService.avaliar(coordenadas, endereco.coordenadas);
 const notificacoes = GeradorNotificacoesService.paraLeituraRegistrada({
   leitura, referencia, substituida, localizacao, ...
