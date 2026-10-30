@@ -268,5 +268,20 @@ Para cada decisão, listamos o contexto, as opções consideradas, a decisão to
 * **Decisão:** **Adopção de testes de componentes integrados via `@testing-library/react-native`.**
 * **Justificativa:** Foram criadas suítes de testes de componentes cobrindo `LoginScreen.spec.tsx`, `DashboardScreen.spec.tsx`, `AutorizacoesPendentesScreen.spec.tsx` e `GestaoEmpresasScreen.spec.tsx`. A suíte completa expandiu para **30 test suites e 80 testes unitários/componentes 100% aprovados**.
 
+---
+
+## 9. Hardware & Sensores Nativos Expo (Fase 6)
+
+### 9.1 Adaptadores Concretos de Câmera e Geolocalização (`ExpoCameraGateway` e `ExpoLocationGateway`)
+* **Contexto:** Necessidade de cumprir com precisão a exigência acadêmica e operacional de captura de foto de medidores e prova de presença (GPS) utilizando as APIs modernas do ecossistema Expo SDK 57, respeitando o princípio da Inversão de Dependência (DIP).
+* **Decisão:** **Implementação dos adaptadores `ExpoCameraGateway.ts` e `ExpoLocationGateway.ts` na camada `src/infrastructure/hardware/`.**
+* **Justificativa:**
+  * **Inversão de Dependência:** O domínio define estritamente os contratos `ICameraGateway` e `ILocationGateway`. Os novos adaptadores implementam essas interfaces encapsulando `expo-camera`, `expo-image-manipulator` e `expo-location`, assegurando que o domínio desconheça a biblioteca subjacente.
+  * **Compressão Padronizada (~300KB):** `ExpoCameraGateway` aciona `manipulateAsync` com largura máxima de 1080px e qualidade JPEG de 0.75, garantindo que a evidência fotográfica caiba no armazenamento local e nuvem.
+  * **Geolocalização de Alta Precisão:** `ExpoLocationGateway` utiliza `Accuracy.High` e converte as coordenadas nativas no Value Object `CoordenadasGPS`, que garante invariantes geográficas (-90 a 90 / -180 a 180).
+  * **TDD & Cobertura:** Foram desenvolvidos testes unitários dedicados em `tests/unit/infrastructure/hardware/` com mocks isolados, elevando a suíte para **32 test suites e 88 testes aprovados com 100% de sucesso**.
+  * **Conexão Visual:** A rota `src/app/leitura/nova.tsx` foi atualizada conectando os adaptadores concretos e repositórios SQLite à tela `NovaLeituraScreen`.
+
+
 
 

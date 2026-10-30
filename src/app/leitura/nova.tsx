@@ -1,11 +1,11 @@
 import React, { useMemo } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { NovaLeituraScreen } from '@/presentation/screens/NovaLeituraScreen';
-import { LeituraRepositoryMemory } from '@/infrastructure/fakes/LeituraRepositoryMemory';
-import { UsinaRepositoryMemory } from '@/infrastructure/fakes/UsinaRepositoryMemory';
-import { ActionQueueRepositoryMemory } from '@/infrastructure/fakes/ActionQueueRepositoryMemory';
-import { CameraGatewayFake } from '@/infrastructure/fakes/CameraGatewayFake';
-import { LocationGatewayFake } from '@/infrastructure/fakes/LocationGatewayFake';
+import { LeituraRepositorySQLite } from '@/infrastructure/database/sqlite/repositories/LeituraRepositorySQLite';
+import { UsinaRepositorySQLite } from '@/infrastructure/database/sqlite/repositories/UsinaRepositorySQLite';
+import { ActionQueueRepositorySQLite } from '@/infrastructure/database/sqlite/repositories/ActionQueueRepositorySQLite';
+import { ExpoCameraGateway } from '@/infrastructure/hardware/ExpoCameraGateway';
+import { ExpoLocationGateway } from '@/infrastructure/hardware/ExpoLocationGateway';
 import { Usina } from '@/domain/entities/Usina';
 import { UUIDv4 } from '@/domain/value-objects/UUIDv4';
 import { CoordenadasGPS } from '@/domain/value-objects/CoordenadasGPS';
@@ -20,13 +20,12 @@ export default function NovaLeituraRoute() {
   const targetUsinaId = params.usinaId || 'f47ac10b-58cc-4372-a567-0e02b2c3d4e5';
   const targetUsuarioId = usuario?.usuarioId || 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d';
 
-  const leituraRepo = useMemo(() => new LeituraRepositoryMemory(), []);
-  const queueRepo = useMemo(() => new ActionQueueRepositoryMemory(), []);
-  const cameraGateway = useMemo(() => new CameraGatewayFake(), []);
-  const locationGateway = useMemo(() => new LocationGatewayFake(), []);
-
+  // Repositórios SQLite locais (com fallback resiliente integrado)
+  const leituraRepo = useMemo(() => new LeituraRepositorySQLite(), []);
+  const queueRepo = useMemo(() => new ActionQueueRepositorySQLite(), []);
   const usinaRepo = useMemo(() => {
-    const repo = new UsinaRepositoryMemory();
+    const repo = new UsinaRepositorySQLite();
+    // Garante que a usina alvo esteja semeada no banco local para o caso de uso
     repo.salvar(
       new Usina({
         id: new UUIDv4(targetUsinaId),
@@ -40,6 +39,10 @@ export default function NovaLeituraRoute() {
     );
     return repo;
   }, [targetUsinaId]);
+
+  // Adaptadores concretos das APIs modernas do ecossistema Expo (Inversão de Dependência)
+  const cameraGateway = useMemo(() => new ExpoCameraGateway(), []);
+  const locationGateway = useMemo(() => new ExpoLocationGateway(), []);
 
   return (
     <NovaLeituraScreen
