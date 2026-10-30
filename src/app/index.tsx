@@ -1,19 +1,31 @@
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { SolarTheme } from '@/constants/theme';
+import { Redirect } from 'expo-router';
+import { Cores, Espaco, Tipografia } from '@/constants/theme';
+import { useAuth } from '@/presentation/hooks/useAuth';
 
 /**
- * Tela de abertura provisória. O redirecionamento por sessão entra no G6, junto
- * com a árvore de rotas e as guardas.
+ * Porta de entrada: decide entre login e app a partir da sessão guardada.
+ *
+ * Usa `<Redirect>` declarativo em vez de `router.replace` num efeito — assim a
+ * tela de destino não aparece por um instante antes de ser trocada.
  */
 export default function Index() {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.marca}>EQUINOX</Text>
-      <Text style={styles.produto}>MOBILE</Text>
-      <ActivityIndicator color={SolarTheme.primary} style={styles.carregando} />
-    </View>
-  );
+  const { isCarregando, isAutenticado } = useAuth();
+
+  if (isCarregando) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.marca}>
+          EQUINOX <Text style={styles.produto}>MOBILE</Text>
+        </Text>
+        <Text style={styles.assinatura}>Celestial Engine</Text>
+        <ActivityIndicator color={Cores.primary} style={styles.carregando} />
+      </View>
+    );
+  }
+
+  return <Redirect href={isAutenticado ? '/(app)/(tabs)/home' : '/login'} />;
 }
 
 const styles = StyleSheet.create({
@@ -21,21 +33,20 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: SolarTheme.background,
+    backgroundColor: Cores.surface,
   },
   marca: {
-    color: SolarTheme.text,
-    fontSize: 28,
+    color: Cores.onSurface,
+    fontSize: 24,
     fontWeight: '900',
+    letterSpacing: 4,
+  },
+  produto: { color: Cores.primary },
+  assinatura: {
+    ...Tipografia.rotulo,
+    color: Cores.onSurfaceVariant,
+    marginTop: Espaco.sm,
     letterSpacing: 5,
   },
-  produto: {
-    color: SolarTheme.primary,
-    fontSize: 28,
-    fontWeight: '900',
-    letterSpacing: 5,
-  },
-  carregando: {
-    marginTop: 32,
-  },
+  carregando: { marginTop: Espaco.xxxl },
 });
