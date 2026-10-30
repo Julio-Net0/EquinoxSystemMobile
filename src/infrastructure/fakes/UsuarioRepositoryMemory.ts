@@ -1,7 +1,10 @@
-import { IUsuarioRepository } from '@/domain/repositories/IUsuarioRepository';
+import {
+  IUsuarioRepository,
+  ListarUsuariosFiltroDTO,
+} from '@/domain/repositories/IUsuarioRepository';
 import { Usuario } from '@/domain/entities/Usuario';
 import { UUIDv4 } from '@/domain/value-objects/UUIDv4';
-import { PerfilEnum } from '@/domain/enums/PerfilEnum';
+import { StatusUsuarioEnum } from '@/domain/enums/StatusUsuarioEnum';
 
 export class UsuarioRepositoryMemory implements IUsuarioRepository {
   public items: Map<string, Usuario> = new Map();
@@ -10,75 +13,56 @@ export class UsuarioRepositoryMemory implements IUsuarioRepository {
     this.items.set(usuario.id.value, usuario);
   }
 
+  async atualizar(usuario: Usuario): Promise<void> {
+    this.items.set(usuario.id.value, usuario);
+  }
+
   async buscarPorId(id: UUIDv4): Promise<Usuario | null> {
-    const item = this.items.get(id.value);
-    return item ?? null;
+    return this.items.get(id.value) ?? null;
   }
 
   async buscarPorEmail(email: string): Promise<Usuario | null> {
-    const cleanEmail = email.toLowerCase().trim();
-    for (const usuario of this.items.values()) {
-      if (usuario.email.toLowerCase() === cleanEmail) {
-        return usuario;
-      }
-    }
-    return null;
+    const procurado = email.trim().toLowerCase();
+    return Array.from(this.items.values()).find((u) => u.email === procurado) ?? null;
+  }
+
+  async buscarPorLogin(emailOuUsuario: string): Promise<Usuario | null> {
+    const procurado = emailOuUsuario.trim().toLowerCase();
+    return (
+      Array.from(this.items.values()).find(
+        (u) => u.email === procurado || u.usuario === procurado,
+      ) ?? null
+    );
   }
 
   async listarPorEmpresa(empresaId: UUIDv4): Promise<Usuario[]> {
-    const result: Usuario[] = [];
-    for (const usuario of this.items.values()) {
-      if (usuario.empresaId.equals(empresaId)) {
-        result.push(usuario);
-      }
-    }
-    return result;
+    return Array.from(this.items.values()).filter((u) => u.empresaId?.equals(empresaId));
   }
 
   async listarPendentes(empresaId?: UUIDv4): Promise<Usuario[]> {
-    const result: Usuario[] = [];
-    for (const usuario of this.items.values()) {
-      if (usuario.status === 'Pendente') {
-        if (!empresaId || usuario.empresaId.equals(empresaId)) {
-          result.push(usuario);
-        }
-      }
-    }
-    return result;
+    return Array.from(this.items.values()).filter(
+      (u) =>
+        u.status === StatusUsuarioEnum.PENDENTE &&
+        (!empresaId || (u.empresaId?.equals(empresaId) ?? false)),
+    );
   }
 
-  async listarComFiltros(filtros: {
-    empresaId?: UUIDv4;
-    status?: string;
-    perfil?: PerfilEnum;
-    termoBusca?: string;
-  }): Promise<Usuario[]> {
-    let result = Array.from(this.items.values());
+  async listarComFiltros(filtros: ListarUsuariosFiltroDTO): Promise<Usuario[]> {
+    const termo = filtros.termoBusca?.trim().toLowerCase();
 
-    if (filtros.empresaId) {
-      result = result.filter((u) => u.empresaId.equals(filtros.empresaId!));
-    }
-    if (filtros.status) {
-      result = result.filter((u) => u.status.toLowerCase() === filtros.status!.toLowerCase());
-    }
-    if (filtros.perfil) {
-      result = result.filter((u) => u.perfil === filtros.perfil);
-    }
-    if (filtros.termoBusca) {
-      const termo = filtros.termoBusca.toLowerCase().trim();
-      result = result.filter(
-        (u) =>
-          u.nome.toLowerCase().includes(termo) ||
-          u.email.toLowerCase().includes(termo) ||
-          (u.usuario && u.usuario.toLowerCase().includes(termo))
-      );
-    }
-
-    return result;
+    return Array.from(this.items.values()).filter((u) => {
+      if (filtros.empresaId && !(u.empresaId?.equals(filtros.empresaId) ?? false)) return false;
+      if (filtros.status && u.status !== filtros.status) return false;
+      if (filtros.perfil && u.perfil !== filtros.perfil) return false;
+      if (termo) {
+        const alvo = `${u.nome} ${u.email} ${u.usuario}`.toLowerCase();
+        if (!alvo.includes(termo)) return false;
+      }
+      return true;
+    });
   }
 
   async excluir(id: UUIDv4): Promise<void> {
     this.items.delete(id.value);
   }
 }
-

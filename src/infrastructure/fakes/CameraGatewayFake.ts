@@ -1,21 +1,25 @@
-import { ICameraGateway, CapturarFotoResultado } from '@/domain/gateways/ICameraGateway';
+import { FotoCapturada, ICameraGateway } from '@/domain/gateways/ICameraGateway';
 
 export class CameraGatewayFake implements ICameraGateway {
-  public permissaoConcedida: boolean = true;
-  public fotoFakeUri: string = 'file:///cache/medidor_fake_1080p.jpg';
-  public tamanhoFakeBytes: number = 307200; // ~300KB
+  public permissaoConcedida = true;
+  public fotoFake: FotoCapturada = {
+    uri: 'file:///cache/medidor_fake.jpg',
+    largura: 3024,
+    altura: 4032,
+  };
+  /** Simula o usuário fechando a câmera sem bater a foto. */
+  public cancelarCaptura = false;
+
+  async temPermissao(): Promise<boolean> {
+    return this.permissaoConcedida;
+  }
 
   async solicitarPermissao(): Promise<boolean> {
     return this.permissaoConcedida;
   }
 
-  async capturarEComprimirFoto(): Promise<CapturarFotoResultado | null> {
-    if (!this.permissaoConcedida) {
-      return null;
-    }
-    return {
-      uri: this.fotoFakeUri,
-      sizeBytes: this.tamanhoFakeBytes,
-    };
+  async capturar(): Promise<FotoCapturada | null> {
+    if (!this.permissaoConcedida || this.cancelarCaptura) return null;
+    return this.fotoFake;
   }
 }

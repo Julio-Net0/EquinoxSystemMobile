@@ -1,91 +1,152 @@
+import type { SQLiteDatabase } from 'expo-sqlite';
 import { ILeituraRepository } from '@/domain/repositories/ILeituraRepository';
 import { Leitura } from '@/domain/entities/Leitura';
 import { UUIDv4 } from '@/domain/value-objects/UUIDv4';
-import { ValorKwh } from '@/domain/value-objects/ValorKwh';
-import { CoordenadasGPS } from '@/domain/value-objects/CoordenadasGPS';
-import { StatusSyncEnum } from '@/domain/enums/StatusSyncEnum';
-import { SQLiteDatabaseManager } from '../SQLiteDatabaseManager';
-import { LeituraRepositoryMemory } from '@/infrastructure/fakes/LeituraRepositoryMemory';
+import { DataLocal } from '@/domain/value-objects/DataLocal';
+import { StatusLeituraEnum, STATUS_VIGENTES } from '@/domain/enums/StatusLeituraEnum';
+import { LeituraRow, leituraDeRow, leituraParaRow } from '../mappers/mappers';
+import { emTransacao } from '../emTransacao';
+
+const COLUNAS = `id, padrao_id, usuario_id, valor_consumo, valor_injecao, foto_local_uri,
+                 latitude, longitude, precisao_metros, medido_em, data_local, status,
+                 substituida_em, substituida_por_id, decidida_em, decidida_por_id`;
+
+const MARCADORES = COLUNAS.split(',')
+  .map(() => '?')
+  .join(', ');
+
+/** 'registrada', 'aprovada' — montado do enum para não divergir do índice parcial. */
+const LISTA_VIGENTES = STATUS_VIGENTES.map((s) => `'${s}'`).join(', ');
+
+const valoresDe = (leitura: Leitura): (string | number | null)[] => {
+  const r = leituraParaRow(leitura);
+  return [
+    r.id, r.padrao_id, r.usuario_id, r.valor_consumo, r.valor_injecao, r.foto_local_uri,
+    r.latitude, r.longitude, r.precisao_metros, r.medido_em, r.data_local, r.status,
+    r.substituida_em, r.substituida_por_id, r.decidida_em, r.decidida_por_id,
+  ];
+};
 
 export class LeituraRepositorySQLite implements ILeituraRepository {
-  private fallbackMemory = new LeituraRepositoryMemory();
+  constructor(private readonly db: SQLiteDatabase) {}
 
   async salvar(leitura: Leitura): Promise<void> {
-    const db = await SQLiteDatabaseManager.getDatabase();
-    if (!db) {
-      await this.fallbackMemory.salvar(leitura);
-      return;
-    }
-
-    await db.runAsync(
-      `INSERT OR REPLACE INTO leituras 
-       (id, usina_id, usuario_id, valor_kwh, foto_local_uri, latitude, longitude, data_hora, status_sync, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        leitura.id.value,
-        leitura.usinaId.value,
-        leitura.usuarioId.value,
-        leitura.valorKwh.valor,
-        leitura.caminhoImagemLocal,
-        leitura.coordenadas.latitude,
-        leitura.coordenadas.longitude,
-        leitura.dataHora.toISOString(),
-        leitura.statusSync,
-        new Date().toISOString(),
-      ]
+    await this.db.runAsync(
+      `INSERT INTO leituras (${COLUNAS}) VALUES (${MARCADORES})`,
+      valoresDe(leitura),
     );
   }
 
-  async buscarPorId(id: UUIDv4): Promise<Leitura | null> {
-    const db = await SQLiteDatabaseManager.getDatabase();
-    if (!db) {
-      return this.fallbackMemory.buscarPorId(id);
-    }
+  async atualizar(leitura: Leitura): Promise<void> {
+    await this.db.runAsync(
+      `UPDATE leituras SET
+         status = ?, substituida_em = ?, substituida_por_id = ?,
+         decidida_em = ?, decidida_por_id = ?
+       WHERE id = ?`,
+      [
+        leitura.status,
+        leitura.substituidaEm?.toISOString() ?? null,
+        leitura.substituidaPorId?.value ?? null,
+        leitura.decididaEm?.toISOString() ?? null,
+        leitura.decididaPorId?.value ?? null,
+        leitura.id.value,
+      ],
+    );
+  }
 
-    const row = (await db.getFirstAsync('SELECT * FROM leituras WHERE id = ?', [id.value])) as any;
-    if (!row) return null;
+  /**
+   * A ordem aqui não é estética: o índice parcial único de (padrao_id,
+   * data_local) só admite uma leitura vigente, então a antiga tem de SAIR de
+   * vigente antes de a nova entrar. Invertido, o INSERT falha sempre.
+   *
+   * As duas operações vão na mesma transação exclusiva para nunca existir um
+   * instante em que o dia ficou sem leitura vigente.
+   */
+  async salvarSubstituindo(nova: Leitura, vigente: Leitura): Promise<void> {
+    await emTransacao(this.db, async (tx) => {
+      await tx.runAsync(
+        `UPDATE leituras SET status = ?, substituida_em = ?, substituida_por_id = ?
+         WHERE id = ?`,
+        [
+          vigente.status,
+          vigente.substituidaEm?.toISOString() ?? null,
+          vigente.substituidaPorId?.value ?? null,
+          vigente.id.value,
+        ],
+      );
 
-    return new Leitura({
-      id: new UUIDv4(row.id),
-      usinaId: new UUIDv4(row.usina_id),
-      usuarioId: new UUIDv4(row.usuario_id),
-      valorKwh: new ValorKwh(row.valor_kwh),
-      caminhoImagemLocal: row.foto_local_uri,
-      coordenadas: new CoordenadasGPS(row.latitude, row.longitude),
-      dataHora: new Date(row.data_hora),
-      statusSync: row.status_sync as StatusSyncEnum,
+      await tx.runAsync(
+        `INSERT INTO leituras (${COLUNAS}) VALUES (${MARCADORES})`,
+        valoresDe(nova),
+      );
     });
   }
 
-  async listarPorUsina(usinaId: UUIDv4): Promise<Leitura[]> {
-    const db = await SQLiteDatabaseManager.getDatabase();
-    if (!db) {
-      return this.fallbackMemory.listarPorUsina(usinaId);
-    }
-
-    const rows = (await db.getAllAsync('SELECT * FROM leituras WHERE usina_id = ? ORDER BY data_hora DESC', [usinaId.value])) as any[];
-    return (rows || []).map(
-      (row: any) =>
-        new Leitura({
-          id: new UUIDv4(row.id),
-          usinaId: new UUIDv4(row.usina_id),
-          usuarioId: new UUIDv4(row.usuario_id),
-          valorKwh: new ValorKwh(row.valor_kwh),
-          caminhoImagemLocal: row.foto_local_uri,
-          coordenadas: new CoordenadasGPS(row.latitude, row.longitude),
-          dataHora: new Date(row.data_hora),
-          statusSync: row.status_sync as StatusSyncEnum,
-        })
-    );
+  async buscarPorId(id: UUIDv4): Promise<Leitura | null> {
+    const row = await this.db.getFirstAsync<LeituraRow>('SELECT * FROM leituras WHERE id = ?', [
+      id.value,
+    ]);
+    return row ? leituraDeRow(row) : null;
   }
 
-  async atualizarStatus(id: UUIDv4, statusSync: StatusSyncEnum, urlRemota?: string): Promise<void> {
-    const db = await SQLiteDatabaseManager.getDatabase();
-    if (!db) {
-      await this.fallbackMemory.atualizarStatus(id, statusSync, urlRemota);
-      return;
-    }
+  async buscarVigenteDoDia(padraoId: UUIDv4, dataLocal: DataLocal): Promise<Leitura | null> {
+    const row = await this.db.getFirstAsync<LeituraRow>(
+      `SELECT * FROM leituras
+        WHERE padrao_id = ? AND data_local = ? AND status IN (${LISTA_VIGENTES})`,
+      [padraoId.value, dataLocal.value],
+    );
+    return row ? leituraDeRow(row) : null;
+  }
 
-    await db.runAsync('UPDATE leituras SET status_sync = ? WHERE id = ?', [statusSync, id.value]);
+  async listarVigentesDoPadrao(padraoId: UUIDv4): Promise<Leitura[]> {
+    const rows = await this.db.getAllAsync<LeituraRow>(
+      `SELECT * FROM leituras
+        WHERE padrao_id = ? AND status IN (${LISTA_VIGENTES})
+        ORDER BY medido_em`,
+      [padraoId.value],
+    );
+    return rows.map(leituraDeRow);
+  }
+
+  async listarDoPadrao(padraoId: UUIDv4): Promise<Leitura[]> {
+    const rows = await this.db.getAllAsync<LeituraRow>(
+      'SELECT * FROM leituras WHERE padrao_id = ? ORDER BY medido_em',
+      [padraoId.value],
+    );
+    return rows.map(leituraDeRow);
+  }
+
+  async listarPorUsuario(usuarioId: UUIDv4, limite?: number): Promise<Leitura[]> {
+    const rows = await this.db.getAllAsync<LeituraRow>(
+      `SELECT * FROM leituras WHERE usuario_id = ? ORDER BY medido_em DESC${
+        limite ? ' LIMIT ?' : ''
+      }`,
+      limite ? [usuarioId.value, limite] : [usuarioId.value],
+    );
+    return rows.map(leituraDeRow);
+  }
+
+  async listarRegistradasAntesDe(dataLocal: DataLocal): Promise<Leitura[]> {
+    const rows = await this.db.getAllAsync<LeituraRow>(
+      'SELECT * FROM leituras WHERE status = ? AND data_local < ? ORDER BY data_local',
+      [StatusLeituraEnum.REGISTRADA, dataLocal.value],
+    );
+    return rows.map(leituraDeRow);
+  }
+
+  async excluirDecididasAntesDe(dataLocal: DataLocal): Promise<Leitura[]> {
+    // Leitura ainda REGISTRADA nunca sai: ela aguarda decisão do administrador.
+    const rows = await this.db.getAllAsync<LeituraRow>(
+      'SELECT * FROM leituras WHERE status <> ? AND data_local < ?',
+      [StatusLeituraEnum.REGISTRADA, dataLocal.value],
+    );
+    if (rows.length === 0) return [];
+
+    await this.db.runAsync('DELETE FROM leituras WHERE status <> ? AND data_local < ?', [
+      StatusLeituraEnum.REGISTRADA,
+      dataLocal.value,
+    ]);
+
+    return rows.map(leituraDeRow);
   }
 }

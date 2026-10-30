@@ -2,81 +2,131 @@ import { Leitura } from '@/domain/entities/Leitura';
 import { UUIDv4 } from '@/domain/value-objects/UUIDv4';
 import { ValorKwh } from '@/domain/value-objects/ValorKwh';
 import { CoordenadasGPS } from '@/domain/value-objects/CoordenadasGPS';
-import { StatusSyncEnum } from '@/domain/enums/StatusSyncEnum';
+import { DataLocal } from '@/domain/value-objects/DataLocal';
+import { StatusLeituraEnum } from '@/domain/enums/StatusLeituraEnum';
 
-describe('Leitura Aggregate Root', () => {
-  it('deve instanciar uma Leitura válida com status inicial Pendente', () => {
-    const id = UUIDv4.gerar();
-    const usinaId = UUIDv4.gerar();
-    const usuarioId = UUIDv4.gerar();
-    const valorKwh = new ValorKwh(1250.75);
-    const coords = new CoordenadasGPS(-23.55, -46.63);
+const MEDIDO_EM = new Date(Date.UTC(2026, 2, 9, 15, 0)); // 09/03/2026 12:00 em Brasília
 
-    const leitura = new Leitura({
-      id,
-      usinaId,
-      usuarioId,
-      valorKwh,
-      caminhoImagemLocal: '/storage/emulated/0/Pictures/medidor_01.jpg',
-      coordenadas: coords,
+const base = () => ({
+  id: UUIDv4.gerar(),
+  padraoId: UUIDv4.gerar(),
+  usuarioId: UUIDv4.gerar(),
+  valorConsumo: new ValorKwh(12_345),
+  fotoLocalUri: 'file:///documents/leituras/abc.jpg',
+  medidoEm: MEDIDO_EM,
+  dataLocal: DataLocal.de(MEDIDO_EM),
+});
+
+describe('Leitura', () => {
+  describe('criação', () => {
+    it('nasce registrada', () => {
+      const leitura = new Leitura(base());
+      expect(leitura.status).toBe(StatusLeituraEnum.REGISTRADA);
+      expect(leitura.estaVigente()).toBe(true);
     });
 
-    expect(leitura.id.equals(id)).toBe(true);
-    expect(leitura.usinaId.equals(usinaId)).toBe(true);
-    expect(leitura.usuarioId.equals(usuarioId)).toBe(true);
-    expect(leitura.valorKwh.equals(valorKwh)).toBe(true);
-    expect(leitura.caminhoImagemLocal).toBe('/storage/emulated/0/Pictures/medidor_01.jpg');
-    expect(leitura.statusSync).toBe(StatusSyncEnum.PENDENTE);
-    expect(leitura.urlImagemRemota).toBeNull();
-    expect(leitura.dataHora).toBeInstanceOf(Date);
-  });
-
-  it('deve lançar erro se o caminho da imagem local for vazio', () => {
-    expect(
-      () =>
-        new Leitura({
-          id: UUIDv4.gerar(),
-          usinaId: UUIDv4.gerar(),
-          usuarioId: UUIDv4.gerar(),
-          valorKwh: new ValorKwh(100),
-          caminhoImagemLocal: '   ',
-          coordenadas: new CoordenadasGPS(-23.55, -46.63),
-        })
-    ).toThrow('Foto comprobatória do medidor é obrigatória');
-  });
-
-  it('deve transicionar status para Sincronizada ao associar URL remota', () => {
-    const leitura = new Leitura({
-      id: UUIDv4.gerar(),
-      usinaId: UUIDv4.gerar(),
-      usuarioId: UUIDv4.gerar(),
-      valorKwh: new ValorKwh(500),
-      caminhoImagemLocal: '/cache/foto.jpg',
-      coordenadas: new CoordenadasGPS(-23.55, -46.63),
+    it('guarda o consumo do campo 003', () => {
+      expect(new Leitura(base()).valorConsumo.valor).toBe(12_345);
     });
 
-    expect(leitura.statusSync).toBe(StatusSyncEnum.PENDENTE);
-    const urlRemota = 'https://supabase.co/storage/v1/object/public/comprovantes/foto.jpg';
-    leitura.marcarComoSincronizada(urlRemota);
-
-    expect(leitura.statusSync).toBe(StatusSyncEnum.SINCRONIZADA);
-    expect(leitura.urlImagemRemota).toBe(urlRemota);
-  });
-
-  it('deve transicionar status para Conflito ou Rejeitada', () => {
-    const leitura = new Leitura({
-      id: UUIDv4.gerar(),
-      usinaId: UUIDv4.gerar(),
-      usuarioId: UUIDv4.gerar(),
-      valorKwh: new ValorKwh(500),
-      caminhoImagemLocal: '/cache/foto.jpg',
-      coordenadas: new CoordenadasGPS(-23.55, -46.63),
+    it.each(['', '   '])('exige a foto comprobatória (uri %p)', (fotoLocalUri) => {
+      expect(() => new Leitura({ ...base(), fotoLocalUri })).toThrow(
+        'Foto comprobatória do medidor é obrigatória',
+      );
     });
 
-    leitura.marcarComoConflito();
-    expect(leitura.statusSync).toBe(StatusSyncEnum.CONFLITO);
+    it('aceita ficar sem GPS: a foto é obrigatória, a localização não', () => {
+      const leitura = new Leitura(base());
+      expect(leitura.coordenadas).toBeNull();
+      expect(leitura.temLocalizacao()).toBe(false);
+    });
 
-    leitura.marcarComoRejeitada();
-    expect(leitura.statusSync).toBe(StatusSyncEnum.REJEITADA);
+    it('guarda as coordenadas quando o GPS respondeu', () => {
+      const leitura = new Leitura({ ...base(), coordenadas: new CoordenadasGPS(-19.9191, -43.9386) });
+      expect(leitura.temLocalizacao()).toBe(true);
+    });
+
+    it('recusa um dia local que não corresponde ao instante medido', () => {
+      expect(() => new Leitura({ ...base(), dataLocal: DataLocal.parse('2026-03-10') })).toThrow(
+        'Dia local da leitura não corresponde ao instante medido',
+      );
+    });
+  });
+
+  describe('injeção (campo 103)', () => {
+    it('é nula numa leitura de endereço comum', () => {
+      const leitura = new Leitura(base());
+      expect(leitura.valorInjecao).toBeNull();
+      expect(leitura.ehDeUsina()).toBe(false);
+    });
+
+    it('é preenchida numa leitura de usina', () => {
+      const leitura = new Leitura({ ...base(), valorInjecao: new ValorKwh(8_421) });
+      expect(leitura.valorInjecao?.valor).toBe(8_421);
+      expect(leitura.ehDeUsina()).toBe(true);
+    });
+  });
+
+  describe('substituição', () => {
+    it('sai de vigente e aponta para a leitura que a substituiu', () => {
+      const antiga = new Leitura(base());
+      const nova = new Leitura(base());
+      const quando = new Date(Date.UTC(2026, 2, 9, 18, 0));
+
+      antiga.substituirPor(nova, quando);
+
+      expect(antiga.status).toBe(StatusLeituraEnum.SUBSTITUIDA);
+      expect(antiga.estaVigente()).toBe(false);
+      expect(antiga.substituidaPorId?.equals(nova.id)).toBe(true);
+      expect(antiga.substituidaEm).toEqual(quando);
+    });
+
+    it('recusa substituir uma leitura que já saiu de vigente', () => {
+      const antiga = new Leitura(base());
+      antiga.substituirPor(new Leitura(base()), MEDIDO_EM);
+      expect(() => antiga.substituirPor(new Leitura(base()), MEDIDO_EM)).toThrow(
+        'Só uma leitura vigente pode ser substituída',
+      );
+    });
+
+    it('recusa ser substituída por si mesma', () => {
+      const leitura = new Leitura(base());
+      expect(() => leitura.substituirPor(leitura, MEDIDO_EM)).toThrow(
+        'Uma leitura não pode substituir a si mesma',
+      );
+    });
+  });
+
+  describe('decisão do administrador', () => {
+    const adminId = UUIDv4.gerar();
+    const quando = new Date(Date.UTC(2026, 2, 10, 12, 0));
+
+    it('aprovar mantém a leitura vigente e registra quem decidiu', () => {
+      const leitura = new Leitura(base());
+      leitura.aprovar(adminId, quando);
+      expect(leitura.status).toBe(StatusLeituraEnum.APROVADA);
+      expect(leitura.estaVigente()).toBe(true);
+      expect(leitura.decididaPorId?.equals(adminId)).toBe(true);
+      expect(leitura.decididaEm).toEqual(quando);
+    });
+
+    it('descartar tira a leitura de vigente', () => {
+      const leitura = new Leitura(base());
+      leitura.descartar(adminId, quando);
+      expect(leitura.status).toBe(StatusLeituraEnum.DESCARTADA);
+      expect(leitura.estaVigente()).toBe(false);
+    });
+
+    it('recusa decidir duas vezes', () => {
+      const leitura = new Leitura(base());
+      leitura.aprovar(adminId, quando);
+      expect(() => leitura.descartar(adminId, quando)).toThrow('Esta leitura já foi decidida');
+    });
+
+    it('recusa decidir uma leitura já substituída', () => {
+      const leitura = new Leitura(base());
+      leitura.substituirPor(new Leitura(base()), MEDIDO_EM);
+      expect(() => leitura.aprovar(adminId, quando)).toThrow('Esta leitura já foi decidida');
+    });
   });
 });

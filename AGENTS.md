@@ -3,15 +3,15 @@
 ## 1. Stack Tecnológica Oficial
 - **Plataforma/Framework:** React Native + Expo SDK 57 (v57.0.0) com Expo Router (file-based routing).
 - **Linguagem:** TypeScript v5+ (`strict: true`) com imports absolutos via `@/*` (`./src/*`).
-- **Testes (TDD):** Jest + `ts-jest` + `@testing-library/react-native` (configurado em `jest.config.js` com suporte a `@/*`).
+- **Testes (TDD):** Jest em quatro projetos (`jest.config.js`), **todos com o preset `jest-expo`**: `dominio` (domínio, aplicação e arquitetura, em `testEnvironment: 'node'`), `infra`, `integracao` e `ui`. Um transform só, de propósito: com dois, um arquivo carregado por dois projetos gerava mapas de cobertura incompatíveis e o merge do istanbul somava errado (ver `docs/decisions.md` seção 9.11). `@testing-library/react-native` para render — nele `render` e `fireEvent` são **assíncronos**, e sem `await` as consultas não existem. **Atenção:** nenhum projeto checa tipos (Babel) — `npx tsc --noEmit` é obrigatório no gate.
 - **Persistência Local (Offline-First):** `expo-sqlite` (SQLite local com UUIDv4 em todas as PKs).
-- **Backend / Nuvem:** Supabase Client (`@supabase/supabase-js`), Supabase Auth, Storage (bucket `comprovantes`) e RLS.
-- **Segurança & Sessão:** `expo-secure-store` encapsulado por `SessionStorageSecureStore`.
-- **Conectividade:** `@react-native-community/netinfo`.
+- **Backend / Nuvem:** **nenhum nesta fase.** O app roda 100% local (ver `docs/decisions.md` seção 9.2). Supabase, `SyncManager` e `NetworkMonitor` foram removidos; `supabase/migrations/` fica como referência para quando houver backend.
+- **Segurança & Sessão:** `expo-secure-store` encapsulado por `SessionStorageSecureStore`. Senha local hasheada por `HashSenhaExpoCrypto` (SHA-256 encadeado; **não é um KDF** — ver `docs/decisions.md` seção 9.5).
+- **Conectividade:** não se aplica — não há rede. `@react-native-community/netinfo` não está instalado.
 - **Sensores & Mídia:** `expo-camera` + `expo-image-manipulator` (compressão JPEG 1080p ~300KB) + `expo-location`.
 - **Gerenciamento de Estado UI:** React Context API + Custom Hooks Controllers (ViewModels).
 - **Estilização UI:** React Native `StyleSheet` nativo com `theme.ts` centralizado.
-- **Formulários & Validação:** React Hook Form + Zod.
+- **Formulários & Validação:** React Hook Form + Zod estão instalados mas **ainda não são usados**: as telas portadas validam com estado local e as mensagens exatas do app antigo. Adotar os dois é refatoração prevista, não dívida silenciosa.
 
 ## 2. Expo & Documentação Oficial
 - **Versão:** Expo SDK 57 (v57.0.0).
@@ -35,15 +35,16 @@
   - `src/presentation/`: `context/`, `hooks/`, `screens/`, `components/`.
   - `src/app/`: Rotas visuais do Expo Router (`_layout.tsx`, `index.tsx`, `login.tsx`, `(tabs)/`, `leitura/nova.tsx`).
   - `tests/`: `unit/domain/`, `unit/application/`, `component/`.
-- **Identificadores (UUIDv4):** Todas as entidades (`Empresa`, `Usuario`, `Usina`, `Leitura`) DEVEM usar obrigatoriamente UUIDv4 gerados no Domínio como Chave Primária.
+- **Identificadores (UUIDv4):** Todas as entidades (`Empresa`, `Endereco`, `PadraoCemig`, `Usuario`, `Leitura`, `Notificacao`) DEVEM usar obrigatoriamente UUIDv4 como Chave Primária. A entidade `Usina` foi aposentada: "usina" é a flag `ehUsina` do `Endereco` (ver `docs/decisions.md` seção 9.1). A fonte de aleatoriedade do VO é injetada pela infraestrutura.
 
 ## 5. Test-Driven Development (TDD) & Fakes
 - **Ciclo Red -> Green -> Refactor:** NENHUMA linha de código de produção deve ser criada sem que exista previamente um teste unitário automatizado correspondente que falhe primeiro.
-- **Isolamento de Testes:** Usar estritamente os repositórios em memória e gateways fakes de `src/infrastructure/fakes/` para garantir testes ultrarrápidos e 100% isolados de banco de dados ou hardware.
-- **Meta de Cobertura:** Manter a cobertura da suíte em pelo menos **80%** (medida via `npm run test:coverage`).
+- **Isolamento de Testes:** Domínio e aplicação usam estritamente os repositórios em memória e gateways fakes de `src/infrastructure/fakes/`, para testes ultrarrápidos e isolados de banco e hardware. Esses fakes são dublês de teste e ficam **fora** da medição de cobertura.
+- **Integração (`tests/integration/`):** o que fala SQL é testado contra SQLite de verdade, via `node:sqlite` e o adaptador de `tests/helpers/bancoDeTeste.ts` — `expo-sqlite` não roda em Node. É o que verifica o schema publicado, o índice parcial, as chaves estrangeiras e o seed (ver `docs/decisions.md` seção 9.12).
+- **Meta de Cobertura:** Manter a cobertura da suíte em pelo menos **80%** (medida via `npm run test:coverage`). Estado atual: **98,7% de linhas** — domínio 96,6%, aplicação 99,2%, infraestrutura 97,0%.
 
 ## 6. Offline-First & Mídia
-- **Ações Offline:** Inserções e modificações em estado desconectado DEVEM gerar logs na `action_queue` local (`ActionQueueItem`) para sincronização assíncrona posterior.
+- **Ações Offline:** TODA escrita é local e definitiva — não existe estado "desconectado", porque não há nuvem. A `action_queue` permanece no schema e com repositório implementado, mas está **reservada**: nada enfileira hoje, por não haver destino remoto.
 - **Compressão de Mídia:** Fotos de relógios medidores DEVEM ser compactadas na infraestrutura (máx. 1080p, qualidade JPEG ~70-80%, ~300KB) antes de serem salvas localmente no SQLite/FileSystem.
 
 ## 7. Manutenção de Documentação Contínua

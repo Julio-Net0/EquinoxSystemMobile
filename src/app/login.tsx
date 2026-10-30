@@ -1,17 +1,19 @@
-import React, { useEffect } from 'react';
-import { useRouter } from 'expo-router';
+import React from 'react';
+import { Redirect, useRouter } from 'expo-router';
 import { LoginScreen } from '@/presentation/screens/LoginScreen';
 import { useAuth } from '@/presentation/hooks/useAuth';
 
 export default function LoginRoute() {
-  const { isAuthenticated } = useAuth();
   const router = useRouter();
+  const { entrar, isAutenticado } = useAuth();
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      router.replace('/(tabs)/dashboard' as any);
-    }
-  }, [isAuthenticated, router]);
+  // Impede voltar ao login pelo botão de voltar depois de autenticado.
+  if (isAutenticado) return <Redirect href="/(app)/(tabs)/home" />;
 
-  return <LoginScreen />;
+  return (
+    <LoginScreen
+      onEntrar={entrar}
+      onIrParaCadastro={() => router.push('/cadastro')}
+    />
+  );
 }

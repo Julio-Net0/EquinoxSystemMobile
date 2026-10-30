@@ -1,110 +1,84 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { SessaoUsuarioData, ISessionStorage } from '@/domain/gateways/ISessionStorage';
-import { IUsuarioRepository } from '@/domain/repositories/IUsuarioRepository';
-import { AutenticarUsuarioUseCase } from '@/application/use-cases/AutenticarUsuarioUseCase';
+import React, { ReactNode, createContext, useCallback, useEffect, useMemo, useState } from 'react';
+import { SessaoUsuarioData } from '@/domain/gateways/ISessionStorage';
+import { PerfilEnum, NivelAcesso, nivelDe } from '@/domain/enums/PerfilEnum';
+import { useContainer } from './ContainerProvider';
 
 export interface AuthContextData {
   usuario: SessaoUsuarioData | null;
-  perfil: 'SuperAdmin' | 'Admin' | 'Tecnico' | null;
+  perfil: PerfilEnum | null;
+  nivel: NivelAcesso | null;
   empresaId: string | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  loginOnline: (email: string) => Promise<boolean>;
-  desbloquearComPin: (pin: string) => Promise<boolean>;
-  definirPinLocal: (pin: string) => Promise<void>;
-  logout: () => Promise<void>;
+  isAutenticado: boolean;
+  /** Verdadeiro só até a sessão guardada ser lida, no primeiro render. */
+  isCarregando: boolean;
+  entrar(login: string, senha: string): Promise<{ sucesso: boolean; erro?: string }>;
+  sair(): Promise<void>;
+  /** Relê a sessão do armazenamento — usar após alterar os próprios dados. */
+  recarregar(): Promise<void>;
 }
 
-export const AuthContext = createContext<AuthContextData>({} as AuthContextData);
+const AuthContext = createContext<AuthContextData | null>(null);
 
-export interface AuthProviderProps {
-  children: ReactNode;
-  usuarioRepo: IUsuarioRepository;
-  sessionStorage: ISessionStorage;
-}
-
-export const AuthProvider: React.FC<AuthProviderProps> = ({
-  children,
-  usuarioRepo,
-  sessionStorage,
-}) => {
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const { casos, gateways } = useContainer();
   const [usuario, setUsuario] = useState<SessaoUsuarioData | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isCarregando, setCarregando] = useState(true);
+
+  const recarregar = useCallback(async () => {
+    setUsuario(await gateways.sessao.obterSessao());
+  }, [gateways.sessao]);
 
   useEffect(() => {
-    async function carregarSessao() {
-      try {
-        const sessaoSalva = await sessionStorage.obterSessao();
-        if (sessaoSalva) {
-          setUsuario(sessaoSalva);
-        }
-      } catch (err) {
-        console.error('Erro ao carregar sessão inicial:', err);
-      } finally {
-        setIsLoading(false);
+    let ativo = true;
+
+    (async () => {
+      const sessao = await gateways.sessao.obterSessao();
+      // A tela pode ter desmontado durante a leitura do armazenamento seguro.
+      if (!ativo) return;
+      setUsuario(sessao);
+      setCarregando(false);
+    })();
+
+    return () => {
+      ativo = false;
+    };
+  }, [gateways.sessao]);
+
+  const entrar = useCallback(
+    async (login: string, senha: string) => {
+      const saida = await casos.autenticar.executar({ login, senha });
+
+      if (saida.sucesso && saida.usuario) {
+        setUsuario(saida.usuario);
+        return { sucesso: true };
       }
-    }
-    carregarSessao();
-  }, [sessionStorage]);
 
-  const loginOnline = async (email: string): Promise<boolean> => {
-    setIsLoading(true);
-    try {
-      const useCase = new AutenticarUsuarioUseCase(usuarioRepo, sessionStorage);
-      const resultado = await useCase.executar({ email });
-
-      if (resultado.sucesso && resultado.usuario) {
-        const sessao: SessaoUsuarioData = {
-          usuarioId: resultado.usuario.id.value,
-          empresaId: resultado.usuario.empresaId.value,
-          nome: resultado.usuario.nome,
-          email: resultado.usuario.email,
-          perfil: resultado.usuario.perfil,
-        };
-        setUsuario(sessao);
-        return true;
-      }
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const desbloquearComPin = async (pin: string): Promise<boolean> => {
-    const ok = await sessionStorage.validarPinLocal(pin);
-    if (ok) {
-      const sessaoSalva = await sessionStorage.obterSessao();
-      if (sessaoSalva) {
-        setUsuario(sessaoSalva);
-      }
-    }
-    return ok;
-  };
-
-  const definirPinLocal = async (pin: string): Promise<void> => {
-    await sessionStorage.salvarPinLocal(pin);
-  };
-
-  const logout = async (): Promise<void> => {
-    await sessionStorage.limparSessao();
-    setUsuario(null);
-  };
-
-  return (
-    <AuthContext.Provider
-      value={{
-        usuario,
-        perfil: usuario?.perfil ?? null,
-        empresaId: usuario?.empresaId ?? null,
-        isAuthenticated: !!usuario,
-        isLoading,
-        loginOnline,
-        desbloquearComPin,
-        definirPinLocal,
-        logout,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+      return { sucesso: false, erro: saida.erro };
+    },
+    [casos.autenticar],
   );
-};
+
+  const sair = useCallback(async () => {
+    await gateways.sessao.limparSessao();
+    setUsuario(null);
+  }, [gateways.sessao]);
+
+  const valor = useMemo<AuthContextData>(
+    () => ({
+      usuario,
+      perfil: usuario?.perfil ?? null,
+      nivel: usuario ? nivelDe(usuario.perfil) : null,
+      empresaId: usuario?.empresaId ?? null,
+      isAutenticado: usuario !== null,
+      isCarregando,
+      entrar,
+      sair,
+      recarregar,
+    }),
+    [usuario, isCarregando, entrar, sair, recarregar],
+  );
+
+  return <AuthContext.Provider value={valor}>{children}</AuthContext.Provider>;
+}
+
+export { AuthContext };

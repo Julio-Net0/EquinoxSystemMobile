@@ -44,3 +44,5 @@ example
 
 # scratch
 /scratch
+# Relatórios de cobertura são artefato de build
+coverage/

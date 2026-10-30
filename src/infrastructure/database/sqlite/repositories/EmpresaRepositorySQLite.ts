@@ -1,59 +1,30 @@
+import type { SQLiteDatabase } from 'expo-sqlite';
 import { IEmpresaRepository } from '@/domain/repositories/IEmpresaRepository';
 import { Empresa } from '@/domain/entities/Empresa';
 import { UUIDv4 } from '@/domain/value-objects/UUIDv4';
-import { CNPJ } from '@/domain/value-objects/CNPJ';
-import { SQLiteDatabaseManager } from '../SQLiteDatabaseManager';
-import { EmpresaRepositoryMemory } from '@/infrastructure/fakes/EmpresaRepositoryMemory';
+import { EmpresaRow, empresaDeRow, empresaParaRow } from '../mappers/mappers';
 
 export class EmpresaRepositorySQLite implements IEmpresaRepository {
-  private fallbackMemory = new EmpresaRepositoryMemory();
+  constructor(private readonly db: SQLiteDatabase) {}
 
   async salvar(empresa: Empresa): Promise<void> {
-    const db = await SQLiteDatabaseManager.getDatabase();
-    if (!db) {
-      await this.fallbackMemory.salvar(empresa);
-      return;
-    }
-
-    await db.runAsync(
-      `INSERT OR REPLACE INTO empresas (id, nome, cnpj, created_at)
-       VALUES (?, ?, ?, ?)`,
-      [empresa.id.value, empresa.nome, empresa.cnpj.valorLimpo, empresa.dataCriacao.toISOString()]
+    const row = empresaParaRow(empresa);
+    await this.db.runAsync(
+      `INSERT INTO empresas (id, nome, cnpj, criado_em) VALUES (?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET nome = excluded.nome, cnpj = excluded.cnpj`,
+      [row.id, row.nome, row.cnpj, row.criado_em],
     );
   }
 
   async buscarPorId(id: UUIDv4): Promise<Empresa | null> {
-    const db = await SQLiteDatabaseManager.getDatabase();
-    if (!db) {
-      return this.fallbackMemory.buscarPorId(id);
-    }
-
-    const row = (await db.getFirstAsync('SELECT * FROM empresas WHERE id = ?', [id.value])) as any;
-    if (!row) return null;
-
-    return new Empresa({
-      id: new UUIDv4(row.id),
-      nome: row.nome,
-      cnpj: new CNPJ(row.cnpj),
-      dataCriacao: new Date(row.created_at),
-    });
+    const row = await this.db.getFirstAsync<EmpresaRow>('SELECT * FROM empresas WHERE id = ?', [
+      id.value,
+    ]);
+    return row ? empresaDeRow(row) : null;
   }
 
   async listarTodas(): Promise<Empresa[]> {
-    const db = await SQLiteDatabaseManager.getDatabase();
-    if (!db) {
-      return this.fallbackMemory.listarTodas();
-    }
-
-    const rows = (await db.getAllAsync('SELECT * FROM empresas ORDER BY nome ASC')) as any[];
-    return (rows || []).map(
-      (row) =>
-        new Empresa({
-          id: new UUIDv4(row.id),
-          nome: row.nome,
-          cnpj: new CNPJ(row.cnpj),
-          dataCriacao: new Date(row.created_at),
-        })
-    );
+    const rows = await this.db.getAllAsync<EmpresaRow>('SELECT * FROM empresas ORDER BY nome');
+    return rows.map(empresaDeRow);
   }
 }
