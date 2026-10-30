@@ -10,7 +10,8 @@ gravados no aparelho.
 - [5. Roteiro de teste](#5-roteiro-de-teste) — 11 min
 - [6. Como verificar que está salvo local](#6-como-verificar-que-está-salvo-local) ← a parte importante
 - [7. O que o Expo Go não cobre](#7-o-que-o-expo-go-não-cobre)
-- [8. Se o celular não conectar](#8-se-o-celular-não-conectar)
+- [8. "Project is incompatible with this version of Expo Go"](#8-project-is-incompatible-with-this-version-of-expo-go)
+- [9. Se o celular não conectar](#9-se-o-celular-não-conectar)
 
 ---
 
@@ -219,7 +220,73 @@ não tem coordenada.
 
 ---
 
-## 8. Se o celular não conectar
+## 8. "Project is incompatible with this version of Expo Go"
+
+A Play Store só distribui o Expo Go mais recente. Quando ele passa à frente da
+SDK do projeto, aparece:
+
+```
+• The installed version of Expo Go is for SDK 58.
+• The project you opened uses SDK 57.
+```
+
+O projeto está em **SDK 57** (`expo ~57.0.20`), fixado no `AGENTS.md`.
+
+### Solução rápida: Expo Go da SDK 57
+
+Em https://expo.dev/go escolha **SDK 57** no seletor e **Android → Install**,
+ou vá direto a
+[expo.dev/go?sdkVersion=57&platform=android&device=true](https://expo.dev/go?sdkVersion=57&platform=android&device=true)
+e leia o QR com o celular. O APK vem do repositório oficial de releases:
+
+```
+https://github.com/expo/expo-go-releases/releases/download/Expo-Go-57.0.9/Expo-Go-57.0.9.apk
+```
+
+Três detalhes:
+
+1. O Android pede para **permitir instalação de fontes desconhecidas** para o
+   navegador.
+2. Pode ser preciso **desinstalar o Expo Go atual** antes, por conflito de
+   assinatura entre a versão da Play Store e a do GitHub.
+3. **Desligue a atualização automática** do Expo Go na Play Store, senão ele
+   volta para a versão mais nova e o erro reaparece.
+
+Desinstalar o Expo Go apaga o banco local, então o seed roda de novo na
+próxima abertura.
+
+### Solução definitiva: development build
+
+O Expo Go é um ambiente de testes genérico, e este app já usa config plugins
+(câmera e localização). Um *development build* é o seu próprio app com as
+ferramentas de desenvolvimento dentro — ele não tem versão de SDK para
+conflitar, e é o único jeito de conferir a compressão da foto, que o Expo Go
+não cobre.
+
+Sem Java e Android SDK na máquina, o caminho é a nuvem (exige conta gratuita
+em https://expo.dev/signup):
+
+```bash
+npm install --global eas-cli
+eas login
+npx expo install expo-dev-client
+eas build:configure
+eas build --platform android --profile development
+```
+
+Ao terminar, leia o QR do terminal para instalar no celular. Depois,
+`npx expo start` passa a apontar para o seu build em vez do Expo Go.
+
+### O que não recomendo agora
+
+Subir o projeto para a SDK 58. É uma migração com risco real — React Native,
+Expo Router e os seis módulos nativos de uma vez — e o problema aqui é a
+versão do Expo Go, não o projeto. Vale fazer quando houver tempo de
+revalidar a suíte, não para destravar um teste.
+
+---
+
+## 9. Se o celular não conectar
 
 Rede corporativa ou aparelhos isolados — force o túnel:
 
