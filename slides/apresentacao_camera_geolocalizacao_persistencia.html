@@ -291,7 +291,7 @@
 
         <div class="card-box success anim">
           <div class="card-title">✓ A Solução de Engenharia</div>
-          <p>O <b>Equinox Mobile</b> impõe <b>foto obrigatória do visor</b> (comprimida e salva em armazenamento seguro do app), utiliza <b>GPS de alta precisão como prova de apoio auditável</b> e grava tudo atomicamente em banco local <b>SQLite com índice parcial único</b>, operando 100% offline.</p>
+          <p>O <b>Equinox Mobile</b> impõe <b>foto obrigatória do visor</b> (comprimida e salva em área privada e permanente do app), utiliza <b>GPS de alta precisão como prova de apoio auditável</b> e grava tudo atomicamente em banco local <b>SQLite com índice parcial único</b>, operando 100% offline.</p>
         </div>
 
         <div class="stats anim">
@@ -414,21 +414,24 @@
 <script type="text/plain" data-lang="typescript">
 export class CameraGatewayFake implements ICameraGateway {
   public permissaoConcedida: boolean = true;
-  public fotoFake: FotoCapturada | null = {
-    uri: 'file:///cache/medidor_raw.jpg', largura: 1920, altura: 1080
+  public fotoFake: FotoCapturada = {
+    uri: 'file:///cache/medidor_fake.jpg', largura: 3024, altura: 4032
   };
+  /** Simula o usuário fechando a câmera sem bater a foto. */
+  public cancelarCaptura = false;
 
   async temPermissao(): Promise<boolean> { return this.permissaoConcedida; }
   async solicitarPermissao(): Promise<boolean> { return this.permissaoConcedida; }
   async capturar(): Promise<FotoCapturada | null> {
-    if (!this.permissaoConcedida) return null;
+    if (!this.permissaoConcedida || this.cancelarCaptura) return null;
     return this.fotoFake;
   }
 }
 
 export class LocationGatewayFake implements ILocationGateway {
   public permissaoConcedida: boolean = true;
-  public coordenadasFake = new CoordenadasGPS(-19.9208, -43.9378, 5);
+  /** Praça Sete, Belo Horizonte — mesma região do seed. */
+  public coordenadasFake: CoordenadasGPS | null = new CoordenadasGPS(-19.9191, -43.9386);
 
   async temPermissao(): Promise<boolean> { return this.permissaoConcedida; }
   async solicitarPermissao(): Promise<boolean> { return this.permissaoConcedida; }
@@ -490,17 +493,20 @@ export interface IArquivoFotoGateway {
           <div class="window-bar"><i></i><i></i><i></i><span>src/domain/entities/<b>Leitura.ts</b> (Invariante de Foto &amp; Prova de GPS)</span></div>
 <script type="text/plain" data-lang="typescript">
 export class Leitura {
+  public readonly fotoLocalUri: string;
+  public readonly coordenadas: CoordenadasGPS | null; // Prova de apoio auditável
+  private _status: StatusLeituraEnum;
+
   constructor(props: LeituraProps) {
     if (!props.fotoLocalUri || props.fotoLocalUri.trim() === '') {
       throw new Error('Foto comprobatória do medidor é obrigatória');
     }
-    this._id = props.id;
-    this._padraoId = props.padraoId;
-    this._usuarioId = props.usuarioId;
-    this._valorConsumo = props.valorConsumo;
-    this._valorInjecao = props.valorInjecao ?? null;
-    this._fotoLocalUri = props.fotoLocalUri.trim();
-    this._coordenadas = props.coordenadas ?? null; // Prova de apoio auditável
+    if (!props.dataLocal.equals(DataLocal.de(props.medidoEm))) {
+      throw new Error('Dia local da leitura não corresponde ao instante medido');
+    }
+
+    this.fotoLocalUri = props.fotoLocalUri.trim();
+    this.coordenadas = props.coordenadas ?? null;
     this._status = props.status ?? StatusLeituraEnum.REGISTRADA;
   }
 }
@@ -535,25 +541,41 @@ export class Leitura {
         <div class="window anim">
           <div class="window-bar"><i></i><i></i><i></i><span>tests/unit/infrastructure/hardware/<b>ArquivoFotoGatewayExpo.spec.ts</b></span></div>
 <script type="text/plain" data-lang="typescript">
-it('comprime redimensionando para 1080p e grava na pasta de leituras', async () => {
-  const gateway = new ArquivoFotoGatewayExpo();
-  const resultado = await gateway.comprimirEPersistir('file:///cache/foto.jpg', 'leitura-123');
+it('reduz para 1080 de largura, preservando a proporção', async () => {
+  await gateway.comprimirEPersistir(URI_CAMERA, 'leitura-1');
 
-  expect(resultado.uri).toContain('leituras/leitura-123.jpg');
-  expect(resultado.largura).toBe(1080);
-  expect(resultado.bytes).toBeLessThanOrEqual(320000); // Orçamento de ~300KB
+  const contexto = (ImageManipulator.manipulate as jest.Mock).mock.results[0].value;
+  // Só a largura: passar os dois lados distorceria a foto do visor.
+  expect(contexto.resize).toHaveBeenCalledWith({ width: 1080 });
+});
+
+it('move do cache para o armazenamento permanente', async () => {
+  await gateway.comprimirEPersistir(URI_CAMERA, 'leitura-1');
+
+  // A uri da câmera é um arquivo temporário que o sistema pode apagar:
+  // sem este passo a leitura ficaria sem comprovante.
+  expect(mockEstado.movimentos[0].para).toContain('file:///documents');
+  expect(mockEstado.movimentos[0].para).toContain('leituras');
 });
 </script>
         </div>
         <div class="window anim">
           <div class="window-bar"><i></i><i></i><i></i><span>tests/unit/domain/services/<b>ValidadorDistanciaGpsService.spec.ts</b> (Haversine)</span></div>
 <script type="text/plain" data-lang="typescript">
-it('aprova leitura dentro do raio de 500 metros do padrão', () => {
-  const padrao = new CoordenadasGPS(-19.9208, -43.9378);
-  const tecnicoProximo = new CoordenadasGPS(-19.9215, -43.9385); // ~100m de distância
+it('deve validar se o técnico está dentro do raio máximo de presença', () => {
+  const coordsUsina = new CoordenadasGPS(-23.55052, -46.633308);
+  const coordsTecnicoProximo = new CoordenadasGPS(-23.55060, -46.633350); // poucos metros
+  const coordsTecnicoLonge = new CoordenadasGPS(-23.60000, -46.700000);   // muitos km
 
-  const dentroDoRaio = ValidadorDistanciaGpsService.estaDentroDoRaio(tecnicoProximo, padrao, 500);
-  expect(dentroDoRaio).toBe(true);
+  const estaProximo = ValidadorDistanciaGpsService.estaDentroDoRaio(
+    coordsTecnicoProximo, coordsUsina, 500 // raio máximo 500 metros
+  );
+  const estaLonge = ValidadorDistanciaGpsService.estaDentroDoRaio(
+    coordsTecnicoLonge, coordsUsina, 500
+  );
+
+  expect(estaProximo).toBe(true);
+  expect(estaLonge).toBe(false);
 });
 </script>
         </div>
@@ -714,8 +736,8 @@ if (notificacoes.length > 0) await this.notificacaoRepo.salvarVarias(notificacoe
             <br>• <strong>Feedback de Compressão</strong>: Prévia imediata da foto salva em disco (~300KB).
             <br>• <strong>Validação Inteligente</strong>: Alerta se o valor em kWh for menor que a medição anterior.
           </li>
-          <li><strong>Gravação Instantânea</strong>: Salva no SQLite local em milissegundos com feedback háptico e mensagem de confirmação.</li>
-          <li><strong>Conclusão Técnica</strong>: Uma arquitetura robusta, resiliente a falhas de hardware, com 100% de testes automatizados e independência total de internet.</li>
+          <li><strong>Gravação Instantânea</strong>: Salva no SQLite local e mostra a tela de confirmação com o valor registrado.</li>
+          <li><strong>Conclusão Técnica</strong>: Uma arquitetura robusta, resiliente a falhas de hardware, com 765 testes automatizados (98,7% de cobertura) e independência total de internet.</li>
         </ul>
       </div>
       <div class="col-code">

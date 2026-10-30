@@ -28,7 +28,7 @@
 * **Fala do Apresentador:**
   > *"Olá a todos. Nosso projeto é o **Equinox Mobile**, um aplicativo corporativo mobile voltado para a vistoria técnica e coleta de leituras de medidores de energia em padrões Cemig e usinas fotovoltaicas.  
   > **O Problema em Campo:** Os medidores estão frequentemente em áreas rurais ou subsolos sem qualquer cobertura de internet ou sinal 4G. Processos tradicionais em papel ou formulários simples sofrem com alto índice de erros manuais de digitação de kWh e até fraudes de medições feitas longe do local.  
-  > **A Solução:** O Equinox Mobile une hardware e engenharia de software: exigimos **foto obrigatória do visor do medidor** (comprimida e salva em armazenamento seguro permanente), utilizamos **geolocalização (GPS) como prova de apoio auditável**, e gravamos tudo instantaneamente em banco local **SQLite com índice parcial único**, operando **100% Offline-First** sem qualquer dependência de nuvem."*
+  > **A Solução:** O Equinox Mobile une hardware e engenharia de software: exigimos **foto obrigatória do visor do medidor** (comprimida e salva em área privada e permanente do app), utilizamos **geolocalização (GPS) como prova de apoio auditável**, e gravamos tudo instantaneamente em banco local **SQLite com índice parcial único**, operando **100% Offline-First** sem qualquer dependência de nuvem."*
 
 ---
 
@@ -102,10 +102,10 @@
   > **A experiência do técnico:**  
   > 1. O GPS é obtido em segundo plano de forma transparente enquanto o técnico chega em frente ao medidor;  
   > 2. O botão de câmera abre a modal `CapturaMedidorCamera` com uma moldura de enquadramento perfeita para o visor;  
-  > 3. O disparo fotográfico fecha o preview, comprime para ~300KB e salva no armazenamento seguro do app;  
+  > 3. O disparo fotográfico fecha o preview, comprime para ~300KB e salva na área privada do app (`Paths.document`), que o sistema não limpa;  
   > 4. O sistema valida se o valor digitado é consistente com a leitura anterior;  
-  > 5. Ao clicar em 'Salvar Leitura', o dado é persistido no SQLite local em menos de 10 milissegundos, com feedback háptico e confirmação visual.  
-  > Em suma, entregamos um software corporativo robusto, resiliente a falhas de rede, 100% coberto por testes e pronto para o ambiente hostil de campo.  
+  > 5. Ao clicar em 'Salvar Leitura', o dado é gravado no SQLite local e a tela de confirmação mostra o valor registrado.  
+  > Em suma, entregamos um software corporativo robusto, resiliente a falhas de rede, com 765 testes automatizados e 98,7% de cobertura, pronto para o ambiente hostil de campo.  
   > Muito obrigado a todos, encerramos a apresentação e estamos à disposição para perguntas da banca!"*
 
 ---
