@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useVoltar } from '@/presentation/hooks/useVoltar';
 import { NovaLeituraScreen } from '@/presentation/screens/NovaLeituraScreen';
 import { CapturaMedidorCamera } from '@/presentation/components/CapturaMedidorCamera';
 import { useNovaLeitura } from '@/presentation/hooks/useNovaLeitura';
 
 export default function NovaLeituraRoute() {
   const router = useRouter();
+  const voltar = useVoltar('/(app)/(tabs)/leituras');
   const { padraoId } = useLocalSearchParams<{ padraoId: string }>();
   const [cameraAberta, setCameraAberta] = useState(false);
 
@@ -32,7 +34,7 @@ export default function NovaLeituraRoute() {
         onSalvar={() => void estado.salvar()}
         onConfirmarValorMenor={() => void estado.confirmarValorMenor()}
         onCancelarAviso={estado.cancelarAviso}
-        onVoltar={() => router.back()}
+        onVoltar={voltar}
         onConcluir={() => router.replace('/(app)/(tabs)/home')}
       />
 

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useRouter } from 'expo-router';
+import { useVoltar } from '@/presentation/hooks/useVoltar';
 import { PerfilEnum } from '@/domain/enums/PerfilEnum';
 import { GestaoUsuariosScreen } from '@/presentation/screens/GestaoUsuariosScreen';
 import { useGestaoUsuarios } from '@/presentation/hooks/useGestaoUsuarios';
@@ -7,6 +8,7 @@ import { useAuth } from '@/presentation/hooks/useAuth';
 
 export default function UsuariosRoute() {
   const router = useRouter();
+  const voltar = useVoltar('/(app)/(tabs)/home');
   const { perfil } = useAuth();
   const estado = useGestaoUsuarios();
 
@@ -26,7 +28,7 @@ export default function UsuariosRoute() {
       onAlternarStatus={estado.alternarStatus}
       onAprovarRapido={estado.aprovarRapido}
       onExcluir={estado.excluir}
-      onVoltar={() => router.back()}
+      onVoltar={voltar}
     />
   );
 }

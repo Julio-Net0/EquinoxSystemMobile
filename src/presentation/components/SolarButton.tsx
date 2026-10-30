@@ -126,11 +126,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: Espaco.xl,
     alignItems: 'center',
     justifyContent: 'center',
-    // Brilho âmbar do botão principal.
-    shadowColor: Overlay.brilhoPrimary,
-    shadowOpacity: 1,
-    shadowRadius: 15,
-    shadowOffset: { width: 0, height: 0 },
+    // Brilho âmbar do botão principal. boxShadow em vez das props shadow*,
+    // que estão depreciadas no React Native 0.76+ e avisam a cada render.
+    boxShadow: `0px 0px 15px ${Overlay.brilhoPrimary}`,
   },
   conteudo: {
     flexDirection: 'row',

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useRouter } from 'expo-router';
+import { useVoltar } from '@/presentation/hooks/useVoltar';
 import { PerfilEnum } from '@/domain/enums/PerfilEnum';
 import { GestaoEstruturaScreen } from '@/presentation/screens/GestaoEstruturaScreen';
 import { useEstrutura } from '@/presentation/hooks/useEstrutura';
@@ -7,6 +8,7 @@ import { useAuth } from '@/presentation/hooks/useAuth';
 
 export default function EstruturaRoute() {
   const router = useRouter();
+  const voltar = useVoltar('/(app)/(tabs)/home');
   const { perfil } = useAuth();
   const estado = useEstrutura();
 
@@ -28,7 +30,7 @@ export default function EstruturaRoute() {
       onExcluirEndereco={estado.excluirEndereco}
       onCriarPadrao={estado.criarPadrao}
       onExcluirPadrao={estado.excluirPadrao}
-      onVoltar={() => router.back()}
+      onVoltar={voltar}
     />
   );
 }
