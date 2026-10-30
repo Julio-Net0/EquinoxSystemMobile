@@ -661,7 +661,7 @@ export class ArquivoFotoGatewayExpo implements IArquivoFotoGateway {
         </div>
 
         <ul class="points" style="gap: 8px;">
-          <li style="font-size: 17.5px;"><strong>Foto Permanente &amp; GPS</strong>: Salva <code class="inline">foto_local_uri</code> no disco permanente (<code class="inline">Paths.document</code>), latitude, longitude e precisão métrica.</li>
+          <li style="font-size: 17.5px;"><strong>A Regra Está no Schema</strong>: <code class="inline">foto_local_uri</code> é <code class="inline">NOT NULL</code>; as colunas de GPS aceitam nulo. Foto é obrigatória, localização é prova de apoio. A imagem fica em <code class="inline">Paths.document</code>, o banco guarda o caminho.</li>
           <li style="font-size: 17.5px;"><strong>Substituição Atômica</strong>: A leitura anterior tem seu status alterado para <code class="inline">'substituida'</code> antes da nova ser inserida.</li>
           <li style="font-size: 17.5px;"><strong>Auditoria Desacoplada</strong>: Se o GPS falhar ou estiver fora de 500m, o app grava normalmente e gera notificação de auditoria (ADR 9.4).</li>
         </ul>
@@ -673,6 +673,28 @@ export class ArquivoFotoGatewayExpo implements IArquivoFotoGateway {
         </div>
       </div>
       <div class="col-code">
+        <div class="window anim">
+          <div class="window-bar"><i></i><i></i><i></i><span>src/infrastructure/database/sqlite/migrations/<b>001_schema_inicial.ts</b></span></div>
+<script type="text/plain" data-lang="sql">
+CREATE TABLE leituras (
+  id                  TEXT PRIMARY KEY NOT NULL,
+  padrao_id           TEXT NOT NULL REFERENCES padroes_cemig(id) ON DELETE CASCADE,
+  valor_consumo       REAL NOT NULL CHECK (valor_consumo >= 0),
+  foto_local_uri      TEXT NOT NULL,   -- câmera: sem foto não existe leitura
+  latitude            REAL,            -- GPS: nulo é leitura válida
+  longitude           REAL,
+  precisao_metros     REAL,            -- raio de incerteza do aparelho
+  medido_em           TEXT NOT NULL,
+  data_local          TEXT NOT NULL,
+  status              TEXT NOT NULL DEFAULT 'registrada'
+);
+
+-- Invariante central: uma leitura vigente por padrão por dia local
+CREATE UNIQUE INDEX idx_leituras_vigente_dia
+  ON leituras (padrao_id, data_local)
+  WHERE status IN ('registrada', 'aprovada');
+</script>
+        </div>
         <div class="window anim">
           <div class="window-bar"><i></i><i></i><i></i><span>src/infrastructure/database/sqlite/repositories/<b>LeituraRepositorySQLite.ts</b></span></div>
 <script type="text/plain" data-lang="typescript">
@@ -694,25 +716,6 @@ async salvarSubstituindo(nova: Leitura, vigente: Leitura): Promise<void> {
     );
   });
 }
-</script>
-        </div>
-        <div class="window anim">
-          <div class="window-bar"><i></i><i></i><i></i><span>src/application/use-cases/<b>RegistrarLeituraUseCase.ts</b> (Persistência &amp; Auditoria)</span></div>
-<script type="text/plain" data-lang="typescript">
-// 1. Move a foto do cache e comprime para o disco permanente do celular
-const foto = await this.arquivoFoto.comprimirEPersistir(
-  entrada.fotoTemporariaUri, leituraId.value
-);
-
-// 2. Grava no SQLite com transação exclusiva (substituição atômica)
-const substituida = await this.persistir(leitura, agora);
-
-// 3. Avalia coordenadas (prova de apoio) e dispara notificações de auditoria
-const localizacao = RegraLocalizacaoLeituraService.avaliar(coordenadas, endereco.coordenadas);
-const notificacoes = GeradorNotificacoesService.paraLeituraRegistrada({
-  leitura, referencia, substituida, localizacao, ...
-});
-if (notificacoes.length > 0) await this.notificacaoRepo.salvarVarias(notificacoes);
 </script>
         </div>
       </div>
