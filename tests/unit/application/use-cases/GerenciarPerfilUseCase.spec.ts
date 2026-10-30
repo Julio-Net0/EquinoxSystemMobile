@@ -179,3 +179,30 @@ describe('GerenciarPerfilUseCase', () => {
     });
   });
 });
+
+describe('GerenciarPerfilUseCase: recusas', () => {
+  const ninguem = UUIDv4.gerar().value;
+  const SESSAO_INVALIDA = 'Sessão inválida. Entre de novo';
+
+  it('alterar dados recusa sessão inválida', async () => {
+    const { caso } = await cenario();
+
+    const saida = await caso.alterarDados({
+      usuarioId: ninguem, nome: 'Outro Nome', usuario: 'outro',
+      email: 'outro@equinox.dev',
+    });
+
+    expect(saida).toEqual({ sucesso: false, erro: SESSAO_INVALIDA });
+  });
+
+  it('alterar senha recusa sessão inválida', async () => {
+    const { caso } = await cenario();
+
+    const saida = await caso.alterarSenha({
+      usuarioId: ninguem, senhaAtual: SENHA,
+      novaSenha: 'Equinox@2027', confirmacao: 'Equinox@2027',
+    });
+
+    expect(saida).toEqual({ sucesso: false, erro: SESSAO_INVALIDA });
+  });
+});

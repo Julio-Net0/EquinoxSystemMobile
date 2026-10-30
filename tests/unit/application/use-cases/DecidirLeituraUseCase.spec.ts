@@ -55,7 +55,7 @@ async function cenario(opcoes: { informativa?: boolean; perfilAtor?: PerfilEnum 
   });
   await usuarioRepo.salvar(ator);
 
-  return { caso, leituraRepo, notificacaoRepo, leitura, notificacao, ator };
+  return { caso, leituraRepo, notificacaoRepo, usuarioRepo, leitura, notificacao, ator };
 }
 
 describe('DecidirLeituraUseCase', () => {
@@ -130,5 +130,53 @@ describe('DecidirLeituraUseCase', () => {
       atorId: ator.id.value, notificacaoId: UUIDv4.gerar().value, decisao: 'aprovar',
     });
     expect(saida.erro).toBe('Notificação não encontrada');
+  });
+});
+
+describe('DecidirLeituraUseCase: recusas', () => {
+  it('recusa sessão inválida', async () => {
+    const { caso, notificacao } = await cenario();
+
+    const saida = await caso.executar({
+      atorId: UUIDv4.gerar().value, notificacaoId: notificacao.id.value, decisao: 'aprovar',
+    });
+
+    expect(saida).toEqual({ sucesso: false, erro: 'Sessão inválida. Entre de novo' });
+  });
+
+  it('o administrador não decide sobre notificação de outra empresa', async () => {
+    const { caso, usuarioRepo, notificacao } = await cenario();
+    const forasteiro = new Usuario({
+      id: UUIDv4.gerar(), empresaId: UUIDv4.gerar(), nome: 'Admin de fora',
+      usuario: 'outro', email: 'outro@equinox.dev',
+      senha: await new HashSenhaFake().gerar('Equinox@2026'),
+      perfil: PerfilEnum.ADMIN, status: StatusUsuarioEnum.ATIVO,
+      enderecosVinculados: [UUIDv4.gerar()],
+    });
+    await usuarioRepo.salvar(forasteiro);
+
+    const saida = await caso.executar({
+      atorId: forasteiro.id.value, notificacaoId: notificacao.id.value, decisao: 'aprovar',
+    });
+
+    expect(saida).toEqual({ sucesso: false, erro: 'Esta notificação é de outra empresa' });
+  });
+
+  it('recusa quando a leitura apontada não está mais no banco', async () => {
+    const { caso, notificacaoRepo, ator } = await cenario();
+    // Notificação órfã: aponta para uma leitura que já saiu pelo expurgo.
+    const orfa = new Notificacao({
+      id: UUIDv4.gerar(), empresaId,
+      tipo: TipoNotificacaoEnum.LEITURA_ATRASADA,
+      titulo: 'Leitura atrasada', mensagem: 'Confirme ou descarte.',
+      criadaEm: AGORA, requerAcao: true, leituraId: UUIDv4.gerar(),
+    });
+    await notificacaoRepo.salvar(orfa);
+
+    const saida = await caso.executar({
+      atorId: ator.id.value, notificacaoId: orfa.id.value, decisao: 'aprovar',
+    });
+
+    expect(saida).toEqual({ sucesso: false, erro: 'Leitura não encontrada' });
   });
 });

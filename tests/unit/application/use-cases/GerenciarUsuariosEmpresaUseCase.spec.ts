@@ -218,3 +218,78 @@ describe('GerenciarUsuariosEmpresaUseCase — ids dos vínculos', () => {
     expect(resumo?.enderecoIds).toEqual([endereco.id.value]);
   });
 });
+
+describe('GerenciarUsuariosEmpresaUseCase: recusas', () => {
+  const ninguem = UUIDv4.gerar().value;
+  const SESSAO_INVALIDA = 'Sessão inválida. Entre de novo';
+
+  it('nenhuma operação aceita sessão inválida', async () => {
+    const { caso, tecnico } = await cenario();
+    const alvo = tecnico.id.value;
+
+    expect(await caso.listar({ atorId: ninguem })).toEqual({
+      usuarios: [], erro: SESSAO_INVALIDA,
+    });
+    expect((await caso.alternarStatus({ atorId: ninguem, usuarioId: alvo })).erro)
+      .toBe(SESSAO_INVALIDA);
+    expect((await caso.aprovarRapido({ atorId: ninguem, usuarioId: alvo })).erro)
+      .toBe(SESSAO_INVALIDA);
+    expect((await caso.excluir({ atorId: ninguem, usuarioId: alvo })).erro)
+      .toBe(SESSAO_INVALIDA);
+    expect(
+      (await caso.atualizar({
+        atorId: ninguem, usuarioId: alvo, nome: 'X', email: 'x@equinox.dev',
+        perfil: PerfilEnum.TECNICO, status: StatusUsuarioEnum.ATIVO, enderecoIds: [],
+      })).erro,
+    ).toBe(SESSAO_INVALIDA);
+  });
+
+  it('recusa alvo que não existe', async () => {
+    const { caso, admin } = await cenario();
+
+    const saida = await caso.alternarStatus({ atorId: admin.id.value, usuarioId: ninguem });
+
+    expect(saida).toEqual({ sucesso: false, erro: 'Usuário não encontrado' });
+  });
+
+  it('o administrador não alcança usuário de outra empresa', async () => {
+    const { caso, usuarioRepo, tecnico } = await cenario();
+    const forasteiro = await usuario(
+      UUIDv4.gerar(), 'Admin de fora', 'outro', PerfilEnum.ADMIN,
+      StatusUsuarioEnum.ATIVO, [UUIDv4.gerar()],
+    );
+    await usuarioRepo.salvar(forasteiro);
+
+    const saida = await caso.alternarStatus({
+      atorId: forasteiro.id.value, usuarioId: tecnico.id.value,
+    });
+
+    expect(saida.sucesso).toBe(false);
+    expect(saida.erro).toBeTruthy();
+  });
+
+  it('não ativa quem não tem endereço vinculado', async () => {
+    const { caso, admin, pendente } = await cenario();
+
+    // Técnico sem endereço não tem o que ler: ativar seria criar uma conta
+    // que entra no app e não enxerga nada.
+    const saida = await caso.alternarStatus({
+      atorId: admin.id.value, usuarioId: pendente.id.value,
+    });
+
+    expect(saida.sucesso).toBe(false);
+    expect(saida.erro).toBeTruthy();
+  });
+
+  it('aprovarRapido recusa quem ficou sem endereço e explica o caminho', async () => {
+    const { caso, admin, pendente } = await cenario();
+
+    const saida = await caso.aprovarRapido({
+      atorId: admin.id.value, usuarioId: pendente.id.value,
+    });
+
+    expect(saida).toEqual({
+      sucesso: false, erro: 'Vincule ao menos um endereço pela edição para aprovar',
+    });
+  });
+});

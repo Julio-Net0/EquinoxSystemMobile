@@ -10,10 +10,15 @@ const transformIgnore = [
 module.exports = {
   projects: [
     {
-      // Domínio e aplicação são puros: rodam em Node, sem o custo do transform de RN.
+      // Domínio, aplicação e arquitetura são puros, mas usam o mesmo preset dos
+      // outros projetos de propósito: com transforms diferentes (ts-jest aqui,
+      // Babel lá) um arquivo carregado por dois projetos gerava dois mapas de
+      // cobertura incompatíveis, e o merge do istanbul somava errado. Quem
+      // checa tipos é o `tsc --noEmit` do gate, não o executor de teste.
       displayName: 'dominio',
-      preset: 'ts-jest',
+      preset: 'jest-expo',
       testEnvironment: 'node',
+      transformIgnorePatterns: transformIgnore,
       testMatch: [
         '<rootDir>/tests/unit/domain/**/*.spec.ts',
         '<rootDir>/tests/unit/application/**/*.spec.ts',
@@ -26,6 +31,16 @@ module.exports = {
       displayName: 'infra',
       preset: 'jest-expo',
       testMatch: ['<rootDir>/tests/unit/infrastructure/**/*.spec.ts'],
+      setupFilesAfterEnv: ['<rootDir>/tests/setup/jest.setup.ts'],
+      moduleNameMapper: alias,
+      transformIgnorePatterns: transformIgnore,
+    },
+    {
+      // Integração: SQLite de verdade (node:sqlite) contra o schema publicado.
+      // Precisa do preset nativo porque emTransacao consulta Platform.OS.
+      displayName: 'integracao',
+      preset: 'jest-expo',
+      testMatch: ['<rootDir>/tests/integration/**/*.spec.ts'],
       setupFilesAfterEnv: ['<rootDir>/tests/setup/jest.setup.ts'],
       moduleNameMapper: alias,
       transformIgnorePatterns: transformIgnore,
@@ -45,5 +60,6 @@ module.exports = {
     'src/application/**/*.ts',
     'src/infrastructure/**/*.ts',
     '!src/**/*.d.ts',
+    '!src/infrastructure/fakes/**',
   ],
 };

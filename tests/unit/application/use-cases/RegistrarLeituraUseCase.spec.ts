@@ -84,7 +84,7 @@ async function cenario(opcoes: { ehUsina?: boolean; comGeocerca?: boolean } = {}
   }
 
   return {
-    caso, entrada, leituraRepo, notificacaoRepo, arquivoFoto,
+    caso, entrada, leituraRepo, padraoRepo, enderecoRepo, notificacaoRepo, arquivoFoto,
     endereco, padrao, tecnico, empresaId, leituraAnterior,
   };
 }
@@ -322,5 +322,46 @@ describe('RegistrarLeituraUseCase', () => {
       expect(atrasada?.aguardandoDecisao).toBe(true);
       expect(atrasada?.leituraId?.value).toBe(saida.leituraId);
     });
+  });
+});
+
+describe('RegistrarLeituraUseCase: casos de borda', () => {
+  it('recusa padrão cujo endereço saiu do cadastro', async () => {
+    const { caso, entrada, padraoRepo } = await cenario();
+    const orfao = new PadraoCemig({
+      id: UUIDv4.gerar(), enderecoId: UUIDv4.gerar(), numero: '000000',
+    });
+    await padraoRepo.salvar(orfao);
+
+    const saida = await caso.executar({ ...entrada, padraoId: orfao.id.value });
+
+    expect(saida).toEqual({ sucesso: false, erro: 'Endereço do padrão não encontrado' });
+  });
+
+  it('o registro retroativo entra como substituído, sem derrubar a medição posterior', async () => {
+    const { caso, entrada, leituraRepo, padrao, tecnico } = await cenario();
+
+    // Vigente medida depois de agora, no mesmo dia local: é o caso de o
+    // aparelho estar com a hora atrasada, ou de um registro feito mais tarde.
+    const maisRecente = new Leitura({
+      id: UUIDv4.gerar(), padraoId: padrao.id, usuarioId: tecnico.id,
+      valorConsumo: new ValorKwh(13_000),
+      fotoLocalUri: 'file:///documents/leituras/recente.jpg',
+      medidoEm: new Date(AGORA.getTime() + 3_600_000),
+      dataLocal: DataLocal.de(AGORA),
+    });
+    await leituraRepo.salvar(maisRecente);
+
+    const saida = await caso.executar(entrada);
+
+    expect(saida.sucesso).toBe(true);
+    expect(saida.substituiuLeituraId).toBeUndefined();
+
+    // A mais recente continua sendo a do dia; a nova fica como histórico.
+    const vigente = await leituraRepo.buscarVigenteDoDia(padrao.id, DataLocal.de(AGORA));
+    expect(vigente?.id.value).toBe(maisRecente.id.value);
+
+    const nova = await leituraRepo.buscarPorId(new UUIDv4(saida.leituraId as string));
+    expect(nova?.status).toBe(StatusLeituraEnum.SUBSTITUIDA);
   });
 });

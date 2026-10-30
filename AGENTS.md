@@ -3,7 +3,7 @@
 ## 1. Stack Tecnológica Oficial
 - **Plataforma/Framework:** React Native + Expo SDK 57 (v57.0.0) com Expo Router (file-based routing).
 - **Linguagem:** TypeScript v5+ (`strict: true`) com imports absolutos via `@/*` (`./src/*`).
-- **Testes (TDD):** Jest em três projetos (`jest.config.js`): `dominio` com `ts-jest` em Node (domínio, aplicação e arquitetura) e `infra` + `ui` com `jest-expo` para o que depende de módulos nativos. `@testing-library/react-native` para render. **Atenção:** `jest-expo` transpila com Babel e **não checa tipos** — `npx tsc --noEmit` é obrigatório no gate.
+- **Testes (TDD):** Jest em quatro projetos (`jest.config.js`), **todos com o preset `jest-expo`**: `dominio` (domínio, aplicação e arquitetura, em `testEnvironment: 'node'`), `infra`, `integracao` e `ui`. Um transform só, de propósito: com dois, um arquivo carregado por dois projetos gerava mapas de cobertura incompatíveis e o merge do istanbul somava errado (ver `docs/decisions.md` seção 9.11). `@testing-library/react-native` para render — nele `render` e `fireEvent` são **assíncronos**, e sem `await` as consultas não existem. **Atenção:** nenhum projeto checa tipos (Babel) — `npx tsc --noEmit` é obrigatório no gate.
 - **Persistência Local (Offline-First):** `expo-sqlite` (SQLite local com UUIDv4 em todas as PKs).
 - **Backend / Nuvem:** **nenhum nesta fase.** O app roda 100% local (ver `docs/decisions.md` seção 9.2). Supabase, `SyncManager` e `NetworkMonitor` foram removidos; `supabase/migrations/` fica como referência para quando houver backend.
 - **Segurança & Sessão:** `expo-secure-store` encapsulado por `SessionStorageSecureStore`. Senha local hasheada por `HashSenhaExpoCrypto` (SHA-256 encadeado; **não é um KDF** — ver `docs/decisions.md` seção 9.5).
@@ -39,8 +39,9 @@
 
 ## 5. Test-Driven Development (TDD) & Fakes
 - **Ciclo Red -> Green -> Refactor:** NENHUMA linha de código de produção deve ser criada sem que exista previamente um teste unitário automatizado correspondente que falhe primeiro.
-- **Isolamento de Testes:** Usar estritamente os repositórios em memória e gateways fakes de `src/infrastructure/fakes/` para garantir testes ultrarrápidos e 100% isolados de banco de dados ou hardware.
-- **Meta de Cobertura:** Manter a cobertura da suíte em pelo menos **80%** (medida via `npm run test:coverage`).
+- **Isolamento de Testes:** Domínio e aplicação usam estritamente os repositórios em memória e gateways fakes de `src/infrastructure/fakes/`, para testes ultrarrápidos e isolados de banco e hardware. Esses fakes são dublês de teste e ficam **fora** da medição de cobertura.
+- **Integração (`tests/integration/`):** o que fala SQL é testado contra SQLite de verdade, via `node:sqlite` e o adaptador de `tests/helpers/bancoDeTeste.ts` — `expo-sqlite` não roda em Node. É o que verifica o schema publicado, o índice parcial, as chaves estrangeiras e o seed (ver `docs/decisions.md` seção 9.12).
+- **Meta de Cobertura:** Manter a cobertura da suíte em pelo menos **80%** (medida via `npm run test:coverage`). Estado atual: **98,7% de linhas** — domínio 96,6%, aplicação 99,2%, infraestrutura 97,0%.
 
 ## 6. Offline-First & Mídia
 - **Ações Offline:** TODA escrita é local e definitiva — não existe estado "desconectado", porque não há nuvem. A `action_queue` permanece no schema e com repositório implementado, mas está **reservada**: nada enfileira hoje, por não haver destino remoto.

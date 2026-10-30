@@ -433,18 +433,64 @@ em `/admin/autorizacoes`.
 `ContainerProvider`. Dois testes de arquitetura verificam a regra: o domínio
 não importa biblioteca de terceiros, e nenhuma tela monta dependências.
 
-### 9.11 Testes: Três Projetos Jest
+### 9.11 Testes: Quatro Projetos Jest, um Transform Só
 
-**Decisão.** `dominio` (ts-jest, Node) para domínio, aplicação e arquitetura;
-`infra` e `ui` (jest-expo) para o que depende de módulos do Expo.
+**Decisão.** Quatro projetos, todos com o preset `jest-expo`: `dominio`
+(domínio, aplicação e arquitetura, em `testEnvironment: 'node'`), `infra`,
+`integracao` e `ui`.
 
-**Justificativa.** `ts-jest` em Node não renderiza React Native, e o preset
-`jest-expo` penalizaria os testes puros com o transform de RN.
+**Contexto da revisão.** A primeira versão usava `ts-jest` em `dominio` e
+`jest-expo` nos outros, pela economia do transform de RN nos testes puros.
+Isso criou um problema que só apareceu na medição de cobertura: um arquivo
+carregado por dois projetos era instrumentado duas vezes, com mapas de
+statements diferentes, e o merge do istanbul somava os dois mapas como se
+fossem o mesmo. O efeito era grande — a camada de aplicação aparecia com 78%
+quando medida junto e 93% quando medida só pelo projeto `dominio`.
 
-**Atenção.** `jest-expo` transpila com Babel e **não checa tipos**: um erro de
-tipo passa pela suíte. `npx tsc --noEmit` é obrigatório no gate.
+**Justificativa.** Um número de cobertura que muda conforme o conjunto de
+projetos que roda não serve para decidir nada. Vale mais ter a medição
+confiável do que economizar alguns segundos no transform (a suíte inteira roda
+em ~8 s de qualquer forma). O `coverageProvider: 'v8'` foi avaliado e
+descartado: ele mapeia de volta para o TypeScript original e conta interfaces,
+tipos e comentários como código não coberto — `ILeituraRepository.ts`, que não
+gera uma linha de JS, aparecia com 0%.
 
-### 9.12 Guardas de Rota
+**Consequência.** `dominio` perde a checagem de tipos que o `ts-jest` fazia
+durante a execução dos testes. Quem checa tipos passa a ser só o
+`npx tsc --noEmit` do gate — que já era obrigatório, porque `jest-expo`
+transpila com Babel e **não checa tipos** em nenhum projeto.
+
+**Dublês fora da medição.** `src/infrastructure/fakes/**` está excluído de
+`collectCoverageFrom`: são dublês de teste, e medi-los inflava o denominador
+com métodos que nenhum caso de uso chama.
+
+### 9.12 Testes de Integração com SQLite de Verdade
+
+**Contexto.** Os sete repositórios SQLite, o container de produção, o
+diagnóstico e o seed não tinham teste nenhum — cobertura de 2% a 20%. A razão
+era estrutural: `expo-sqlite` não roda em Node (no aparelho é módulo nativo, na
+web é wa-sqlite dentro de um Web Worker), então nada exercitava SQL fora do
+celular. Foi essa cegueira que deixou passar o deadlock de transação aninhada e
+o `getValueWithKeyAsync is not a function` da sessão na web.
+
+**Decisão.** Um adaptador de teste (`tests/helpers/bancoDeTeste.ts`) sobre o
+**`node:sqlite`**, o SQLite embutido na runtime do Node, traduzindo a API
+síncrona dele para a assíncrona do `expo-sqlite`. O projeto `integracao` roda
+os repositórios, as migrações e o seed contra um banco `:memory:` real.
+
+**Justificativa.** O SQL, os tipos, os CHECK, as chaves estrangeiras e o índice
+parcial são os mesmos do aparelho, então o teste verifica o schema publicado e
+não um dublê dele. Sem dependência nova: `better-sqlite3` exigiria um módulo
+nativo com prebuild por plataforma, e o `node:sqlite` já vem na runtime.
+
+**Limite.** O adaptador traduz `BEGIN IMMEDIATE` para
+`withExclusiveTransactionAsync` e falha alto se algo tentar aninhar transação —
+de propósito, porque tolerar aninhamento no teste esconderia justamente o bug
+que o `emTransacao` resolve. O que ele não cobre é o comportamento do driver
+nativo em si (WAL em arquivo, concorrência entre conexões), que continua só
+verificável no aparelho.
+
+### 9.13 Guardas de Rota
 
 **Contexto.** Não havia guarda nenhuma: `/(tabs)/admin` e `/admin/empresas`
 abriam sem login, bastando o link.

@@ -62,7 +62,7 @@ async function cenario() {
     return l;
   }
 
-  return { caso, notificacaoRepo, leitura, padrao, tecnico };
+  return { caso, notificacaoRepo, leituraRepo, padraoRepo, leitura, padrao, tecnico };
 }
 
 describe('AvaliarLeiturasAtrasadasUseCase', () => {
@@ -117,5 +117,43 @@ describe('AvaliarLeiturasAtrasadasUseCase', () => {
   it('não falha quando não há leitura alguma', async () => {
     const { caso } = await cenario();
     expect((await caso.executar()).criadas).toBe(0);
+  });
+});
+
+describe('AvaliarLeiturasAtrasadasUseCase: dados órfãos', () => {
+  /** Leitura atrasada apontando para um padrão que o teste controla. */
+  async function leituraAtrasadaDoPadrao(padraoId: UUIDv4, usuarioId: UUIDv4) {
+    const medidoEm = new Date(Date.UTC(2026, 1, 1, 15));
+    return new Leitura({
+      id: UUIDv4.gerar(), padraoId, usuarioId,
+      valorConsumo: new ValorKwh(1800),
+      fotoLocalUri: 'file:///documents/leituras/foto.jpg',
+      medidoEm, dataLocal: DataLocal.de(medidoEm),
+    });
+  }
+
+  it('pula a leitura cujo padrão já não existe, sem quebrar as outras', async () => {
+    const { caso, notificacaoRepo, leituraRepo, leitura, tecnico } = await cenario();
+    await leituraRepo.salvar(await leituraAtrasadaDoPadrao(UUIDv4.gerar(), tecnico.id));
+    await leitura('2026-02-20');
+
+    const saida = await caso.executar();
+
+    // Uma linha órfã não pode impedir o aviso das leituras íntegras.
+    expect(saida.criadas).toBe(1);
+    expect(await notificacaoRepo.contarNaoLidas(null)).toBe(1);
+  });
+
+  it('pula a leitura cujo endereço já não existe', async () => {
+    const { caso, leituraRepo, padraoRepo, tecnico } = await cenario();
+    const orfao = new PadraoCemig({
+      id: UUIDv4.gerar(), enderecoId: UUIDv4.gerar(), numero: '000000',
+    });
+    await padraoRepo.salvar(orfao);
+    await leituraRepo.salvar(await leituraAtrasadaDoPadrao(orfao.id, tecnico.id));
+
+    const saida = await caso.executar();
+
+    expect(saida.criadas).toBe(0);
   });
 });

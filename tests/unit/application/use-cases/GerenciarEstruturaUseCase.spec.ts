@@ -303,3 +303,193 @@ describe('GerenciarEstruturaUseCase — listarPadroes', () => {
     expect((await caso.listarPadroes({ enderecoId: alheio.id.value })).padroes).toEqual([]);
   });
 });
+
+/**
+ * Ramos de recusa. São o que separa "funciona na demonstração" de "não corrompe
+ * a estrutura quando a entrada está errada", e nenhum deles tinha teste.
+ */
+describe('GerenciarEstruturaUseCase: recusas', () => {
+  const ninguem = UUIDv4.gerar().value;
+
+  it('recusa quem não tem sessão válida', async () => {
+    const { caso } = await cenario();
+
+    const saida = await caso.criarEndereco({
+      atorId: ninguem, empresaId: empresaA.value, numerosDePadrao: ['778811'],
+      ...camposEndereco,
+    });
+
+    expect(saida).toEqual({ sucesso: false, erro: 'Sessão inválida. Entre de novo' });
+  });
+
+  it('recusa o técnico, que não administra estrutura', async () => {
+    const { caso, tecnico, sede } = await cenario();
+
+    const saida = await caso.atualizarEndereco({
+      atorId: tecnico.id.value, enderecoId: sede.id.value, ...camposEndereco,
+    });
+
+    expect(saida.sucesso).toBe(false);
+    expect(saida.erro).toBeTruthy();
+  });
+
+  it('recusa endereço que não existe', async () => {
+    const { caso, admin } = await cenario();
+
+    const saida = await caso.atualizarEndereco({
+      atorId: admin.id.value, enderecoId: UUIDv4.gerar().value, ...camposEndereco,
+    });
+
+    expect(saida).toEqual({ sucesso: false, erro: 'Endereço não encontrado' });
+  });
+
+  it('recusa apelido ou UC em branco ao atualizar', async () => {
+    const { caso, admin, sede } = await cenario();
+
+    const semApelido = await caso.atualizarEndereco({
+      atorId: admin.id.value, enderecoId: sede.id.value, ...camposEndereco, apelido: '   ',
+    });
+    const semUc = await caso.atualizarEndereco({
+      atorId: admin.id.value, enderecoId: sede.id.value, ...camposEndereco, uc: '',
+    });
+
+    expect(semApelido.erro).toBe('Informe o apelido do endereço');
+    expect(semUc.erro).toBe('Informe a UC');
+  });
+
+  describe('definirCoordenadas', () => {
+    it('recusa endereço de outra empresa', async () => {
+      const { caso, admin, alheio } = await cenario();
+
+      const saida = await caso.definirCoordenadas({
+        atorId: admin.id.value, enderecoId: alheio.id.value,
+        coordenadas: { latitude: -19.9191, longitude: -43.9386 },
+      });
+
+      expect(saida.sucesso).toBe(false);
+    });
+
+    it('recusa coordenada ausente em vez de gravar um ponto vazio', async () => {
+      const { caso, admin, sede } = await cenario();
+
+      const saida = await caso.definirCoordenadas({
+        atorId: admin.id.value, enderecoId: sede.id.value,
+        coordenadas: undefined as unknown as { latitude: number; longitude: number },
+      });
+
+      // 0,0 é um ponto no Atlântico: gravar isso ligaria a geocerca no lugar
+      // errado e toda leitura passaria a avisar que está fora do local.
+      expect(saida).toEqual({ sucesso: false, erro: 'Coordenadas inválidas' });
+    });
+
+    it('grava a coordenada e liga a geocerca', async () => {
+      const { caso, admin, sede, enderecoRepo } = await cenario();
+
+      const saida = await caso.definirCoordenadas({
+        atorId: admin.id.value, enderecoId: sede.id.value,
+        coordenadas: { latitude: -19.9191, longitude: -43.9386, precisaoMetros: 12 },
+      });
+
+      expect(saida.sucesso).toBe(true);
+      expect((await enderecoRepo.buscarPorId(sede.id))?.temGeocerca()).toBe(true);
+    });
+  });
+
+  describe('atualizarPadrao', () => {
+    it('recusa padrão que não existe', async () => {
+      const { caso, admin } = await cenario();
+
+      const saida = await caso.atualizarPadrao({
+        atorId: admin.id.value, padraoId: UUIDv4.gerar().value, numero: '999999',
+      });
+
+      expect(saida).toEqual({ sucesso: false, erro: 'Padrão não encontrado' });
+    });
+
+    it('recusa quem não pode mexer naquele endereço', async () => {
+      const { caso, tecnico, padraoSede } = await cenario();
+
+      const saida = await caso.atualizarPadrao({
+        atorId: tecnico.id.value, padraoId: padraoSede.id.value, numero: '999999',
+      });
+
+      expect(saida.sucesso).toBe(false);
+    });
+
+    it('recusa número em branco', async () => {
+      const { caso, admin, padraoSede } = await cenario();
+
+      const saida = await caso.atualizarPadrao({
+        atorId: admin.id.value, padraoId: padraoSede.id.value, numero: '  ',
+      });
+
+      expect(saida).toEqual({ sucesso: false, erro: 'Informe o número do padrão' });
+    });
+
+    it('recusa número que já existe no mesmo endereço', async () => {
+      const { caso, admin, sede, padraoRepo, padraoSede } = await cenario();
+      await padraoRepo.salvar(
+        new PadraoCemig({ id: UUIDv4.gerar(), enderecoId: sede.id, numero: '993344' }),
+      );
+
+      const saida = await caso.atualizarPadrao({
+        atorId: admin.id.value, padraoId: padraoSede.id.value, numero: '993344',
+      });
+
+      expect(saida).toEqual({
+        sucesso: false, erro: 'Este endereço já tem um padrão com esse número',
+      });
+    });
+
+    it('aceita salvar o padrão com o número que ele já tinha', async () => {
+      const { caso, admin, padraoSede } = await cenario();
+
+      // Sem a exceção para o próprio id, reabrir e salvar a edição falharia.
+      const saida = await caso.atualizarPadrao({
+        atorId: admin.id.value, padraoId: padraoSede.id.value, numero: '778811',
+      });
+
+      expect(saida).toEqual({ sucesso: true });
+    });
+
+    it('renomeia preservando o endereço e a data de criação', async () => {
+      const { caso, admin, padraoRepo, padraoSede, sede } = await cenario();
+
+      await caso.atualizarPadrao({
+        atorId: admin.id.value, padraoId: padraoSede.id.value, numero: '114455',
+      });
+
+      const salvo = await padraoRepo.buscarPorId(padraoSede.id);
+      expect(salvo?.numero).toBe('114455');
+      expect(salvo?.enderecoId.value).toBe(sede.id.value);
+      expect(salvo?.criadoEm.toISOString()).toBe(padraoSede.criadoEm.toISOString());
+    });
+  });
+
+  describe('excluirPadrao', () => {
+    it('recusa padrão que não existe', async () => {
+      const { caso, admin } = await cenario();
+
+      const saida = await caso.excluirPadrao({
+        atorId: admin.id.value, padraoId: UUIDv4.gerar().value,
+      });
+
+      expect(saida).toEqual({ sucesso: false, erro: 'Padrão não encontrado' });
+    });
+
+    it('recusa quem não pode mexer naquele endereço', async () => {
+      const { caso, tecnico, padraoSede } = await cenario();
+
+      const saida = await caso.excluirPadrao({
+        atorId: tecnico.id.value, padraoId: padraoSede.id.value,
+      });
+
+      expect(saida.sucesso).toBe(false);
+    });
+  });
+
+  it('listarPadroes devolve vazio para endereço sem padrão', async () => {
+    const { caso, alheio } = await cenario();
+    expect(await caso.listarPadroes({ enderecoId: alheio.id.value })).toEqual({ padroes: [] });
+  });
+});

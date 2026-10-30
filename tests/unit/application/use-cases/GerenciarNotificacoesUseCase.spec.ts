@@ -144,3 +144,48 @@ describe('GerenciarNotificacoesUseCase', () => {
     expect(saida.notificacoes[0].leituraId).toBe(comAcao.leituraId?.value);
   });
 });
+
+describe('GerenciarNotificacoesUseCase: recusas', () => {
+  const ninguem = UUIDv4.gerar().value;
+  const SESSAO_INVALIDA = 'Sessão inválida. Entre de novo';
+
+  it('contar não lidas devolve zero e o motivo sem sessão válida', async () => {
+    const { caso } = await cenario();
+
+    expect(await caso.contarNaoLidas({ atorId: ninguem })).toEqual({
+      total: 0, erro: SESSAO_INVALIDA,
+    });
+  });
+
+  it('marcar lida e marcar todas recusam sessão inválida', async () => {
+    const { caso, notificacaoRepo } = await cenario();
+    const aviso = notificacao(empresaA, 10);
+    await notificacaoRepo.salvar(aviso);
+
+    expect(await caso.marcarLida({ atorId: ninguem, notificacaoId: aviso.id.value })).toEqual({
+      sucesso: false, erro: SESSAO_INVALIDA,
+    });
+    expect(await caso.marcarTodasLidas({ atorId: ninguem })).toEqual({
+      sucesso: false, erro: SESSAO_INVALIDA,
+    });
+  });
+
+  it('recusa notificação que não existe', async () => {
+    const { caso, admin } = await cenario();
+
+    const saida = await caso.marcarLida({
+      atorId: admin.id.value, notificacaoId: ninguem,
+    });
+
+    expect(saida).toEqual({ sucesso: false, erro: 'Notificação não encontrada' });
+  });
+
+  it('listar recusa sessão inválida', async () => {
+    const { caso } = await cenario();
+
+    const saida = await caso.listar({ atorId: ninguem, pagina: 0 });
+
+    expect(saida.erro).toBe(SESSAO_INVALIDA);
+    expect(saida.notificacoes).toEqual([]);
+  });
+});
