@@ -6,6 +6,7 @@ import {
 import { Notificacao } from '@/domain/entities/Notificacao';
 import { UUIDv4 } from '@/domain/value-objects/UUIDv4';
 import { NotificacaoRow, notificacaoDeRow, notificacaoParaRow } from '../mappers/mappers';
+import { emTransacao } from '../emTransacao';
 
 const COLUNAS = `id, empresa_id, tipo, titulo, mensagem, requer_acao, leitura_id,
                  criada_em, lida, resolucao, resolvida_em, resolvida_por`;
@@ -40,7 +41,7 @@ export class NotificacaoRepositorySQLite implements INotificacaoRepository {
 
     // Os avisos de uma leitura entram juntos ou não entram: uma falha no meio
     // deixaria o administrador vendo metade do que aconteceu.
-    await this.db.withExclusiveTransactionAsync(async (tx) => {
+    await emTransacao(this.db, async (tx) => {
       for (const notificacao of notificacoes) {
         await tx.runAsync(
           `INSERT INTO notificacoes (${COLUNAS}) VALUES (${MARCADORES})`,

@@ -5,6 +5,7 @@ import { UUIDv4 } from '@/domain/value-objects/UUIDv4';
 import { DataLocal } from '@/domain/value-objects/DataLocal';
 import { StatusLeituraEnum, STATUS_VIGENTES } from '@/domain/enums/StatusLeituraEnum';
 import { LeituraRow, leituraDeRow, leituraParaRow } from '../mappers/mappers';
+import { emTransacao } from '../emTransacao';
 
 const COLUNAS = `id, padrao_id, usuario_id, valor_consumo, valor_injecao, foto_local_uri,
                  latitude, longitude, precisao_metros, medido_em, data_local, status,
@@ -62,7 +63,7 @@ export class LeituraRepositorySQLite implements ILeituraRepository {
    * instante em que o dia ficou sem leitura vigente.
    */
   async salvarSubstituindo(nova: Leitura, vigente: Leitura): Promise<void> {
-    await this.db.withExclusiveTransactionAsync(async (tx) => {
+    await emTransacao(this.db, async (tx) => {
       await tx.runAsync(
         `UPDATE leituras SET status = ?, substituida_em = ?, substituida_por_id = ?
          WHERE id = ?`,

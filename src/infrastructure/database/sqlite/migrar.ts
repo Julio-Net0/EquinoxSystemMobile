@@ -1,5 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { Migracao } from './migrations/Migracao';
+import { emTransacao } from './emTransacao';
 
 /**
  * PRAGMAs aplicados a cada abertura do banco.
@@ -32,9 +33,7 @@ export async function migrar(db: SQLiteDatabase, migracoes: Migracao[]): Promise
     .filter((m) => m.versao > versao);
 
   for (const migracao of pendentes) {
-    await db.withExclusiveTransactionAsync(async (tx) => {
-      await migracao.aplicar(tx as SQLiteDatabase);
-    });
+    await emTransacao(db, (tx) => migracao.aplicar(tx));
 
     // Interpolação direta porque PRAGMA não aceita parâmetro; o valor vem da
     // lista de migrações do próprio código, nunca de entrada externa.

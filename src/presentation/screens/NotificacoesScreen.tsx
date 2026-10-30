@@ -128,7 +128,13 @@ export function NotificacoesScreen({
           <Cartao
             nivel={item.lida ? 'baixo' : 'base'}
             destacado={!item.lida}
-            onPress={item.lida ? undefined : () => onMarcarLida(item.notificacaoId)}
+            /* O card só é tocável quando não tem botão dentro: aninhar um
+               botão em outro é HTML inválido na web, e no aparelho faria o
+               toque em "Aprovar" disparar também o marcar-como-lida. Quem
+               aguarda decisão é marcado como lido pela própria decisão. */
+            onPress={item.lida || item.aguardandoDecisao
+              ? undefined
+              : () => onMarcarLida(item.notificacaoId)}
           >
             <View style={styles.linha}>
               <IconeTile icone={ICONES[item.tipo] ?? 'notifications'} tamanho={40} />

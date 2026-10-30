@@ -7,6 +7,7 @@ import { Usuario } from '@/domain/entities/Usuario';
 import { UUIDv4 } from '@/domain/value-objects/UUIDv4';
 import { nivelDe } from '@/domain/enums/PerfilEnum';
 import { UsuarioRow, usuarioDeRow, usuarioParaRow } from '../mappers/mappers';
+import { emTransacao } from '../emTransacao';
 
 const COLUNAS = `id, empresa_id, nome, usuario, email, senha_hash, nivel_acesso,
                  nivel_anterior, status, criado_em, autorizado_em, autorizado_por`;
@@ -23,7 +24,7 @@ export class UsuarioRepositorySQLite implements IUsuarioRepository {
   async salvar(usuario: Usuario): Promise<void> {
     const r = usuarioParaRow(usuario);
 
-    await this.db.withExclusiveTransactionAsync(async (tx) => {
+    await emTransacao(this.db, async (tx) => {
       await tx.runAsync(
         `INSERT INTO usuarios (${COLUNAS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
