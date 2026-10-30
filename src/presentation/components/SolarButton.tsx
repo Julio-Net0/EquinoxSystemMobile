@@ -1,112 +1,143 @@
 import React from 'react';
 import {
-  TouchableOpacity,
-  Text,
   ActivityIndicator,
+  Pressable,
+  PressableProps,
   StyleSheet,
-  TouchableOpacityProps,
-  ViewStyle,
-  TextStyle,
+  Text,
+  View,
 } from 'react-native';
-import { SolarTheme } from '@/constants/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialIcons } from '@expo/vector-icons';
+import { ALVO_TOQUE, Cores, Espaco, Overlay, Raio, Tipografia } from '@/constants/theme';
 
-interface SolarButtonProps extends TouchableOpacityProps {
-  title: string;
-  loading?: boolean;
-  variant?: 'primary' | 'secondary' | 'danger' | 'outline';
+export type VarianteBotao = 'primario' | 'secundario' | 'perigo' | 'fantasma';
+
+export interface SolarButtonProps extends Omit<PressableProps, 'style' | 'children'> {
+  titulo: string;
+  variante?: VarianteBotao;
+  carregando?: boolean;
+  icone?: keyof typeof MaterialIcons.glyphMap;
+  /** Ocupa a largura disponível. Padrão: true. */
+  largo?: boolean;
 }
 
-export const SolarButton: React.FC<SolarButtonProps> = ({
-  title,
-  loading = false,
-  variant = 'primary',
+/**
+ * Botão da identidade Equinox. O primário é o gradiente âmbar de 135° com texto
+ * preto e brilho, portado do `.solar-gradient-btn` do app antigo.
+ */
+export function SolarButton({
+  titulo,
+  variante = 'primario',
+  carregando = false,
+  icone,
+  largo = true,
   disabled,
-  style,
-  ...rest
-}) => {
-  const isBusy = loading || disabled;
+  ...resto
+}: SolarButtonProps) {
+  const inativo = disabled || carregando;
+  const corDoTexto = variante === 'primario' ? '#000000' : CORES_DE_TEXTO[variante];
 
-  let btnStyle: ViewStyle = styles.primaryBtn;
-  let textStyle: TextStyle = styles.primaryText;
-
-  if (variant === 'secondary') {
-    btnStyle = styles.secondaryBtn;
-    textStyle = styles.secondaryText;
-  } else if (variant === 'danger') {
-    btnStyle = styles.dangerBtn;
-    textStyle = styles.dangerText;
-  } else if (variant === 'outline') {
-    btnStyle = styles.outlineBtn;
-    textStyle = styles.outlineText;
-  }
+  const conteudo = carregando ? (
+    <ActivityIndicator color={corDoTexto} />
+  ) : (
+    <View style={styles.conteudo}>
+      {icone ? <MaterialIcons name={icone} size={18} color={corDoTexto} /> : null}
+      <Text style={[Tipografia.botao, { color: corDoTexto }]} numberOfLines={1}>
+        {titulo}
+      </Text>
+    </View>
+  );
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.8}
-      disabled={isBusy}
-      style={[styles.baseBtn, btnStyle, isBusy && styles.disabledBtn, style]}
-      {...rest}
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ disabled: !!inativo, busy: carregando }}
+      disabled={inativo}
+      style={({ pressed }) => [
+        styles.base,
+        largo && styles.largo,
+        variante !== 'primario' && estilosDeVariante[variante],
+        // Feedback de toque do app antigo: o botão encolhe 2%.
+        pressed && !inativo && styles.pressionado,
+        inativo && styles.inativo,
+      ]}
+      {...resto}
     >
-      {loading ? (
-        <ActivityIndicator color={variant === 'primary' ? '#000000' : SolarTheme.primary} />
+      {variante === 'primario' ? (
+        <LinearGradient
+          colors={[Cores.primary, Cores.primaryDim]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.gradiente}
+        >
+          {conteudo}
+        </LinearGradient>
       ) : (
-        <Text style={[styles.baseText, textStyle]}>{title}</Text>
+        conteudo
       )}
-    </TouchableOpacity>
+    </Pressable>
   );
+}
+
+const CORES_DE_TEXTO: Record<VarianteBotao, string> = {
+  primario: '#000000',
+  secundario: Cores.primary,
+  perigo: Cores.error,
+  fantasma: Cores.onSurfaceVariant,
 };
 
-const styles = StyleSheet.create({
-  baseBtn: {
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginVertical: 6,
-  },
-  primaryBtn: {
-    backgroundColor: SolarTheme.primary,
-  },
-  primaryText: {
-    color: '#000000',
-    fontWeight: '800',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
-  secondaryBtn: {
-    backgroundColor: SolarTheme.surfaceContainerHigh,
+const estilosDeVariante = StyleSheet.create({
+  secundario: {
+    backgroundColor: Overlay.primaryFraco,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: Overlay.primaryBorda,
+    paddingVertical: Espaco.lg,
+    paddingHorizontal: Espaco.xl,
   },
-  secondaryText: {
-    color: SolarTheme.text,
-    fontWeight: '700',
-  },
-  dangerBtn: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+  perigo: {
+    backgroundColor: Overlay.errorFraco,
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.4)',
+    borderColor: Overlay.errorBorda,
+    paddingVertical: Espaco.lg,
+    paddingHorizontal: Espaco.xl,
   },
-  dangerText: {
-    color: SolarTheme.rose,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  outlineBtn: {
+  fantasma: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: SolarTheme.primary,
+    borderColor: Overlay.bordaForte,
+    paddingVertical: Espaco.lg,
+    paddingHorizontal: Espaco.xl,
   },
-  outlineText: {
-    color: SolarTheme.primary,
-    fontWeight: '700',
-    textTransform: 'uppercase',
+});
+
+const styles = StyleSheet.create({
+  base: {
+    minHeight: ALVO_TOQUE,
+    borderRadius: Raio.md,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  baseText: {
-    fontSize: 14,
+  largo: { alignSelf: 'stretch' },
+  gradiente: {
+    width: '100%',
+    paddingVertical: Espaco.lg,
+    paddingHorizontal: Espaco.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    // Brilho âmbar do botão principal.
+    shadowColor: Overlay.brilhoPrimary,
+    shadowOpacity: 1,
+    shadowRadius: 15,
+    shadowOffset: { width: 0, height: 0 },
   },
-  disabledBtn: {
-    opacity: 0.5,
+  conteudo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Espaco.sm,
   },
+  pressionado: { transform: [{ scale: 0.98 }] },
+  inativo: { opacity: 0.5 },
 });
