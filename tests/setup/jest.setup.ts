@@ -2,6 +2,7 @@
 // Mocks dos módulos nativos do Expo. O app roda 100% local, então câmera, GPS,
 // arquivos e cripto são substituídos por dublês determinísticos.
 
+jest.mock('expo-font', () => ({ isLoaded: jest.fn(() => true), isLoading: jest.fn(() => false), loadAsync: jest.fn(async () => {}), useFonts: () => [true, null] }));
 jest.mock('expo-camera', () => ({
   CameraView: 'CameraView',
   CameraType: { back: 'back', front: 'front' },

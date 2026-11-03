@@ -33,7 +33,7 @@ export default function TabsLayout() {
         options={{
           title: 'Início',
           tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="home" size={size} color={color} />
+            <MaterialIcons name="home" size={size} color={String(color)} />
           ),
         }}
       />
@@ -43,7 +43,7 @@ export default function TabsLayout() {
         options={{
           title: 'Leituras',
           tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="document-scanner" size={size} color={color} />
+            <MaterialIcons name="document-scanner" size={size} color={String(color)} />
           ),
         }}
       />
@@ -54,7 +54,7 @@ export default function TabsLayout() {
           title: 'Avisos',
           href: ehAdministrador ? undefined : null,
           tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="notifications" size={size} color={color} />
+            <MaterialIcons name="notifications" size={size} color={String(color)} />
           ),
         }}
       />
@@ -64,7 +64,7 @@ export default function TabsLayout() {
         options={{
           title: 'Perfil',
           tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="person" size={size} color={color} />
+            <MaterialIcons name="person" size={size} color={String(color)} />
           ),
         }}
       />

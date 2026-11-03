@@ -99,7 +99,7 @@ export function NotificacoesScreen({
             <Cartao nivel="baixo">
               <Text style={styles.erro}>{erro}</Text>
             </Cartao>
-          ) : null
+          ) : undefined
         }
         ListEmptyComponent={
           carregando ? (
@@ -122,7 +122,7 @@ export function NotificacoesScreen({
                 onPress={onCarregarMais}
               />
             </View>
-          ) : null
+          ) : undefined
         }
         renderItem={({ item }) => (
           <Cartao

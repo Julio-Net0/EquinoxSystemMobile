@@ -230,7 +230,7 @@ SDK do projeto, aparece:
 • The project you opened uses SDK 57.
 ```
 
-O projeto está em **SDK 57** (`expo ~57.0.20`), fixado no `AGENTS.md`.
+O projeto foi atualizado para a **SDK 58** (`expo ~58.0.22`), fixado no `AGENTS.md`, compatível com o Expo Go atual da Play Store. Caso uma versão futura do Expo Go (SDK 59+) seja lançada antes de nova migração, as opções abaixo continuam válidas:
 
 ### Solução rápida: Expo Go da SDK 57
 
