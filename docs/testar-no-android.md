@@ -222,26 +222,40 @@ não tem coordenada.
 
 ## 8. "Project is incompatible with this version of Expo Go"
 
-A Play Store só distribui o Expo Go mais recente. Quando ele passa à frente da
-SDK do projeto, aparece:
+**Hoje isto não deve acontecer.** O projeto está na **SDK 58**
+(`expo ~58.0.22`), que é a mesma do Expo Go distribuído nas lojas. Basta
+instalar o Expo Go pela Play Store, sem sideload e sem desligar atualização
+automática.
+
+O erro volta quando o Expo Go das lojas passa à frente do projeto — o que
+aconteceu com a SDK 57 e vai acontecer de novo quando sair a 59:
 
 ```
-• The installed version of Expo Go is for SDK 58.
-• The project you opened uses SDK 57.
+• The installed version of Expo Go is for SDK 59.
+• The project you opened uses SDK 58.
 ```
 
-O projeto foi atualizado para a **SDK 58** (`expo ~58.0.22`), fixado no `AGENTS.md`, compatível com o Expo Go atual da Play Store. Caso uma versão futura do Expo Go (SDK 59+) seja lançada antes de nova migração, as opções abaixo continuam válidas:
+Duas saídas, nessa ordem de preferência.
 
-### Solução rápida: Expo Go da SDK 57
+### Migrar o projeto (foi o que fizemos)
 
-Em https://expo.dev/go escolha **SDK 57** no seletor e **Android → Install**,
-ou vá direto a
-[expo.dev/go?sdkVersion=57&platform=android&device=true](https://expo.dev/go?sdkVersion=57&platform=android&device=true)
-e leia o QR com o celular. O APK vem do repositório oficial de releases:
+É a saída definitiva enquanto o app depender do Expo Go. Atualiza o `expo` e
+todos os pacotes nativos para as versões homologadas da SDK nova e revalida o
+gate inteiro:
 
+```bash
+npx expo install expo@latest --fix
 ```
-https://github.com/expo/expo-go-releases/releases/download/Expo-Go-57.0.9/Expo-Go-57.0.9.apk
-```
+
+Depois, obrigatoriamente, `npx tsc --noEmit` e `npx jest`. A migração da 57 para
+a 58 custou três ajustes de tipo nas telas e um mock novo de `expo-font` no
+setup do Jest — está registrada em `docs/decisions.md` seção 9.14.
+
+### Instalar o Expo Go da SDK anterior (paliativo)
+
+Serve para destravar um teste sem mexer no projeto. Em https://expo.dev/go
+escolha a SDK que o projeto usa no seletor, **Android → Install**, e leia o QR
+com o celular. O APK vem do repositório oficial de releases do Expo.
 
 Três detalhes:
 
@@ -277,12 +291,14 @@ eas build --platform android --profile development
 Ao terminar, leia o QR do terminal para instalar no celular. Depois,
 `npx expo start` passa a apontar para o seu build em vez do Expo Go.
 
-### O que não recomendo agora
+### Sobre adiar a migração
 
-Subir o projeto para a SDK 58. É uma migração com risco real — React Native,
-Expo Router e os seis módulos nativos de uma vez — e o problema aqui é a
-versão do Expo Go, não o projeto. Vale fazer quando houver tempo de
-revalidar a suíte, não para destravar um teste.
+A recomendação anterior aqui era adiar a subida para a SDK 58, por ser uma
+migração com risco real — React Native, Expo Router e os seis módulos nativos
+de uma vez. Ela foi feita em 03/11/2026 e custou menos que o previsto: três
+ajustes de tipo e um mock de `expo-font`. O que torna isso barato é o gate
+(`tsc --noEmit` mais 765 testes), que diz em um minuto se a migração quebrou
+alguma coisa.
 
 ---
 

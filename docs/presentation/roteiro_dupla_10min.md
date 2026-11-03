@@ -3,8 +3,12 @@
 Deck: `slides/apresentacao_camera_geolocalizacao_persistencia.html`
 Tema da banca: **Câmera, Geolocalização e Persistência de Dados**
 
-**Pessoa A** abre e entrega a arquitetura (slides 1 a 4).
-**Pessoa B** entrega execução, infraestrutura e fechamento (slides 5 a 8).
+**Pessoa A** abre e entrega a arquitetura (itens 1 a 4 — páginas 1 a 6).
+**Pessoa B** entrega execução, infraestrutura e fechamento (itens 5 a 8 — páginas 7 a 12).
+
+O deck tem **12 páginas para 8 itens**: os itens 1, 4, 6 e 7 ocupam duas páginas
+cada. A virada de página dentro de um item é uma pausa natural da fala, não uma
+troca de assunto.
 
 Total falado: **9:30**, deixando 30 s de folga. Apresentação sempre estica.
 
@@ -12,26 +16,27 @@ Total falado: **9:30**, deixando 30 s de folga. Apresentação sempre estica.
 
 ## Cronômetro
 
-| Slide | Quem | Entra em | Dura | Item da banca |
-|:-----:|:----:|:--------:|:----:|---|
-| 1 | **A** | 00:00 | 1:10 | 1. Abertura e contextualização |
-| 2 | **A** | 01:10 | 1:40 | 2. Clean Architecture e DDD |
-| 3 | **A** | 02:50 | 1:10 | 3. Estratégia de TDD |
-| 4 | **A** | 04:00 | 1:15 | 4. O domínio e as interfaces |
+| Páginas | Quem | Entra em | Dura | Item da banca |
+|:-------:|:----:|:--------:|:----:|---|
+| 1–2 | **A** | 00:00 | 1:10 | 1. Abertura e contextualização |
+| 3 | **A** | 01:10 | 1:40 | 2. Clean Architecture e DDD |
+| 4 | **A** | 02:50 | 1:10 | 3. Estratégia de TDD |
+| 5–6 | **A** | 04:00 | 1:15 | 4. O domínio e as interfaces |
 | — | — | **05:15** | — | **passagem de bastão** |
-| 5 | **B** | 05:15 | 0:55 | 5. O teste na prática |
-| 6 | **B** | 06:10 | 1:25 | 6. Infraestrutura e adaptadores |
-| 7 | **B** | 07:35 | 1:25 | 7. Salvando no banco local |
-| 8 | **B** | 09:00 | 0:30 | Demonstração e conclusão |
+| 7 | **B** | 05:15 | 0:55 | 5. O teste na prática |
+| 8–9 | **B** | 06:10 | 1:25 | 6. Infraestrutura e adaptadores |
+| 10–11 | **B** | 07:35 | 1:25 | 7. Salvando no banco local |
+| 12 | **B** | 09:00 | 0:30 | Demonstração e conclusão |
 
-Se às **05:15** a pessoa A ainda estiver no slide 3, corta o slide 4 para 40 s
-falando só do `ICameraGateway`. É o ajuste mais barato do roteiro.
+Se às **05:15** a pessoa A ainda estiver na página 4, corta o item 4 para 40 s:
+fala só do `ICameraGateway` na página 5 e passa pela 6 apontando o invariante da
+foto. É o ajuste mais barato do roteiro.
 
 ---
 
 # PESSOA A — slides 1 a 4
 
-## Slide 1 · Abertura — 1:10
+## Item 1 · Abertura — páginas 1 e 2 — 1:10
 
 **Abre pelo problema, não pelo app.**
 
@@ -48,12 +53,13 @@ falando só do `ICameraGateway`. É o ajuste mais barato do roteiro.
 - **SQLite local** — grava na hora, sem nuvem, sem sincronização
 
 **Os três números do rodapé** (aponta): foto em 1080p e ~300 KB, raio de apoio
-de 500 m, 100% offline.
+de 500 m, 100% offline. Vira para a **página 2** e mostra a árvore de pastas:
+é onde cada uma dessas três coisas vive no código.
 
 > "Hoje a gente vai mostrar onde cada uma dessas três coisas vive na
 > arquitetura, como elas são testadas, e onde elas caem no banco do aparelho."
 
-## Slide 2 · Clean Architecture e DDD — 1:40
+## Item 2 · Clean Architecture e DDD — página 3 — 1:40
 
 **Este é o slide mais importante da pessoa A. Use a matriz.**
 
@@ -84,7 +90,7 @@ Percorre a matriz de cima para baixo:
 *(Arquivos, se perguntarem: `tests/unit/arquitetura/dominio-sem-dependencias.spec.ts`
 e `sem-instanciacao-em-telas.spec.ts`.)*
 
-## Slide 3 · Estratégia de TDD — 1:10
+## Item 3 · Estratégia de TDD — página 4 — 1:10
 
 **Abre com a dificuldade real.**
 
@@ -109,25 +115,25 @@ e `sem-instanciacao-em-telas.spec.ts`.)*
 > "Essa é a parte que o desacoplamento paga. Sem a porta no domínio, nada disso
 > seria testável sem aparelho."
 
-## Slide 4 · O domínio e as interfaces — 1:15
+## Item 4 · O domínio e as interfaces — páginas 5 e 6 — 1:15
 
 **O ponto central deste slide: a interface não é cópia do Expo.**
 
 > "Olhem o `ICameraGateway`. Três métodos: tem permissão, pede permissão,
-> captura. Só isso. Agora, no Expo SDK 57 a câmera é um **componente React**, e
+> captura. Só isso. Agora, no Expo SDK 58 a câmera é um **componente React**, e
 > a função que tira a foto vive numa `ref`. Isso não cabe numa interface de
 > domínio. Se a gente tivesse copiado a API do Expo para dentro do domínio, o
 > domínio passaria a conhecer React."
 
 > "Então a interface foi desenhada pela necessidade do negócio, não pela
 > biblioteca. A bagunça do ciclo de vida do React fica inteira na
-> infraestrutura — e a pessoa B mostra como, no slide 6."
+> infraestrutura — e a pessoa B mostra como, no item 6."
 
-**Os invariantes da `Leitura`** (aponta o segundo bloco):
+**Vira para a página 6, os invariantes da `Leitura`:**
 
 - `fotoLocalUri` vazio → lança. **Não existe leitura sem comprovante.**
 - o dia local tem de corresponder ao instante medido — é o que amarra o fuso
-  UTC-3 e sustenta a regra de uma leitura por dia que vem no slide 7
+  UTC-3 e sustenta a regra de uma leitura por dia que vem no item 7
 - `coordenadas` aceita nulo, **de propósito**: casa de medidor tem sombra de
   satélite, e travar o técnico seria pior que registrar sem GPS
 
@@ -139,7 +145,7 @@ e `sem-instanciacao-em-telas.spec.ts`.)*
 
 # PESSOA B — slides 5 a 8
 
-## Slide 5 · O teste na prática — 0:55
+## Item 5 · O teste na prática — página 7 — 0:55
 
 **Este é o slide mais curto. Números primeiro, depois um exemplo.**
 
@@ -147,7 +153,7 @@ e `sem-instanciacao-em-telas.spec.ts`.)*
 > 96,6% no domínio, 99,2% na aplicação, 97% na infraestrutura. São quatro
 > projetos Jest — domínio, infra, integração e UI."
 
-**Escolhe um dos dois blocos e comenta** (não os dois, não há tempo):
+**Escolhe um dos dois blocos de teste e comenta** (não os dois, não há tempo):
 
 - o de compressão: `expect(contexto.resize).toHaveBeenCalledWith({ width: 1080 })`
 - ou o de Haversine, que confere os 500 m com coordenadas reais
@@ -156,18 +162,18 @@ e `sem-instanciacao-em-telas.spec.ts`.)*
 > dublê de banco. É o que valida o schema, o índice e as transações antes de
 > chegar no celular."
 
-## Slide 6 · Infraestrutura e adaptadores — 1:25
+## Item 6 · Infraestrutura e adaptadores — páginas 8 e 9 — 1:25
 
-**Três adaptadores, um problema resolvido em cada. Esse é o ritmo.**
+**Três adaptadores, um problema em cada. A página 8 é a câmera; a 9 é compressão e GPS.**
 
 **1. Câmera — o problema da `ref`:**
-> "A `CameraView` do SDK 57 admite um preview ativo por vez, e a captura vive
+> "A `CameraView` do SDK 58 admite um preview ativo por vez, e a captura vive
 > numa ref React. A solução: o gateway expõe um `registrarCapturador`. A tela,
 > ao montar, registra a função ligada à ref e recebe uma função de limpeza. O
 > domínio continua só pedindo 'capture uma foto'."
 
 **2. Foto — API nova e orçamento de tamanho:**
-> "Usamos a API contextual `ImageManipulator.manipulate`, do SDK 57 — o
+> "Usamos a API contextual `ImageManipulator.manipulate`, do SDK 58 — o
 > `manipulateAsync` antigo está deprecado. Redimensiona só a largura para 1080,
 > preservando a proporção, e tenta as qualidades 0.8, 0.7, 0.6, 0.5 até o
 > arquivo caber em ~300 KB. Depois move do cache para `Paths.document`, porque a
@@ -180,9 +186,9 @@ e `sem-instanciacao-em-telas.spec.ts`.)*
 > devolve **nulo** — não lança. Em subsolo, travar o técnico esperando satélite
 > seria o pior resultado possível."
 
-## Slide 7 · Salvando no banco local — 1:25
+## Item 7 · Salvando no banco local — páginas 10 e 11 — 1:25
 
-**Começa pelo schema. É a resposta direta à pergunta do item.**
+**A página 10 é o schema — a resposta direta à pergunta do item. Começa por ela.**
 
 > "Essa é a tabela `leituras`. Reparem em duas linhas: `foto_local_uri` é
 > `NOT NULL`, e as três colunas de GPS — latitude, longitude e precisão — aceitam
@@ -194,7 +200,7 @@ e `sem-instanciacao-em-telas.spec.ts`.)*
 > por dia local. A substituída e a descartada saem do índice e ficam como
 > histórico."
 
-**Por fim a transação, apontando o segundo bloco:**
+**Vira para a página 11, a transação:**
 > "Quando o técnico refaz a medição no mesmo dia, as duas operações vão na mesma
 > transação exclusiva: a antiga passa para 'substituida' **antes** de a nova
 > entrar. Invertido, o índice rejeitaria. E se qualquer uma falhar, as duas
@@ -205,7 +211,7 @@ e `sem-instanciacao-em-telas.spec.ts`.)*
 > uma notificação para o administrador decidir. A exceção vira trabalho de
 > escritório, não bloqueio em campo."
 
-## Slide 8 · Demonstração e conclusão — 0:30
+## Item 8 · Demonstração e conclusão — página 12 — 0:30
 
 **Meio minuto. Não detalhe, feche.**
 
@@ -224,8 +230,8 @@ e `sem-instanciacao-em-telas.spec.ts`.)*
 
 - **Quem clica.** Uma pessoa só controla o teclado o tempo todo, inclusive na
   parte da outra. Troca de mão no meio custa 10 segundos e sempre dá errado.
-- **A passagem de bastão** é uma frase, não uma pausa. Fica no fim do slide 4.
-- **Se estourar o tempo**, o corte é o slide 8: vai direto para a frase final.
+- **A passagem de bastão** é uma frase, não uma pausa. Fica no fim da página 6.
+- **Se estourar o tempo**, o corte é a página 12: vai direto para a frase final.
 - **Quem não está falando** fica atento às perguntas, anotando.
 
 ## Teste antes de entrar
@@ -233,7 +239,7 @@ e `sem-instanciacao-em-telas.spec.ts`.)*
 1. Abrir o deck **na rede da sala**. Ele puxa fonte do Google Fonts e o
    highlight.js de CDN. Sem internet o código ainda aparece, mas sem cor e com
    fonte feia. Se a rede for ruim, abra o deck antes e **não feche a aba**.
-2. Passar pelo slide 7 uma vez, conferindo que o bloco de SQL coube na tela.
+2. Passar pela página 10 uma vez, conferindo que o bloco de SQL coube na tela.
 3. `F` entra em tela cheia. Setas navegam.
 4. Não abra `slides/apresentacao_prova.html` por engano — é um deck antigo, de
    antes da refatoração, e ainda fala em Supabase.
