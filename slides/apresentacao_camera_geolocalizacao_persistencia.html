@@ -279,6 +279,26 @@
 
   .nav-zone { position: absolute; top: 0; bottom: 60px; width: 10%; z-index: 5; cursor: pointer; }
   .nav-zone.left { left: 0; } .nav-zone.right { right: 0; }
+
+  /* Credenciais do seed, para a banca abrir o app durante a apresentação. */
+  .creds {
+    border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+    background: color-mix(in srgb, var(--accent) 9%, rgba(15, 23, 42, 0.72));
+    border-radius: 16px; padding: 16px 20px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .creds-title {
+    font-size: 17px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--accent);
+  }
+  .creds-linha { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 17px; color: #cbd5e1; }
+  .creds-linha .rot { font-size: 14px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); min-width: 56px; }
+  .creds-linha code {
+    font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 600;
+    padding: 5px 11px; border-radius: 9px; color: #f1f5f9;
+    background: rgba(15, 23, 42, 0.8); border: 1px solid var(--border);
+  }
+  .creds-nota { font-size: 13.5px; color: var(--muted); line-height: 1.4; }
 </style>
 </head>
 <body>
@@ -304,6 +324,23 @@
           <div class="stat"><b>1080p</b><span>~300 KB em Disco</span></div>
           <div class="stat"><b>500 m</b><span>Raio Apoio GPS</span></div>
           <div class="stat"><b>100%</b><span>Offline SQLite</span></div>
+        </div>
+
+        <div class="creds anim">
+          <div class="creds-title">▶ Abra e teste agora, no seu celular</div>
+          <div class="creds-linha">
+            <span class="rot">Login</span>
+            <code>tecnico</code><code>admin</code><code>super</code>
+          </div>
+          <div class="creds-linha">
+            <span class="rot">Senha</span>
+            <code>Equinox@2026</code>
+            <span>a mesma para os três</span>
+          </div>
+          <p class="creds-nota">
+            Contas de demonstração criadas pelo próprio app no SQLite do aparelho,
+            na primeira abertura. Não há servidor nem conta em nuvem.
+          </p>
         </div>
       </div>
       <div class="col-code">
