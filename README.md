@@ -19,7 +19,7 @@ O Equinox Mobile é um aplicativo **100% Mobile, Multi-Tenant e Offline-First**,
 
 O sistema foi desenhado seguindo a filosofia de **Clean Architecture**, **Domain-Driven Design (DDD)** e **Test-Driven Development (TDD)**, utilizando as seguintes tecnologias:
 
-- **Plataforma/Framework:** React Native + Expo SDK 57 (Expo Router)
+- **Plataforma/Framework:** React Native + Expo SDK 58 (Expo Router)
 - **Linguagem:** TypeScript v5+ (`strict: true`)
 - **Backend / Nuvem:** Supabase (Auth, Storage, PostgreSQL)
 - **Persistência Local:** SQLite (Fonte Única de Verdade em modo offline)

@@ -1,4 +1,9 @@
-const alias = { '^@/(.*)$': '<rootDir>/src/$1' };
+const jestExpoPreset = require('jest-expo/jest-preset');
+
+const alias = {
+  ...jestExpoPreset.moduleNameMapper,
+  '^@/(.*)$': '<rootDir>/src/$1',
+};
 
 // Pacotes publicados em ESM/Flow que precisam passar pelo transform do jest-expo.
 const transformIgnore = [
@@ -17,7 +22,7 @@ module.exports = {
       // checa tipos é o `tsc --noEmit` do gate, não o executor de teste.
       displayName: 'dominio',
       preset: 'jest-expo',
-      testEnvironment: 'node',
+
       transformIgnorePatterns: transformIgnore,
       testMatch: [
         '<rootDir>/tests/unit/domain/**/*.spec.ts',

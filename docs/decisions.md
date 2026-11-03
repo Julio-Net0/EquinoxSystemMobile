@@ -502,3 +502,24 @@ não aparecer por um instante.
 
 **Escopo de dados** não é guarda de rota: continua nos casos de uso, que
 recebem o ator da sessão e aplicam `RegraAutorizacaoUsuarioService`.
+
+
+### 9.14 Migração para o Expo SDK 58 (Compatibilidade com o Expo Go)
+
+**Contexto.** A Play Store e a App Store atualizaram o aplicativo **Expo Go**
+para a **SDK 58**, recusando a abertura de projetos em SDK 57 com a mensagem
+`The installed version of Expo Go is for SDK 58. The project you opened uses SDK 57`.
+
+**Opções.** (a) Exigir sideload de APK antigo do Expo Go SDK 57 em cada aparelho.
+(b) Atualizar o projeto e todos os pacotes nativos para as versões homologadas da
+**Expo SDK 58** (`expo ~58.0.22`, `react-native 0.88.1`, `react 19.3.0`,
+`expo-router ~58.0.29`, `expo-sqlite ~58.0.15`, `expo-camera ~58.0.14`,
+`expo-location ~58.0.20`, `expo-image-manipulator ~58.0.16`, `jest-expo ~58.0.13`)
+e revalidar 100% da suíte automatizada e tipagem estrita.
+
+**Decisão.** (b). Todos os pacotes foram atualizados para as versões oficiais da
+SDK 58 e validados com `npx tsc --noEmit` e as 54 suítes de testes (765 testes).
+
+**Justificativa.** Permite testar imediatamente o aplicativo na versão atual do
+Expo Go distribuída nas lojas oficiais sem necessidade de instalar APKs antigos
+ou desabilitar atualizações automáticas nos aparelhos da equipe e da banca.

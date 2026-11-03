@@ -1,7 +1,7 @@
 # Diretrizes Gerais para Agentes & Assistentes de Código (Equinox Mobile)
 
 ## 1. Stack Tecnológica Oficial
-- **Plataforma/Framework:** React Native + Expo SDK 57 (v57.0.0) com Expo Router (file-based routing).
+- **Plataforma/Framework:** React Native + Expo SDK 58 (v58.0.0) com Expo Router (file-based routing).
 - **Linguagem:** TypeScript v5+ (`strict: true`) com imports absolutos via `@/*` (`./src/*`).
 - **Testes (TDD):** Jest em quatro projetos (`jest.config.js`), **todos com o preset `jest-expo`**: `dominio` (domínio, aplicação e arquitetura, em `testEnvironment: 'node'`), `infra`, `integracao` e `ui`. Um transform só, de propósito: com dois, um arquivo carregado por dois projetos gerava mapas de cobertura incompatíveis e o merge do istanbul somava errado (ver `docs/decisions.md` seção 9.11). `@testing-library/react-native` para render — nele `render` e `fireEvent` são **assíncronos**, e sem `await` as consultas não existem. **Atenção:** nenhum projeto checa tipos (Babel) — `npx tsc --noEmit` é obrigatório no gate.
 - **Persistência Local (Offline-First):** `expo-sqlite` (SQLite local com UUIDv4 em todas as PKs).
@@ -14,8 +14,8 @@
 - **Formulários & Validação:** React Hook Form + Zod estão instalados mas **ainda não são usados**: as telas portadas validam com estado local e as mensagens exatas do app antigo. Adotar os dois é refatoração prevista, não dívida silenciosa.
 
 ## 2. Expo & Documentação Oficial
-- **Versão:** Expo SDK 57 (v57.0.0).
-- **Documentação:** Sempre consulte a documentação oficial da versão exata em https://docs.expo.dev/versions/v57.0.0/ antes de sugerir ou escrever qualquer código de infraestrutura Expo.
+- **Versão:** Expo SDK 58 (v58.0.0).
+- **Documentação:** Sempre consulte a documentação oficial da versão exata em https://docs.expo.dev/versions/v58.0.0/ antes de sugerir ou escrever qualquer código de infraestrutura Expo.
 
 ## 3. Execução de Comandos Shell & NPM
 - **Ambiente Node/NPM:** Antes de executar qualquer comando `npm` pela primeira vez na sessão, tente incluir o caminho do Node ou executar:

@@ -57,7 +57,7 @@ export function AutorizacoesScreen({
             <Cartao nivel="baixo">
               <Text style={styles.erro}>{erro}</Text>
             </Cartao>
-          ) : null
+          ) : undefined
         }
         ListEmptyComponent={
           carregando ? (
