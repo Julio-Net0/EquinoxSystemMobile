@@ -711,25 +711,43 @@ export class CameraGatewayExpo implements ICameraGateway {
         <div class="window anim">
           <div class="window-bar"><i></i><i></i><i></i><span>src/infrastructure/hardware/midia/<b>ArquivoFotoGatewayExpo.ts</b></span></div>
 <script type="text/plain" data-lang="typescript">
-export class ArquivoFotoGatewayExpo implements IArquivoFotoGateway {
-  async comprimirEPersistir(uriTemp: string, nome: string) {
-    const ctx = ImageManipulator.manipulate(uriTemp);
-    ctx.resize({ width: 1080 });
-    const img = await ctx.renderAsync();
+async comprimirEPersistir(uriTemp: string, nome: string) {
+  const ctx = ImageManipulator.manipulate(uriTemp);
+  ctx.resize({ width: 1080 });                 // só a largura: preserva a proporção
+  const img = await ctx.renderAsync();
 
-    let salva = await img.saveAsync({
-      format: SaveFormat.JPEG, compress: 0.8
-    });
-    for (const q of [0.7, 0.6, 0.5]) {
-      if (new File(salva.uri).size <= 320000) break;
-      salva = await img.saveAsync({
-        format: SaveFormat.JPEG, compress: q
-      });
-    }
+  let salva = await img.saveAsync({ format: SaveFormat.JPEG, compress: 0.8 });
+  for (const q of [0.7, 0.6, 0.5]) {           // só insiste se não coube
+    if (new File(salva.uri).size <= 320000) break;
+    salva = await img.saveAsync({ format: SaveFormat.JPEG, compress: q });
+  }
 
-    const destino = new File(Paths.document, `leituras/${nome}.jpg`);
-    await new File(salva.uri).move(destino);
-    return { uri: destino.uri, bytes: destino.size ?? 0, ... };
+  const destino = new File(Paths.document, `leituras/${nome}.jpg`);
+  await new File(salva.uri).move(destino);     // cache é volátil; document não
+  return { uri: destino.uri, bytes: destino.size ?? 0, ... };
+}
+</script>
+        </div>
+        <div class="window anim">
+          <div class="window-bar"><i></i><i></i><i></i><span>src/infrastructure/hardware/location/<b>LocationGatewayExpo.ts</b> (Desistir é Decisão)</span></div>
+<script type="text/plain" data-lang="typescript">
+async obterCoordenadas(opcoes?: { timeoutMs?: number }) {
+  if (!(await this.temPermissao())) return null;    // 1. permissão negada
+
+  const desistir = new Promise<null>((resolve) =>
+    setTimeout(() => resolve(null), opcoes?.timeoutMs ?? 10_000));
+
+  try {
+    const posicao = await Promise.race([
+      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
+      desistir,
+    ]);
+    if (!posicao) return null;                      // 2. estourou os 10 s
+
+    return new CoordenadasGPS(posicao.coords.latitude, posicao.coords.longitude,
+      posicao.coords.accuracy ?? null, new Date(posicao.timestamp));
+  } catch {
+    return null;                                    // 3. GPS desligado ou erro
   }
 }
 </script>
