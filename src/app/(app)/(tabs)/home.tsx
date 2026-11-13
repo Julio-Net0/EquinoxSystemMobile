@@ -24,6 +24,7 @@ export default function HomeRoute() {
       onAutorizacoes={() => router.push('/(app)/admin/autorizacoes')}
       onUsuarios={() => router.push('/(app)/admin/usuarios')}
       onEstrutura={() => router.push('/(app)/admin/estrutura')}
+      onLeiturasUsina={() => router.push('/(app)/admin/leituras-usina')}
     />
   );
 }

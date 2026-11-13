@@ -29,6 +29,7 @@ describe('Container', () => {
       'autenticar', 'cadastrarPendente', 'autorizar', 'gerenciarUsuarios',
       'gerenciarEmpresas', 'gerenciarEstrutura', 'perfil', 'consultarCatalogo',
       'registrarLeitura', 'decidirLeitura', 'notificacoes', 'avaliarAtrasadas', 'purgar',
+      'consultarLeiturasUsina',
     ];
 
     for (const nome of esperados) expect(casos[nome]).toBeDefined();

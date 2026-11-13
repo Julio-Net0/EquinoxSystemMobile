@@ -24,6 +24,7 @@ export interface HomeScreenProps {
   onAutorizacoes(): void;
   onUsuarios(): void;
   onEstrutura(): void;
+  onLeiturasUsina?(): void;
 }
 
 const primeiroNome = (nome: string): string => nome.trim().split(/\s+/)[0] ?? nome;
@@ -47,6 +48,7 @@ export function HomeScreen({
   onAutorizacoes,
   onUsuarios,
   onEstrutura,
+  onLeiturasUsina,
 }: HomeScreenProps) {
   const { top } = useSafeAreaInsets();
   const ehAdministrador = perfil === PerfilEnum.ADMIN || perfil === PerfilEnum.SUPER_ADMIN;
@@ -116,6 +118,14 @@ export function HomeScreen({
             subtitulo="Empresas, endereços e padrões"
             onPress={onEstrutura}
           />
+          {onLeiturasUsina ? (
+            <AcaoCard
+              icone="solar-power"
+              titulo="Leituras da usina"
+              subtitulo="Acompanhe medições diárias, substituições e alertas"
+              onPress={onLeiturasUsina}
+            />
+          ) : null}
         </View>
       ) : null}
 

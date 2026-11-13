@@ -523,3 +523,49 @@ SDK 58 e validados com `npx tsc --noEmit` e as 54 suítes de testes (765 testes)
 **Justificativa.** Permite testar imediatamente o aplicativo na versão atual do
 Expo Go distribuída nas lojas oficiais sem necessidade de instalar APKs antigos
 ou desabilitar atualizações automáticas nos aparelhos da equipe e da banca.
+
+### 9.15 Tela de Monitoramento Diário de Usinas e Medidores (Admin e SuperAdmin)
+
+**Contexto.** Administradores e SuperAdmins necessitavam de uma visão analítica
+centralizada para acompanhar todas as leituras de um determinado dia em uma usina
+específica. Essa visão precisava detalhar o estado de cada medidor (padrão) da usina
+(lido ou pendente), permitir inspecionar o histórico de substituições no dia caso
+tenha ocorrido releitura (last-write-wins), e alertar visualmente quando o valor
+registrado estivesse fora do padrão histórico (anomalia de valor menor que a leitura
+anterior acumulada).
+
+**Opções Consideradas.**
+1. Adicionar filtros complexos na tela de catálogo geral de leituras.
+2. Criar caso de uso e tela dedicada (`ConsultarLeiturasDiaUsinaUseCase` + `LeiturasUsinaScreen`),
+   protegida no escopo de administração (`/admin/leituras-usina`), permitindo seleção rápida
+   de usinas, navegação de datas dia a dia, estatísticas consolidadas (KPIs), acordeão para
+   substituições diárias e exibição explícita do aviso de valor menor baseado em
+   `AvisoValorMenorService` e `ReferenciaLeituraService`.
+
+**Decisão.** **Opção 2.**
+
+**Justificativa e Consequências.**
+* **Isolamento de Escopo e Segurança:** A rota `(app)/admin/leituras-usina` é resguardada
+  pela guarda de papel (`nivelDe >= 2`), impedindo acesso de Técnicos. No caso de uso,
+  o `Admin` vê estritamente as usinas da sua empresa, enquanto o `SuperAdmin` possui visão
+  global de todas as usinas cadastradas.
+* **Transparência Operacional:** A interface destaca os valores vigentes de consumo (003)
+  e injeção (103), dados do autor e horário, além de indicar no rodapé a integridade da
+  localização e foto.
+* **Inspeção de Substituições:** Caso um padrão tenha sido relido no mesmo dia, a leitura
+  antiga é preservada com status `substituida` e pode ser expandida pelo administrador
+  para auditoria completa.
+* **Alerta de Histórico Integrado:** Se a medição for menor que o valor acumulado anterior,
+  o card do medidor exibe um alerta contextual explicando a divergência com base nas regras
+  já consolidadas no domínio.
+* **Qualidade e TDD:** Implementado seguindo o ciclo Red-Green-Refactor, com cobertura de
+  testes unitários no caso de uso (`ConsultarLeiturasDiaUsinaUseCase.spec.ts`) e testes de
+  componentes no padrão Testing Library (`LeiturasUsinaScreen.spec.tsx`), elevando a suíte
+  para 56 test suites (790 testes) e cobertura acima de 98%.
+* **Fluxo Otimizado & Calendário Mensal com Indicadores:**
+  Ao acessar, o usuário visualiza as usinas disponíveis em formato de cartões limpos e, ao
+  tocar em uma delas, abre automaticamente as leituras do dia atual. Caso queira consultar
+  outra data, ao tocar na barra de data abre-se um modal com o calendário mensal da usina,
+  onde os dias que possuem leituras registradas são sinalizados visualmente com pontos indicadores,
+  permitindo ao administrador auditar qualquer dia do histórico com um único toque.
+

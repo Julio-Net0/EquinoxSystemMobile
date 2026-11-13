@@ -26,6 +26,7 @@ import { GerenciarNotificacoesUseCase } from '@/application/use-cases/GerenciarN
 import { AvaliarLeiturasAtrasadasUseCase } from '@/application/use-cases/AvaliarLeiturasAtrasadasUseCase';
 import { PurgarLeiturasAntigasUseCase } from '@/application/use-cases/PurgarLeiturasAntigasUseCase';
 import { ConsultarDiagnosticoUseCase } from '@/application/use-cases/ConsultarDiagnosticoUseCase';
+import { ConsultarLeiturasDiaUsinaUseCase } from '@/application/use-cases/ConsultarLeiturasDiaUsinaUseCase';
 
 /**
  * Grafo de dependências do app, montado uma única vez.
@@ -74,6 +75,7 @@ export interface Container {
     avaliarAtrasadas: AvaliarLeiturasAtrasadasUseCase;
     purgar: PurgarLeiturasAntigasUseCase;
     diagnostico: ConsultarDiagnosticoUseCase;
+    consultarLeiturasUsina: ConsultarLeiturasDiaUsinaUseCase;
   };
 }
 
@@ -140,6 +142,14 @@ export function montarCasos(
       gateways.diagnostico,
       repos.leitura,
       gateways.arquivoFoto,
+    ),
+    consultarLeiturasUsina: new ConsultarLeiturasDiaUsinaUseCase(
+      repos.endereco,
+      repos.padrao,
+      repos.leitura,
+      repos.usuario,
+      repos.empresa,
+      relogio,
     ),
   };
 }
