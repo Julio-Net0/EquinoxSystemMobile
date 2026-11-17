@@ -9,12 +9,12 @@ import { CNPJ } from '@/domain/value-objects/CNPJ';
 import { CoordenadasGPS } from '@/domain/value-objects/CoordenadasGPS';
 import { ValorKwh } from '@/domain/value-objects/ValorKwh';
 import { DataLocal } from '@/domain/value-objects/DataLocal';
-import { SenhaHash } from '@/domain/value-objects/SenhaHash';
 import { PerfilEnum, NivelAcesso, nivelDe, perfilDeNivel } from '@/domain/enums/PerfilEnum';
 import { StatusUsuarioEnum } from '@/domain/enums/StatusUsuarioEnum';
 import { StatusLeituraEnum } from '@/domain/enums/StatusLeituraEnum';
 import { TipoNotificacaoEnum } from '@/domain/enums/TipoNotificacaoEnum';
 import { ResolucaoEnum } from '@/domain/enums/ResolucaoEnum';
+import { EstadoSyncEnum } from '@/domain/enums/EstadoSyncEnum';
 
 /** SQLite não tem booleano: 0/1. */
 const paraBool = (valor: number): boolean => valor === 1;
@@ -132,7 +132,6 @@ export interface UsuarioRow {
   nome: string;
   usuario: string;
   email: string;
-  senha_hash: string;
   nivel_acesso: number;
   nivel_anterior: number | null;
   status: string;
@@ -148,7 +147,6 @@ export const usuarioDeRow = (row: UsuarioRow, enderecosVinculados: UUIDv4[]): Us
     nome: row.nome,
     usuario: row.usuario,
     email: row.email,
-    senha: SenhaHash.deSerializado(row.senha_hash),
     perfil: perfilDeNivel(row.nivel_acesso as NivelAcesso),
     status: row.status as StatusUsuarioEnum,
     enderecosVinculados,
@@ -165,7 +163,6 @@ export const usuarioParaRow = (usuario: Usuario): UsuarioRow => ({
   nome: usuario.nome,
   usuario: usuario.usuario,
   email: usuario.email,
-  senha_hash: usuario.senha.serializar(),
   nivel_acesso: nivelDe(usuario.perfil),
   nivel_anterior: usuario.perfilAnterior ? nivelDe(usuario.perfilAnterior) : null,
   status: usuario.status,
@@ -183,6 +180,8 @@ export interface LeituraRow {
   valor_consumo: number;
   valor_injecao: number | null;
   foto_local_uri: string;
+  foto_remota_path: string | null;
+  sync_status: string;
   latitude: number | null;
   longitude: number | null;
   precisao_metros: number | null;
@@ -203,6 +202,8 @@ export const leituraDeRow = (row: LeituraRow): Leitura =>
     valorConsumo: new ValorKwh(row.valor_consumo),
     valorInjecao: row.valor_injecao === null ? null : new ValorKwh(row.valor_injecao),
     fotoLocalUri: row.foto_local_uri,
+    fotoRemotaPath: row.foto_remota_path,
+    estadoSync: row.sync_status as EstadoSyncEnum,
     coordenadas:
       row.latitude !== null && row.longitude !== null
         ? new CoordenadasGPS(row.latitude, row.longitude, row.precisao_metros)
@@ -223,6 +224,8 @@ export const leituraParaRow = (leitura: Leitura): LeituraRow => ({
   valor_consumo: leitura.valorConsumo.valor,
   valor_injecao: leitura.valorInjecao?.valor ?? null,
   foto_local_uri: leitura.fotoLocalUri,
+  foto_remota_path: leitura.fotoRemotaPath,
+  sync_status: leitura.estadoSync,
   latitude: leitura.coordenadas?.latitude ?? null,
   longitude: leitura.coordenadas?.longitude ?? null,
   precisao_metros: leitura.coordenadas?.precisaoMetros ?? null,

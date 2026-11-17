@@ -145,10 +145,12 @@ describe('Usuario', () => {
     expect(usuario.perfil).toBe(PerfilEnum.ADMIN);
   });
 
-  it('troca a senha', () => {
+  it('não guarda senha: ela é do serviço de autenticação, não do perfil', () => {
     const usuario = new Usuario(base());
-    const nova = new SenhaHash('sha256-iter', 10_000, 'c'.repeat(32), 'd'.repeat(64));
-    usuario.trocarSenha(nova);
-    expect(usuario.senha.equals(nova)).toBe(true);
+    // O campo `senha` ainda é aceito na construção (legado da migração 002),
+    // mas a entidade não o retém nem o expõe.
+    expect('senha' in usuario).toBe(false);
+    expect(Object.values(usuario)).not.toContain(senhaQualquer());
+    expect(JSON.stringify(usuario)).not.toContain('sha256-iter');
   });
 });

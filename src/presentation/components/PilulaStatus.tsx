@@ -4,6 +4,7 @@ import { Cores, Espaco, Overlay, Raio, Tipografia } from '@/constants/theme';
 import { StatusUsuarioEnum } from '@/domain/enums/StatusUsuarioEnum';
 import { StatusLeituraEnum } from '@/domain/enums/StatusLeituraEnum';
 import { PerfilEnum, rotuloDoPerfil } from '@/domain/enums/PerfilEnum';
+import { EstadoSyncEnum, rotuloDoEstadoSync } from '@/domain/enums/EstadoSyncEnum';
 
 export type TomPilula = 'primary' | 'erro' | 'sucesso' | 'neutro';
 
@@ -37,6 +38,17 @@ export function PilulaStatus({ texto, tom = 'neutro' }: PilulaStatusProps) {
  * Com uma função por enum, um status novo quebra a compilação em vez de passar
  * silenciosamente pelo caso padrão.
  */
+/** Situação da leitura em relação à nuvem: já subiu, aguarda ou não conseguiu. */
+export function PilulaEstadoSync({ estado }: { estado: EstadoSyncEnum }) {
+  const tons: Record<EstadoSyncEnum, TomPilula> = {
+    [EstadoSyncEnum.SINCRONIZADA]: 'sucesso',
+    [EstadoSyncEnum.PENDENTE]: 'primary',
+    [EstadoSyncEnum.FALHOU]: 'erro',
+  };
+
+  return <PilulaStatus texto={rotuloDoEstadoSync(estado)} tom={tons[estado]} />;
+}
+
 export function PilulaStatusUsuario({ status }: { status: StatusUsuarioEnum }) {
   const tons: Record<StatusUsuarioEnum, TomPilula> = {
     [StatusUsuarioEnum.ATIVO]: 'sucesso',

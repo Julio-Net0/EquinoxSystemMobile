@@ -9,7 +9,12 @@ const CHAVE_PIN = 'equinox_user_pin_v1';
  * Android).
  *
  * AFTER_FIRST_UNLOCK em vez do padrão WHEN_UNLOCKED porque o técnico abre o app
- * em campo logo após ligar o aparelho; ALWAYS está deprecado no SDK 57.
+ * em campo logo após ligar o aparelho; ALWAYS consta como deprecado na
+ * documentação do expo-secure-store da SDK 58.
+ *
+ * Guarda quem está logado (perfil, empresa) — é o que libera o uso offline.
+ * Os tokens da nuvem ficam no mesmo cofre, mas por conta do
+ * `CofreSeguroEmPartes`, usado pelo cliente do Supabase.
  */
 const OPCOES: SecureStore.SecureStoreOptions = {
   keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,

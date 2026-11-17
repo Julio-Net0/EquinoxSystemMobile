@@ -1,10 +1,7 @@
-import { IUsuarioRepository } from '@/domain/repositories/IUsuarioRepository';
-import { IEmpresaRepository } from '@/domain/repositories/IEmpresaRepository';
-import { IHashSenhaGateway } from '@/domain/gateways/IHashSenhaGateway';
-import { Usuario } from '@/domain/entities/Usuario';
-import { UUIDv4 } from '@/domain/value-objects/UUIDv4';
-import { PerfilEnum } from '@/domain/enums/PerfilEnum';
-import { StatusUsuarioEnum } from '@/domain/enums/StatusUsuarioEnum';
+import {
+  EmpresaParaCadastro,
+  IAutenticacaoRemotaGateway,
+} from '@/domain/gateways/IAutenticacaoRemotaGateway';
 
 export interface CadastrarUsuarioPendenteInput {
   empresaId: string;
@@ -21,26 +18,47 @@ export interface CadastrarUsuarioPendenteOutput {
   erro?: string;
 }
 
+export interface BuscarEmpresasOutput {
+  empresas: EmpresaParaCadastro[];
+  erro?: string;
+}
+
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const MINIMO_SENHA = 6;
+const SEM_REDE = 'Sem conexão. O cadastro precisa de internet';
 
 /**
- * Autocadastro público. O usuário nasce Técnico e Pendente, sem endereço: quem
- * define perfil e vínculos é o administrador, na tela de autorizações.
+ * Autocadastro público, feito na nuvem — é uma das operações que exigem rede.
+ *
+ * O usuário nasce Técnico e Pendente, sem endereço: quem define perfil e
+ * vínculos é o administrador, na tela de autorizações. Nível e status não são
+ * enviados daqui; quem os fixa é o servidor, para que um cliente adulterado
+ * não consiga se cadastrar já como administrador.
  */
 export class CadastrarUsuarioPendenteUseCase {
-  constructor(
-    private readonly usuarioRepo: IUsuarioRepository,
-    private readonly empresaRepo: IEmpresaRepository,
-    private readonly hashSenha: IHashSenhaGateway,
-  ) {}
+  constructor(private readonly autenticacaoRemota: IAutenticacaoRemotaGateway) {}
+
+  /** Busca de empresa antes do login: o servidor só devolve id e nome. */
+  public async buscarEmpresas(termo: string): Promise<BuscarEmpresasOutput> {
+    const resultado = await this.autenticacaoRemota.buscarEmpresasParaCadastro(termo ?? '');
+    if (!resultado.ok) {
+      return {
+        empresas: [],
+        erro:
+          resultado.motivo === 'rede'
+            ? 'Sem conexão. A lista de empresas precisa de internet'
+            : 'Não foi possível buscar as empresas',
+      };
+    }
+    return { empresas: resultado.valor };
+  }
 
   public async executar(
     entrada: CadastrarUsuarioPendenteInput,
   ): Promise<CadastrarUsuarioPendenteOutput> {
     const nome = entrada.nome?.trim() ?? '';
-    const login = entrada.usuario?.trim() ?? '';
-    const email = entrada.email?.trim() ?? '';
+    const login = entrada.usuario?.trim().toLowerCase() ?? '';
+    const email = entrada.email?.trim().toLowerCase() ?? '';
 
     if (!nome || !login || !email || !entrada.senha || !entrada.empresaId) {
       return { sucesso: false, erro: 'Preencha todos os campos' };
@@ -55,34 +73,21 @@ export class CadastrarUsuarioPendenteUseCase {
       return { sucesso: false, erro: 'As senhas não coincidem' };
     }
 
-    const empresa = await this.empresaRepo.buscarPorId(new UUIDv4(entrada.empresaId));
-    if (!empresa) {
-      return { sucesso: false, erro: 'Empresa não encontrada' };
-    }
-
-    if (await this.usuarioRepo.buscarPorEmail(email)) {
-      return { sucesso: false, erro: 'Este e-mail já está cadastrado' };
-    }
-    // buscarPorLogin cobre e-mail e login; aqui só o login ainda não foi checado.
-    const jaUsaOLogin = await this.usuarioRepo.buscarPorLogin(login);
-    if (jaUsaOLogin) {
-      return { sucesso: false, erro: 'Este usuário já está em uso' };
-    }
-
-    const novo = new Usuario({
-      id: UUIDv4.gerar(),
-      empresaId: empresa.id,
+    const resultado = await this.autenticacaoRemota.cadastrar({
+      empresaId: entrada.empresaId,
       nome,
       usuario: login,
       email,
-      senha: await this.hashSenha.gerar(entrada.senha),
-      perfil: PerfilEnum.TECNICO,
-      status: StatusUsuarioEnum.PENDENTE,
-      enderecosVinculados: [],
+      senha: entrada.senha,
     });
 
-    await this.usuarioRepo.salvar(novo);
+    if (!resultado.ok) {
+      return {
+        sucesso: false,
+        erro: resultado.motivo === 'rede' ? SEM_REDE : resultado.mensagem,
+      };
+    }
 
-    return { sucesso: true, usuarioId: novo.id.value };
+    return { sucesso: true, usuarioId: resultado.valor.usuarioId };
   }
 }

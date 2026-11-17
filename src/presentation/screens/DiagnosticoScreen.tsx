@@ -9,7 +9,13 @@ import { ConsultarDiagnosticoOutput } from '@/application/use-cases/ConsultarDia
 import { CabecalhoTela } from '@/presentation/components/CabecalhoTela';
 import { Cartao } from '@/presentation/components/Cartao';
 import { EstadoVazio } from '@/presentation/components/EstadoVazio';
-import { PilulaStatusLeitura } from '@/presentation/components/PilulaStatus';
+import { PilulaEstadoSync, PilulaStatusLeitura } from '@/presentation/components/PilulaStatus';
+import {
+  PainelSincronizacao,
+  PainelSincronizacaoProps,
+  formatarInstante,
+} from '@/presentation/components/PainelSincronizacao';
+import { ItemDaFilaDTO } from '@/application/use-cases/ConsultarEstadoSincronizacaoUseCase';
 
 export interface DiagnosticoScreenProps {
   dados: ConsultarDiagnosticoOutput | null;
@@ -17,6 +23,10 @@ export interface DiagnosticoScreenProps {
   erro: string | null;
   onRecarregar(): void;
   onVoltar(): void;
+  /** Conexão, fila de envio e última sincronização. */
+  sincronizacao?: PainelSincronizacaoProps;
+  /** O que está na fila de envio, na ordem em que vai subir. */
+  fila?: ItemDaFilaDTO[];
 }
 
 const ROTULOS: Record<string, string> = {
@@ -38,6 +48,11 @@ const ROTULOS: Record<string, string> = {
  *
  * Mostra também se o arquivo de cada foto existe: a linha no banco e a imagem
  * no disco são coisas separadas, e uma pode estar lá sem a outra.
+ *
+ * E mostra a sincronização por dentro: se há rede, o que ainda está na fila
+ * de envio, quantas vezes cada item foi tentado e por que foi recusado. É a
+ * tela que prova, numa demonstração, que a leitura feita offline ficou
+ * guardada e depois subiu.
  */
 export function DiagnosticoScreen({
   dados,
@@ -45,14 +60,16 @@ export function DiagnosticoScreen({
   erro,
   onRecarregar,
   onVoltar,
+  sincronizacao,
+  fila = [],
 }: DiagnosticoScreenProps) {
   const { bottom } = useSafeAreaInsets();
 
   return (
     <View style={styles.raiz}>
       <CabecalhoTela
-        titulo="Diagnóstico local"
-        subtitulo="O que está gravado neste aparelho"
+        titulo="Diagnóstico"
+        subtitulo="O aparelho e a sincronização com a nuvem"
         onVoltar={onVoltar}
       />
 
@@ -66,6 +83,47 @@ export function DiagnosticoScreen({
           <Cartao nivel="baixo">
             <Text style={styles.erro}>{erro}</Text>
           </Cartao>
+        ) : null}
+
+        {sincronizacao ? (
+          <View style={styles.secao}>
+            <Text style={[Tipografia.rotulo, styles.secaoTitulo]}>Sincronização</Text>
+
+            <PainelSincronizacao {...sincronizacao} />
+
+            <Cartao nivel="baixo">
+              <Linha rotulo="Conexão" valor={sincronizacao.online ? 'Online' : 'Offline'} />
+              <Linha rotulo="Na fila de envio" valor={String(sincronizacao.pendentes)} />
+              <Linha rotulo="Com envio recusado" valor={String(sincronizacao.isolados)} ultima />
+            </Cartao>
+
+            {fila.map((item) => (
+              <Cartao key={item.itemId} nivel="baixo">
+                <View style={styles.leituraTopo}>
+                  <Text style={[Tipografia.corpoSm, styles.valor]}>{item.descricao}</Text>
+                  <Text style={[Tipografia.meta, item.isolado ? styles.erro : styles.meta]}>
+                    {item.isolado
+                      ? 'Fora da fila'
+                      : item.tentativas === 0
+                        ? 'Aguardando'
+                        : `${item.tentativas} tentativa(s)`}
+                  </Text>
+                </View>
+                <Text style={[Tipografia.meta, styles.meta]}>
+                  Na fila desde {formatarInstante(item.criadoEm)}
+                </Text>
+                {item.ultimoErro ? (
+                  <Text style={[Tipografia.meta, styles.erro]}>{item.ultimoErro}</Text>
+                ) : null}
+              </Cartao>
+            ))}
+
+            <Text style={[Tipografia.meta, styles.ajuda]}>
+              Tudo o que você faz é gravado primeiro neste aparelho e entra numa
+              fila. Com conexão, a fila sobe em ordem — a foto antes da leitura.
+              Falta de rede não conta como tentativa.
+            </Text>
+          </View>
         ) : null}
 
         {!dados && carregando ? (
@@ -132,6 +190,10 @@ export function DiagnosticoScreen({
                       <PilulaStatusLeitura status={leitura.status} />
                     </View>
 
+                    <View style={styles.marcas}>
+                      <PilulaEstadoSync estado={leitura.estadoSync} />
+                    </View>
+
                     {leitura.valorInjecao !== null ? (
                       <Text style={[Tipografia.meta, styles.meta]}>
                         Injeção: {formatarKwh(leitura.valorInjecao)}
@@ -152,6 +214,10 @@ export function DiagnosticoScreen({
                               ? 'Foto no disco'
                               : 'Foto ausente'
                         }
+                      />
+                      <Marca
+                        estado={leitura.fotoRemotaPath !== null}
+                        rotulo={leitura.fotoRemotaPath ? 'Foto na nuvem' : 'Foto só no aparelho'}
                       />
                       <Marca
                         estado={leitura.temLocalizacao}

@@ -1,18 +1,20 @@
-import { IEmpresaRepository } from '@/domain/repositories/IEmpresaRepository';
-import { IEnderecoRepository } from '@/domain/repositories/IEnderecoRepository';
-import { IPadraoRepository } from '@/domain/repositories/IPadraoRepository';
-import { ILeituraRepository } from '@/domain/repositories/ILeituraRepository';
-import { IUsuarioRepository } from '@/domain/repositories/IUsuarioRepository';
-import { INotificacaoRepository } from '@/domain/repositories/INotificacaoRepository';
 import { IActionQueueRepository } from '@/domain/repositories/IActionQueueRepository';
+import { ISyncMetaRepository } from '@/domain/repositories/ISyncMetaRepository';
+import {
+  IUnidadeDeTrabalho,
+  RepositoriosDaTransacao,
+} from '@/domain/repositories/IUnidadeDeTrabalho';
 import { ICameraGateway } from '@/domain/gateways/ICameraGateway';
 import { ILocationGateway } from '@/domain/gateways/ILocationGateway';
 import { IArquivoFotoGateway } from '@/domain/gateways/IArquivoFotoGateway';
-import { IHashSenhaGateway } from '@/domain/gateways/IHashSenhaGateway';
 import { ISessionStorage } from '@/domain/gateways/ISessionStorage';
 import { IDiagnosticoLocalGateway } from '@/domain/gateways/IDiagnosticoLocalGateway';
+import { IAutenticacaoRemotaGateway } from '@/domain/gateways/IAutenticacaoRemotaGateway';
+import { ISincronizacaoRemotaGateway } from '@/domain/gateways/ISincronizacaoRemotaGateway';
+import { IConectividadeGateway } from '@/domain/gateways/IConectividadeGateway';
 import { IRelogio } from '@/domain/services/Relogio';
 import { AutenticarUsuarioUseCase } from '@/application/use-cases/AutenticarUsuarioUseCase';
+import { EncerrarSessaoUseCase } from '@/application/use-cases/EncerrarSessaoUseCase';
 import { CadastrarUsuarioPendenteUseCase } from '@/application/use-cases/CadastrarUsuarioPendenteUseCase';
 import { AutorizarUsuarioUseCase } from '@/application/use-cases/AutorizarUsuarioUseCase';
 import { GerenciarUsuariosEmpresaUseCase } from '@/application/use-cases/GerenciarUsuariosEmpresaUseCase';
@@ -27,6 +29,12 @@ import { AvaliarLeiturasAtrasadasUseCase } from '@/application/use-cases/Avaliar
 import { PurgarLeiturasAntigasUseCase } from '@/application/use-cases/PurgarLeiturasAntigasUseCase';
 import { ConsultarDiagnosticoUseCase } from '@/application/use-cases/ConsultarDiagnosticoUseCase';
 import { ConsultarLeiturasDiaUsinaUseCase } from '@/application/use-cases/ConsultarLeiturasDiaUsinaUseCase';
+import { ProcessarFilaSincronizacaoUseCase } from '@/application/use-cases/ProcessarFilaSincronizacaoUseCase';
+import { BaixarAlteracoesUseCase } from '@/application/use-cases/BaixarAlteracoesUseCase';
+import { SincronizarUseCase } from '@/application/use-cases/SincronizarUseCase';
+import { ConsultarEstadoSincronizacaoUseCase } from '@/application/use-cases/ConsultarEstadoSincronizacaoUseCase';
+import { ObterFotoDaLeituraUseCase } from '@/application/use-cases/ObterFotoDaLeituraUseCase';
+import { RepositoriosComFila, repositoriosComFila } from '../sync/repositoriosComFila';
 
 /**
  * Grafo de dependências do app, montado uma única vez.
@@ -39,29 +47,41 @@ import { ConsultarLeiturasDiaUsinaUseCase } from '@/application/use-cases/Consul
  * Nenhuma tela instancia repositório ou caso de uso: todas pedem ao container.
  */
 export interface Container {
-  repos: {
-    empresa: IEmpresaRepository;
-    endereco: IEnderecoRepository;
-    padrao: IPadraoRepository;
-    leitura: ILeituraRepository;
-    usuario: IUsuarioRepository;
-    notificacao: INotificacaoRepository;
+  /**
+   * Os repositórios que os casos de uso de negócio recebem. São os "com
+   * fila": toda escrita por eles deixa um item de envio na `action_queue`, na
+   * mesma transação.
+   */
+  repos: RepositoriosComFila & {
     actionQueue: IActionQueueRepository;
+    syncMeta: ISyncMetaRepository;
   };
+
+  unidadeDeTrabalho: IUnidadeDeTrabalho;
+
+  /**
+   * Avisa quando uma escrita local entrou na fila de envio. A interface usa
+   * para atualizar a contagem de pendentes e tentar sincronizar em seguida.
+   * Devolve a função que cancela a inscrição.
+   */
+  observarFila(ouvinte: () => void): () => void;
 
   gateways: {
     camera: ICameraGateway;
     location: ILocationGateway;
     arquivoFoto: IArquivoFotoGateway;
-    hashSenha: IHashSenhaGateway;
     sessao: ISessionStorage;
     diagnostico: IDiagnosticoLocalGateway;
+    autenticacaoRemota: IAutenticacaoRemotaGateway;
+    sincronizacaoRemota: ISincronizacaoRemotaGateway;
+    conectividade: IConectividadeGateway;
   };
 
   relogio: IRelogio;
 
   casos: {
     autenticar: AutenticarUsuarioUseCase;
+    encerrarSessao: EncerrarSessaoUseCase;
     cadastrarPendente: CadastrarUsuarioPendenteUseCase;
     autorizar: AutorizarUsuarioUseCase;
     gerenciarUsuarios: GerenciarUsuariosEmpresaUseCase;
@@ -76,29 +96,75 @@ export interface Container {
     purgar: PurgarLeiturasAntigasUseCase;
     diagnostico: ConsultarDiagnosticoUseCase;
     consultarLeiturasUsina: ConsultarLeiturasDiaUsinaUseCase;
+    processarFila: ProcessarFilaSincronizacaoUseCase;
+    baixarAlteracoes: BaixarAlteracoesUseCase;
+    sincronizar: SincronizarUseCase;
+    estadoSincronizacao: ConsultarEstadoSincronizacaoUseCase;
+    fotoDaLeitura: ObterFotoDaLeituraUseCase;
   };
 }
 
-type Repos = Container['repos'];
 type Gateways = Container['gateways'];
 
 /**
- * Monta os casos de uso a partir dos repositórios e gateways. Compartilhada
- * entre a montagem real (SQLite) e a de teste (dublês em memória), para as
- * duas ligarem exatamente o mesmo grafo.
+ * Monta os repositórios com fila e os casos de uso a partir dos repositórios
+ * crus e dos gateways. Compartilhada entre a montagem real (SQLite) e a de
+ * teste (dublês em memória), para as duas ligarem exatamente o mesmo grafo.
+ *
+ * Há dois jogos de repositórios, e a diferença é o coração da sincronização:
+ *
+ * - os casos de uso de **negócio** recebem os repositórios **com fila**, e
+ *   assim tudo o que o usuário faz no aparelho é enfileirado para a nuvem;
+ * - os casos de uso de **sincronização** recebem os **crus**, porque o que
+ *   veio da nuvem (ou a confirmação de um envio) não pode voltar para a fila.
  */
 export function montarCasos(
-  repos: Repos,
+  crus: RepositoriosDaTransacao,
+  unidadeDeTrabalho: IUnidadeDeTrabalho,
   gateways: Gateways,
   relogio: IRelogio,
-): Container['casos'] {
-  return {
-    autenticar: new AutenticarUsuarioUseCase(repos.usuario, gateways.sessao, gateways.hashSenha),
-    cadastrarPendente: new CadastrarUsuarioPendenteUseCase(
-      repos.usuario,
-      repos.empresa,
-      gateways.hashSenha,
+): Pick<Container, 'repos' | 'casos' | 'observarFila'> {
+  const ouvintesDaFila = new Set<() => void>();
+  const observarFila = (ouvinte: () => void): (() => void) => {
+    ouvintesDaFila.add(ouvinte);
+    return () => {
+      ouvintesDaFila.delete(ouvinte);
+    };
+  };
+
+  const comFila = repositoriosComFila(crus, unidadeDeTrabalho, relogio, () => {
+    ouvintesDaFila.forEach((ouvinte) => ouvinte());
+  });
+  const repos: Container['repos'] = {
+    ...comFila,
+    actionQueue: crus.actionQueue,
+    syncMeta: crus.syncMeta,
+  };
+
+  const processarFila = new ProcessarFilaSincronizacaoUseCase(
+    crus.actionQueue,
+    crus,
+    gateways.sincronizacaoRemota,
+    gateways.arquivoFoto,
+  );
+  const baixarAlteracoes = new BaixarAlteracoesUseCase(
+    gateways.sincronizacaoRemota,
+    unidadeDeTrabalho,
+    crus.syncMeta,
+  );
+
+  const casos: Container['casos'] = {
+    autenticar: new AutenticarUsuarioUseCase(
+      gateways.autenticacaoRemota,
+      gateways.sessao,
+      crus.syncMeta,
     ),
+    encerrarSessao: new EncerrarSessaoUseCase(
+      gateways.autenticacaoRemota,
+      gateways.sessao,
+      crus.actionQueue,
+    ),
+    cadastrarPendente: new CadastrarUsuarioPendenteUseCase(gateways.autenticacaoRemota),
     autorizar: new AutorizarUsuarioUseCase(repos.usuario, repos.endereco, relogio),
     gerenciarUsuarios: new GerenciarUsuariosEmpresaUseCase(
       repos.usuario,
@@ -111,7 +177,7 @@ export function montarCasos(
       repos.padrao,
       repos.usuario,
     ),
-    perfil: new GerenciarPerfilUseCase(repos.usuario, gateways.sessao, gateways.hashSenha),
+    perfil: new GerenciarPerfilUseCase(repos.usuario, gateways.sessao, gateways.autenticacaoRemota),
     consultarCatalogo: new ConsultarCatalogoUseCase(repos.endereco, repos.padrao, repos.leitura),
     registrarLeitura: new RegistrarLeituraUseCase(
       repos.leitura,
@@ -137,7 +203,9 @@ export function montarCasos(
       repos.usuario,
       relogio,
     ),
-    purgar: new PurgarLeiturasAntigasUseCase(repos.leitura, gateways.arquivoFoto, relogio),
+    // Expurgo é limpeza do aparelho, não alteração de negócio: usa o cru e
+    // não enfileira nada.
+    purgar: new PurgarLeiturasAntigasUseCase(crus.leitura, gateways.arquivoFoto, relogio),
     diagnostico: new ConsultarDiagnosticoUseCase(
       gateways.diagnostico,
       repos.leitura,
@@ -151,5 +219,29 @@ export function montarCasos(
       repos.empresa,
       relogio,
     ),
+    processarFila,
+    baixarAlteracoes,
+    sincronizar: new SincronizarUseCase(
+      gateways.conectividade,
+      gateways.autenticacaoRemota,
+      gateways.sessao,
+      processarFila,
+      baixarAlteracoes,
+      crus.usuario,
+      crus.syncMeta,
+      relogio,
+    ),
+    estadoSincronizacao: new ConsultarEstadoSincronizacaoUseCase(
+      crus.actionQueue,
+      crus.syncMeta,
+      crus.leitura,
+    ),
+    fotoDaLeitura: new ObterFotoDaLeituraUseCase(
+      crus.leitura,
+      gateways.arquivoFoto,
+      gateways.sincronizacaoRemota,
+    ),
   };
+
+  return { repos, casos, observarFila };
 }

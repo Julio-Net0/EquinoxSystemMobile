@@ -115,6 +115,15 @@ async function montar(sobrescrita: Partial<LeiturasUsinaScreenProps> = {}) {
 }
 
 describe('LeiturasUsinaScreen', () => {
+  it('o selo da foto abre o comprovante da leitura vigente', async () => {
+    const onVerFoto = jest.fn();
+    const { tela } = await montar({ onVerFoto });
+
+    await fireEvent.press(await tela.findByTestId('ver-foto-l1'));
+
+    expect(onVerFoto).toHaveBeenCalledWith('l1');
+  });
+
   it('renderiza título, cabeçalho e informações da usina', async () => {
     const { tela } = await montar();
 

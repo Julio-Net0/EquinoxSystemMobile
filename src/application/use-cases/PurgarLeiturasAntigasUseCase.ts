@@ -13,6 +13,12 @@ export interface PurgarLeiturasAntigasOutput {
  *
  * Só sai o que já foi decidido: uma leitura ainda em aberto fica, por antiga
  * que seja, porque apagá-la perderia o caso que o administrador não resolveu.
+ *
+ * E só sai o que já está na nuvem. A leitura que ainda não subiu — pendente na
+ * fila ou com envio recusado — existe apenas neste aparelho, então fica até
+ * sincronizar, tenha a idade que tiver. Quem garante isso é o repositório.
+ * A cópia remota não é apagada: o expurgo libera espaço no aparelho, e a
+ * nuvem segue como histórico.
  */
 export class PurgarLeiturasAntigasUseCase {
   public static readonly DIAS_RETENCAO = 30;

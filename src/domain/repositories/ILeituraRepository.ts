@@ -33,9 +33,18 @@ export interface ILeituraRepository {
   listarRegistradasAntesDe(dataLocal: DataLocal): Promise<Leitura[]>;
 
   /**
+   * Aplica uma leitura vinda da nuvem (pull): insere ou atualiza pelo id e
+   * resolve a vaga do dia — se outra leitura local ocupa a mesma vaga, ela
+   * sai de vigente antes de a remota entrar. Preserva a foto que já estiver
+   * no aparelho.
+   */
+  aplicarRemota(leitura: Leitura): Promise<void>;
+
+  /**
    * Expurgo: remove leituras já decididas mais antigas que o corte e devolve
    * as removidas, para quem chamou poder apagar as fotos correspondentes.
-   * Leitura ainda sem decisão nunca é removida.
+   * Leitura ainda sem decisão nunca é removida — nem a que ainda não subiu
+   * para a nuvem, porque o aparelho é o único lugar onde ela existe.
    */
   excluirDecididasAntesDe(dataLocal: DataLocal): Promise<Leitura[]>;
 }

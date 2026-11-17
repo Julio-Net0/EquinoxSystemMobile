@@ -11,8 +11,12 @@ export interface SessaoUsuarioData {
 }
 
 /**
- * Sessão persistida no aparelho. Não há token: a autenticação é local, contra
- * a tabela de usuários do SQLite.
+ * Sessão persistida no armazenamento seguro do aparelho: quem está logado e
+ * com que perfil. É ela que libera o uso offline depois do primeiro login.
+ *
+ * Os tokens de acesso e de renovação da nuvem NÃO passam por aqui: ficam no
+ * mesmo armazenamento seguro, mas por conta do adaptador de autenticação
+ * remota, que é quem sabe renová-los.
  */
 export interface ISessionStorage {
   salvarSessao(dados: SessaoUsuarioData): Promise<void>;

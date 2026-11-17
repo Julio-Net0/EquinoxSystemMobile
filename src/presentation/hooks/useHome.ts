@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { EnderecoCatalogoDTO } from '@/application/use-cases/ConsultarCatalogoUseCase';
 import { PerfilEnum } from '@/domain/enums/PerfilEnum';
 import { useCasos } from '@/presentation/context/ContainerProvider';
+import { useSincronizacao } from '@/presentation/context/SincronizacaoContext';
 import { useAuth } from './useAuth';
 
 export interface EstadoHome {
@@ -18,10 +19,15 @@ export interface EstadoHome {
  *
  * A contagem falhar não impede a Home de abrir — no app antigo o badge
  * simplesmente não aparecia, e esse comportamento é preservado.
+ *
+ * Tudo vem do SQLite. Quando uma sincronização traz novidades da nuvem ou
+ * muda o que está pendente, o hook relê o banco — é assim que um padrão
+ * criado em outro aparelho aparece aqui sem ninguém puxar a tela.
  */
 export function useHome(): EstadoHome {
   const { usuario, perfil } = useAuth();
   const casos = useCasos();
+  const { versaoDosDados, pendentes } = useSincronizacao();
 
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -55,7 +61,8 @@ export function useHome(): EstadoHome {
 
   useEffect(() => {
     void recarregar();
-  }, [recarregar]);
+    // `versaoDosDados` e `pendentes` entram só como gatilho de releitura.
+  }, [recarregar, versaoDosDados, pendentes]);
 
   return { carregando, erro, enderecos, avisosNaoLidos, recarregar };
 }

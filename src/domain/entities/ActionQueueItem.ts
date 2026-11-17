@@ -1,11 +1,24 @@
 import { UUIDv4 } from '../value-objects/UUIDv4';
 
-export type TipoOperacaoActionQueue =
-  | 'INSERT_LEITURA'
-  | 'INSERT_USINA'
-  | 'INSERT_EMPRESA'
-  | 'UPDATE_USINA'
-  | 'DELETE_USINA';
+/**
+ * Operações que o aparelho deve repetir na nuvem. Uma por tipo de escrita
+ * local; o modelo é o atual (Empresa -> Endereco -> PadraoCemig -> Leitura),
+ * não o de usinas que a versão anterior desta fila descrevia.
+ */
+export const TIPOS_DE_OPERACAO = [
+  'UPSERT_EMPRESA',
+  'UPSERT_ENDERECO',
+  'EXCLUIR_ENDERECO',
+  'UPSERT_PADRAO',
+  'EXCLUIR_PADRAO',
+  'UPSERT_USUARIO',
+  'EXCLUIR_USUARIO',
+  'UPSERT_LEITURA',
+  'UPSERT_NOTIFICACAO',
+  'MARCAR_NOTIFICACOES_LIDAS',
+] as const;
+
+export type TipoOperacaoActionQueue = (typeof TIPOS_DE_OPERACAO)[number];
 
 export interface ActionQueueItemProps {
   id: UUIDv4;
@@ -13,18 +26,37 @@ export interface ActionQueueItemProps {
   payloadJSON: string;
   timestamp?: Date;
   tentativas?: number;
+  ultimoErro?: string | null;
 }
 
+/**
+ * Um item da fila de envio (outbox).
+ *
+ * O payload guarda só o identificador do registro, não uma cópia dele: na hora
+ * do envio o processador lê o estado atual do SQLite. Assim uma leitura que
+ * foi substituída ou decidida depois de enfileirada sobe já no estado final, e
+ * repetir o envio é sempre seguro.
+ */
 export class ActionQueueItem {
+  /**
+   * Depois deste número de recusas o item fica isolado: sai do caminho dos
+   * outros e espera uma nova tentativa manual. Queda de rede não conta.
+   */
+  public static readonly MAX_TENTATIVAS = 5;
+
   public readonly id: UUIDv4;
   public readonly tipoOperacao: TipoOperacaoActionQueue;
   public readonly payloadJSON: string;
   public readonly timestamp: Date;
   private _tentativas: number;
+  private _ultimoErro: string | null;
 
   constructor(props: ActionQueueItemProps) {
     if (!props.payloadJSON || props.payloadJSON.trim() === '') {
       throw new Error('Payload JSON é obrigatório para item da ActionQueue');
+    }
+    if (!TIPOS_DE_OPERACAO.includes(props.tipoOperacao)) {
+      throw new Error(`Tipo de operação desconhecido: ${props.tipoOperacao}`);
     }
 
     this.id = props.id;
@@ -32,13 +64,57 @@ export class ActionQueueItem {
     this.payloadJSON = props.payloadJSON;
     this.timestamp = props.timestamp ?? new Date();
     this._tentativas = props.tentativas ?? 0;
+    this._ultimoErro = props.ultimoErro ?? null;
+  }
+
+  /**
+   * Item para o registro informado. `registroId` nulo só faz sentido em
+   * operação de escopo global (marcar todas as notificações como lidas, para
+   * o super admin).
+   */
+  public static para(
+    tipoOperacao: TipoOperacaoActionQueue,
+    registroId: UUIDv4 | null,
+    quando: Date,
+  ): ActionQueueItem {
+    return new ActionQueueItem({
+      id: UUIDv4.gerar(),
+      tipoOperacao,
+      payloadJSON: JSON.stringify({ id: registroId?.value ?? null }),
+      timestamp: quando,
+    });
   }
 
   public get tentativas(): number {
     return this._tentativas;
   }
 
-  public incrementarTentativa(): void {
+  public get ultimoErro(): string | null {
+    return this._ultimoErro;
+  }
+
+  /** Identificador do registro a que o item se refere, se houver. */
+  public get registroId(): UUIDv4 | null {
+    try {
+      const { id } = JSON.parse(this.payloadJSON) as { id?: unknown };
+      return typeof id === 'string' ? new UUIDv4(id) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  public estaIsolado(): boolean {
+    return this._tentativas >= ActionQueueItem.MAX_TENTATIVAS;
+  }
+
+  public registrarFalha(mensagem: string): void {
     this._tentativas += 1;
+    this._ultimoErro = mensagem;
+  }
+
+  /** Nova chance manual: zera as tentativas, mantendo a posição na fila. */
+  public reativar(): void {
+    this._tentativas = 0;
+    this._ultimoErro = null;
   }
 }

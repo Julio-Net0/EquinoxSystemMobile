@@ -12,6 +12,13 @@ import { emTransacao } from '../emTransacao';
 const COLUNAS = `id, empresa_id, nome, usuario, email, senha_hash, nivel_acesso,
                  nivel_anterior, status, criado_em, autorizado_em, autorizado_por`;
 
+/**
+ * A coluna `senha_hash` é NOT NULL desde a migração 001 e não pode sair (a 002
+ * a preenche). Como a senha agora vive só no Supabase Auth, ela recebe sempre
+ * vazio — o aparelho não guarda senha nem hash dela.
+ */
+const SEM_SENHA = '';
+
 export class UsuarioRepositorySQLite implements IUsuarioRepository {
   constructor(private readonly db: SQLiteDatabase) {}
 
@@ -29,11 +36,11 @@ export class UsuarioRepositorySQLite implements IUsuarioRepository {
         `INSERT INTO usuarios (${COLUNAS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
            nome = excluded.nome, usuario = excluded.usuario, email = excluded.email,
-           senha_hash = excluded.senha_hash, nivel_acesso = excluded.nivel_acesso,
+           empresa_id = excluded.empresa_id, nivel_acesso = excluded.nivel_acesso,
            nivel_anterior = excluded.nivel_anterior, status = excluded.status,
            autorizado_em = excluded.autorizado_em, autorizado_por = excluded.autorizado_por`,
         [
-          r.id, r.empresa_id, r.nome, r.usuario, r.email, r.senha_hash, r.nivel_acesso,
+          r.id, r.empresa_id, r.nome, r.usuario, r.email, SEM_SENHA, r.nivel_acesso,
           r.nivel_anterior, r.status, r.criado_em, r.autorizado_em, r.autorizado_por,
         ],
       );

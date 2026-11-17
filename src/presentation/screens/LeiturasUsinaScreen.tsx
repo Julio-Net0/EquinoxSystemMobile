@@ -41,6 +41,8 @@ export interface LeiturasUsinaScreenProps {
   onDiaSeguinte(): void;
   onRecarregar(): void;
   onVoltar(): void;
+  /** Abre o comprovante de uma leitura. */
+  onVerFoto?(leituraId: string): void;
 }
 
 const DIAS_DA_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
@@ -66,6 +68,7 @@ export function LeiturasUsinaScreen({
   onDiaSeguinte,
   onRecarregar,
   onVoltar,
+  onVerFoto,
 }: LeiturasUsinaScreenProps) {
   const { bottom, top } = useSafeAreaInsets();
   const [expandidos, setExpandidos] = useState<Record<string, boolean>>({});
@@ -416,10 +419,17 @@ export function LeiturasUsinaScreen({
                     </View>
                   )}
 
-                  <View style={styles.tagHardware}>
+                  <Pressable
+                    style={styles.tagHardware}
+                    onPress={() => onVerFoto?.(item.leituraVigente!.id)}
+                    disabled={!onVerFoto}
+                    accessibilityRole="button"
+                    accessibilityLabel="Ver o comprovante da leitura"
+                    testID={`ver-foto-${item.leituraVigente.id}`}
+                  >
                     <MaterialIcons name="photo-camera" size={12} color={Cores.primary} />
-                    <Text style={[Tipografia.meta, styles.tagTexto]}>Foto</Text>
-                  </View>
+                    <Text style={[Tipografia.meta, styles.tagTexto]}>Ver foto</Text>
+                  </Pressable>
                 </View>
               </View>
             </View>

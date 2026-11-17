@@ -23,6 +23,8 @@ export interface PerfilScreenProps {
   }): Promise<{ sucesso: boolean; erro?: string }>;
   onSair(): void;
   onDiagnostico(): void;
+  /** Mostrado acima do botão de sair quando há dados ainda não enviados. */
+  avisoAoSair?: string | null;
 }
 
 type Aviso = { tom: 'sucesso' | 'erro'; texto: string } | null;
@@ -45,6 +47,7 @@ export function PerfilScreen({
   onAlterarSenha,
   onSair,
   onDiagnostico,
+  avisoAoSair,
 }: PerfilScreenProps) {
   const { bottom } = useSafeAreaInsets();
 
@@ -126,15 +129,15 @@ export function PerfilScreen({
               onChangeText={(nomeNovo) => setDados((a) => ({ ...a, nome: nomeNovo }))}
             />
             <CampoTexto
-              rotulo="E-mail"
+              rotulo="E-mail (identidade de acesso — não pode ser alterado aqui)"
               icone="mail"
               value={dados.email}
-              onChangeText={(emailNovo) => setDados((a) => ({ ...a, email: emailNovo }))}
+              editable={false}
               autoCapitalize="none"
               keyboardType="email-address"
             />
             <CampoTexto
-              rotulo="Usuário de login"
+              rotulo="Nome de usuário (apelido)"
               icone="account-circle"
               value={dados.usuario}
               onChangeText={(login) => setDados((a) => ({ ...a, usuario: login }))}
@@ -191,11 +194,17 @@ export function PerfilScreen({
           <View style={styles.divisor} />
 
           <SolarButton
-            titulo="Diagnóstico local"
+            titulo="Diagnóstico e sincronização"
             variante="fantasma"
             icone="storage"
             onPress={onDiagnostico}
           />
+
+          {avisoAoSair ? (
+            <Text style={styles.avisoAoSair} testID="aviso-ao-sair">
+              {avisoAoSair}
+            </Text>
+          ) : null}
 
           <SolarButton titulo="Sair da conta" variante="perigo" icone="logout" onPress={onSair} />
         </ScrollView>
@@ -225,6 +234,7 @@ function Aviso({ aviso }: { aviso: NonNullable<Aviso> }) {
 }
 
 const styles = StyleSheet.create({
+  avisoAoSair: { ...Tipografia.corpoSm, color: Cores.primary, lineHeight: 20 },
   raiz: { flex: 1, backgroundColor: Cores.surface },
   conteudo: { paddingHorizontal: Espaco.xl, paddingTop: Espaco.xxl, gap: Espaco.xxl },
   identidade: { alignItems: 'center', gap: Espaco.sm },

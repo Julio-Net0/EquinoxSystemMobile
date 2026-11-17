@@ -6,6 +6,7 @@ import { IArquivoFotoGateway } from '@/domain/gateways/IArquivoFotoGateway';
 import { ILeituraRepository } from '@/domain/repositories/ILeituraRepository';
 import { UUIDv4 } from '@/domain/value-objects/UUIDv4';
 import { StatusLeituraEnum } from '@/domain/enums/StatusLeituraEnum';
+import { EstadoSyncEnum } from '@/domain/enums/EstadoSyncEnum';
 
 export interface LeituraDiagnosticoDTO {
   leituraId: string;
@@ -15,6 +16,10 @@ export interface LeituraDiagnosticoDTO {
   medidoEm: string;
   status: StatusLeituraEnum;
   temLocalizacao: boolean;
+  /** Pendente de envio, sincronizada ou com envio recusado. */
+  estadoSync: EstadoSyncEnum;
+  /** Caminho do comprovante no bucket privado, depois de enviado. */
+  fotoRemotaPath: string | null;
   fotoLocalUri: string;
   /**
    * Verdadeiro quando o arquivo está no disco, falso quando a linha existe mas
@@ -73,8 +78,12 @@ export class ConsultarDiagnosticoUseCase {
         medidoEm: leitura.medidoEm.toISOString(),
         status: leitura.status,
         temLocalizacao: leitura.temLocalizacao(),
+        estadoSync: leitura.estadoSync,
+        fotoRemotaPath: leitura.fotoRemotaPath,
         fotoLocalUri: leitura.fotoLocalUri,
-        fotoExiste: await this.verificarFoto(leitura.fotoLocalUri),
+        fotoExiste: leitura.temFotoNoAparelho()
+          ? await this.verificarFoto(leitura.fotoLocalUri)
+          : false,
       });
     }
 

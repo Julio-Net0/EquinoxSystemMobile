@@ -25,8 +25,8 @@ describe('schema SQLite (banco de verdade)', () => {
     it('leva o banco novo até a última versão', async () => {
       expect(banco.versao()).toBe(0);
 
-      expect(await migrarTudo()).toBe(2);
-      expect(banco.versao()).toBe(2);
+      expect(await migrarTudo()).toBe(3);
+      expect(banco.versao()).toBe(3);
     });
 
     it('cria todas as tabelas do modelo', async () => {
@@ -47,8 +47,8 @@ describe('schema SQLite (banco de verdade)', () => {
       await migrarTudo();
       const antes = banco.consultar<{ n: number }>('SELECT COUNT(*) AS n FROM usuarios')[0].n;
 
-      // Segunda abertura do app: o user_version já está em 2.
-      expect(await migrarTudo()).toBe(2);
+      // Segunda abertura do app: o user_version já está em 3.
+      expect(await migrarTudo()).toBe(3);
 
       expect(banco.consultar<{ n: number }>('SELECT COUNT(*) AS n FROM usuarios')[0].n).toBe(antes);
     });
@@ -202,16 +202,15 @@ describe('schema SQLite (banco de verdade)', () => {
       });
     });
 
-    it('nunca grava a senha em claro', () => {
+    it('não deixa senha nem hash de senha no aparelho', () => {
+      // A migração 2 ainda preenche a coluna; a 3 a esvazia, porque a
+      // identidade passou a ser do Supabase Auth.
       const hashes = banco
         .consultar<{ senha_hash: string }>('SELECT senha_hash FROM usuarios')
         .map((l) => l.senha_hash);
 
-      expect(hashes).toHaveLength(4);
-      for (const h of hashes) {
-        expect(h).not.toContain(SENHA_DEMO);
-        expect(h.length).toBeGreaterThan(40);
-      }
+      expect(hashes).toEqual(['', '', '', '']);
+      expect(SENHA_DEMO.length).toBeGreaterThan(0);
     });
 
     it('cria um usuário por perfil, mais um pendente para a tela de autorização', () => {

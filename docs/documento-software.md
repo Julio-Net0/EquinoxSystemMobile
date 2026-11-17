@@ -2,6 +2,32 @@
 
 Documento de especificação técnica do aplicativo móvel **Equinox Mobile**, um sistema 100% mobile, multi-tenant e offline-first para gestão de usinas fotovoltaicas e coleta georreferenciada de leituras de medidores de energia solar.
 
+> **Situação de implementação em 17/11/2026.** Este documento é a especificação
+> da fase de planejamento. Duas mudanças posteriores valem sobre o texto abaixo:
+>
+> 1. **Modelo de domínio (ADR 9.1):** não existe mais a entidade `Usina`. O
+>    modelo é Empresa → Endereço (com a flag `ehUsina`) → Padrão Cemig →
+>    Leitura (consumo e, em usina, injeção). Onde se lê "Usina", leia
+>    "Endereço/Padrão". O cadastro emergencial de usina pelo técnico (RF07) não
+>    foi implementado; estrutura é tarefa do administrador.
+> 2. **Nuvem e sincronização (ADR seção 10):** implementadas com Supabase.
+>
+> | Requisito | Situação |
+> |---|---|
+> | RF01 | Login por **e-mail** no Supabase Auth; sessão no `expo-secure-store` libera o uso offline. Login por nome de usuário foi abandonado (ADR 10.2) |
+> | RF09 | Toda escrita entra na `action_queue` na mesma transação (`repositoriosComFila`) |
+> | RF10 | `ProcessarFilaSincronizacaoUseCase`, disparado ao voltar a rede (NetInfo), ao abrir o app, por botão e após escritas |
+> | RF11 | `BaixarAlteracoesUseCase`: pull incremental por carimbo do servidor, filtrado por RLS |
+> | RF12 | Última medição vence, arbitrada no servidor (`sincronizar_leitura`); o administrador recebe aviso |
+> | RF13 | Primeiro login exige rede e faz a primeira sincronização antes de liberar a interface |
+> | RNF05 | Tokens só no cofre (`CofreSeguroEmPartes`); nenhuma senha no aparelho |
+> | RNF06 | `PainelSincronizacao` na Home e no Diagnóstico (conexão + pendentes), sobre `ConectividadeContext` e `SincronizacaoContext` |
+> | RNF07 | Expurgo só de leitura decidida, com mais de 30 dias **e sincronizada** |
+> | RNF09 | **Não implementado:** Sentry fora desta fase (ADR 10.13) |
+> | RNF10 | Só **EAS Build** (APK); EAS Update fora desta fase |
+>
+> Diagramas que correspondem ao código: [`diagrams/sequencia_e_arquitetura.md`](diagrams/sequencia_e_arquitetura.md).
+
 ---
 
 ## 1. Levantamento de Requisitos

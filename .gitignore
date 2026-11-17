@@ -30,8 +30,12 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
-.env*.local
+# Variáveis de ambiente: nenhum arquivo .env vai para o repositório, só o
+# exemplo sem valores. Antes só `.env*.local` era ignorado, e um `.env` simples
+# com as chaves do Supabase seria commitado sem aviso.
+.env
+.env.*
+!.env.example
 
 # typescript
 *.tsbuildinfo

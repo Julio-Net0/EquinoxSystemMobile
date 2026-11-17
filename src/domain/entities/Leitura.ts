@@ -3,6 +3,7 @@ import { ValorKwh } from '../value-objects/ValorKwh';
 import { CoordenadasGPS } from '../value-objects/CoordenadasGPS';
 import { DataLocal } from '../value-objects/DataLocal';
 import { StatusLeituraEnum, STATUS_VIGENTES } from '../enums/StatusLeituraEnum';
+import { EstadoSyncEnum } from '../enums/EstadoSyncEnum';
 
 export interface LeituraProps {
   id: UUIDv4;
@@ -10,11 +11,16 @@ export interface LeituraProps {
   usuarioId: UUIDv4;
   valorConsumo: ValorKwh;
   valorInjecao?: ValorKwh | null;
+  /** Vazio quando a leitura veio da nuvem e a foto não está neste aparelho. */
   fotoLocalUri: string;
+  /** Caminho do comprovante no armazenamento remoto, depois de enviado. */
+  fotoRemotaPath?: string | null;
   coordenadas?: CoordenadasGPS | null;
   medidoEm: Date;
   dataLocal: DataLocal;
   status?: StatusLeituraEnum;
+  /** Toda leitura nasce pendente de envio; só a nuvem a torna sincronizada. */
+  estadoSync?: EstadoSyncEnum;
   /**
    * Rastros de substituição e decisão. Só são informados ao reconstruir a
    * leitura a partir do banco — no fluxo normal eles são preenchidos pelos
@@ -33,7 +39,9 @@ export interface LeituraProps {
  *
  * 1. A foto é obrigatória e o GPS não. A foto é o comprovante do valor; já o
  *    GPS falha de verdade em casa de medidor, garagem e subsolo, e bloquear
- *    por isso inutilizaria o app em campo.
+ *    por isso inutilizaria o app em campo. O comprovante pode estar no
+ *    aparelho (`fotoLocalUri`), na nuvem (`fotoRemotaPath`) ou nos dois —
+ *    nunca em nenhum.
  * 2. `dataLocal` tem de ser o dia de Brasília de `medidoEm`. É por `dataLocal`
  *    que vale a vaga única de leitura vigente por padrão, então deixar os dois
  *    divergirem abriria caminho para duas leituras vigentes no mesmo dia real.
@@ -50,13 +58,17 @@ export class Leitura {
   public readonly dataLocal: DataLocal;
 
   private _status: StatusLeituraEnum;
+  private _fotoRemotaPath: string | null;
+  private _estadoSync: EstadoSyncEnum;
   private _substituidaEm: Date | null = null;
   private _substituidaPorId: UUIDv4 | null = null;
   private _decididaEm: Date | null = null;
   private _decididaPorId: UUIDv4 | null = null;
 
   constructor(props: LeituraProps) {
-    if (!props.fotoLocalUri || props.fotoLocalUri.trim() === '') {
+    const fotoLocal = props.fotoLocalUri?.trim() ?? '';
+    const fotoRemota = props.fotoRemotaPath?.trim() || null;
+    if (fotoLocal === '' && fotoRemota === null) {
       throw new Error('Foto comprobatória do medidor é obrigatória');
     }
     if (!props.dataLocal.equals(DataLocal.de(props.medidoEm))) {
@@ -68,7 +80,9 @@ export class Leitura {
     this.usuarioId = props.usuarioId;
     this.valorConsumo = props.valorConsumo;
     this.valorInjecao = props.valorInjecao ?? null;
-    this.fotoLocalUri = props.fotoLocalUri.trim();
+    this.fotoLocalUri = fotoLocal;
+    this._fotoRemotaPath = fotoRemota;
+    this._estadoSync = props.estadoSync ?? EstadoSyncEnum.PENDENTE;
     this.coordenadas = props.coordenadas ?? null;
     this.medidoEm = props.medidoEm;
     this.dataLocal = props.dataLocal;
@@ -97,6 +111,41 @@ export class Leitura {
 
   public get decididaPorId(): UUIDv4 | null {
     return this._decididaPorId;
+  }
+
+  public get fotoRemotaPath(): string | null {
+    return this._fotoRemotaPath;
+  }
+
+  public get estadoSync(): EstadoSyncEnum {
+    return this._estadoSync;
+  }
+
+  public temFotoNoAparelho(): boolean {
+    return this.fotoLocalUri !== '';
+  }
+
+  public estaSincronizada(): boolean {
+    return this._estadoSync === EstadoSyncEnum.SINCRONIZADA;
+  }
+
+  /** Mudou no aparelho e a nuvem ainda não sabe. */
+  public marcarPendenteDeEnvio(): void {
+    this._estadoSync = EstadoSyncEnum.PENDENTE;
+  }
+
+  /** A nuvem confirmou a leitura e o comprovante está em `fotoRemotaPath`. */
+  public marcarSincronizada(fotoRemotaPath: string): void {
+    if (!fotoRemotaPath || fotoRemotaPath.trim() === '') {
+      throw new Error('Leitura sincronizada precisa do caminho remoto do comprovante');
+    }
+    this._fotoRemotaPath = fotoRemotaPath.trim();
+    this._estadoSync = EstadoSyncEnum.SINCRONIZADA;
+  }
+
+  /** O envio foi recusado vezes demais e saiu da fila automática. */
+  public marcarFalhaDeEnvio(): void {
+    this._estadoSync = EstadoSyncEnum.FALHOU;
   }
 
   /** Ocupa a vaga única de (padrão, dia local). */

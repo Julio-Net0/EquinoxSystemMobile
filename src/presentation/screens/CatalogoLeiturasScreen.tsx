@@ -8,7 +8,7 @@ import { DataLocal } from '@/domain/value-objects/DataLocal';
 import { Cartao } from '@/presentation/components/Cartao';
 import { IconeTile } from '@/presentation/components/IconeTile';
 import { EstadoVazio } from '@/presentation/components/EstadoVazio';
-import { PilulaStatus } from '@/presentation/components/PilulaStatus';
+import { PilulaEstadoSync, PilulaStatus } from '@/presentation/components/PilulaStatus';
 import { CabecalhoTela } from '@/presentation/components/CabecalhoTela';
 
 export interface CatalogoLeiturasScreenProps {
@@ -101,6 +101,12 @@ export function CatalogoLeiturasScreen({
                             Injeção: {formatarKwh(padrao.ultimaLeitura.valorInjecao)}
                           </Text>
                         ) : null}
+
+                        {padrao.ultimaLeitura ? (
+                          <View style={styles.sync} testID={`sync-${padrao.padraoId}`}>
+                            <PilulaEstadoSync estado={padrao.ultimaLeitura.estadoSync} />
+                          </View>
+                        ) : null}
                       </View>
                     </View>
                   </Cartao>
@@ -115,6 +121,7 @@ export function CatalogoLeiturasScreen({
 }
 
 const styles = StyleSheet.create({
+  sync: { flexDirection: 'row', marginTop: Espaco.xs },
   raiz: { flex: 1, backgroundColor: Cores.surface },
   conteudo: {
     paddingHorizontal: Espaco.xl,

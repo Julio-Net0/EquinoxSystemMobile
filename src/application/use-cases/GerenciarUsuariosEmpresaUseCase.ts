@@ -120,7 +120,6 @@ export class GerenciarUsuariosEmpresaUseCase {
       nome,
       usuario: alvo.usuario,
       email,
-      senha: alvo.senha,
       perfil: entrada.perfil,
       status: entrada.status,
       enderecosVinculados: enderecoIds,

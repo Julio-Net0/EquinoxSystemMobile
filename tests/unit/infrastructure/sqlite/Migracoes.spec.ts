@@ -29,9 +29,12 @@ describe('migrações SQLite', () => {
       }
     });
 
-    it('a versão 1 cria o schema e a 2 popula o seed', () => {
-      expect(migracoes[0].nome).toContain('schema');
-      expect(migracoes[1].nome).toContain('seed');
+    it('a versão 1 cria o schema, a 2 popula o seed e a 3 traz a sincronização', () => {
+      expect(migracoes.map((m) => m.nome)).toEqual([
+        '001_schema_inicial',
+        '002_seed_demo',
+        '003_sincronizacao',
+      ]);
     });
 
     it('a senha demo é longa o bastante para o próprio cadastro aceitar', () => {

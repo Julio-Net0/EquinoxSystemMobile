@@ -4,11 +4,15 @@ import { DiagnosticoScreen } from '@/presentation/screens/DiagnosticoScreen';
 import { useCasos } from '@/presentation/context/ContainerProvider';
 import { useAuth } from '@/presentation/hooks/useAuth';
 import { useVoltar } from '@/presentation/hooks/useVoltar';
+import { usePainelSincronizacao } from '@/presentation/hooks/usePainelSincronizacao';
+import { useSincronizacao } from '@/presentation/context/SincronizacaoContext';
 
 export default function DiagnosticoRoute() {
   const { usuario } = useAuth();
   const casos = useCasos();
   const voltar = useVoltar('/(app)/(tabs)/perfil');
+  const sincronizacao = usePainelSincronizacao();
+  const { estado, versaoDosDados, pendentes } = useSincronizacao();
 
   const [dados, setDados] = useState<ConsultarDiagnosticoOutput | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -30,7 +34,9 @@ export default function DiagnosticoRoute() {
 
   useEffect(() => {
     void carregar();
-  }, [carregar]);
+    // Relê depois de cada sincronização: é aqui que se vê a leitura mudar de
+    // "pendente" para "sincronizada".
+  }, [carregar, versaoDosDados, pendentes]);
 
   return (
     <DiagnosticoScreen
@@ -39,6 +45,8 @@ export default function DiagnosticoRoute() {
       erro={erro}
       onRecarregar={() => void carregar()}
       onVoltar={voltar}
+      sincronizacao={sincronizacao}
+      fila={estado?.itens ?? []}
     />
   );
 }

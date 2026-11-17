@@ -6,10 +6,13 @@ import { SQLiteProvider, type SQLiteDatabase } from 'expo-sqlite';
 import { SolarTheme } from '@/constants/theme';
 import { migrar } from '@/infrastructure/database/sqlite/migrar';
 import { criarMigracoes } from '@/infrastructure/database/sqlite/migrations';
-import { HashSenhaExpoCrypto } from '@/infrastructure/security/HashSenhaExpoCrypto';
+import { HashSenhaAposentado } from '@/infrastructure/security/HashSenhaAposentado';
+import { ConfiguracaoAusenteError } from '@/infrastructure/config/ambiente';
 import { configurarFonteDeUuid } from '@/infrastructure/security/configurarUuid';
 import { ContainerProviderSQLite } from '@/presentation/context/ContainerProviderSQLite';
 import { AuthProvider } from '@/presentation/context/AuthContext';
+import { ConectividadeProvider } from '@/presentation/context/ConectividadeContext';
+import { SincronizacaoProvider } from '@/presentation/context/SincronizacaoContext';
 
 const NOME_BANCO = 'equinox.db';
 
@@ -18,11 +21,12 @@ const NOME_BANCO = 'equinox.db';
 configurarFonteDeUuid();
 
 /**
- * Chamada uma vez pelo SQLiteProvider, na abertura do banco. O seed precisa do
- * gateway de hash para calcular as senhas dos usuários de demonstração.
+ * Chamada uma vez pelo SQLiteProvider, na abertura do banco. A migração de
+ * seed ainda pede um gateway de hash (foi publicada assim); como a senha local
+ * foi aposentada, quem a atende não calcula nada.
  */
 async function aoAbrirBanco(db: SQLiteDatabase): Promise<void> {
-  await migrar(db, criarMigracoes(new HashSenhaExpoCrypto()));
+  await migrar(db, criarMigracoes(new HashSenhaAposentado()));
 }
 
 function TelaCarregando() {
@@ -35,16 +39,23 @@ function TelaCarregando() {
 }
 
 /**
- * Captura falha na abertura ou na migração do banco.
+ * Captura falha na abertura ou na migração do banco — e a falta das variáveis
+ * do Supabase, que impede a montagem do container. Nesse caso o app para
+ * aqui, explicando o que falta, em vez de seguir com um cliente de mentira.
  *
  * O Expo Router usa este export como fronteira de erro do segmento. É assim
  * que o SQLiteProvider reporta falha quando está em modo suspense: `onError` e
  * `useSuspense` são mutuamente exclusivos, e passar os dois derruba o app.
  */
 export function ErrorBoundary({ error, retry }: { error: Error; retry: () => Promise<void> }) {
+  const titulo =
+    error instanceof ConfiguracaoAusenteError || error.name === 'ConfiguracaoAusenteError'
+      ? 'Configuração da nuvem ausente'
+      : 'Não foi possível iniciar o app';
+
   return (
     <View style={styles.centro}>
-      <Text style={styles.tituloErro}>Não foi possível abrir o banco local</Text>
+      <Text style={styles.tituloErro}>{titulo}</Text>
       <Text style={styles.textoErro}>{error.message}</Text>
       <Text style={styles.acaoErro} onPress={() => void retry()}>
         Tentar de novo
@@ -63,13 +74,19 @@ export default function RootLayout() {
       <React.Suspense fallback={<TelaCarregando />}>
         <SQLiteProvider databaseName={NOME_BANCO} onInit={aoAbrirBanco} useSuspense>
           <ContainerProviderSQLite>
+            {/* Quatro contextos, de fora para dentro: dependências, sessão,
+                rede e sincronização. Cada um só conhece os de fora. */}
             <AuthProvider>
-              <Stack
-                screenOptions={{
-                  headerShown: false,
-                  contentStyle: { backgroundColor: SolarTheme.background },
-                }}
-              />
+              <ConectividadeProvider>
+                <SincronizacaoProvider>
+                  <Stack
+                    screenOptions={{
+                      headerShown: false,
+                      contentStyle: { backgroundColor: SolarTheme.background },
+                    }}
+                  />
+                </SincronizacaoProvider>
+              </ConectividadeProvider>
             </AuthProvider>
           </ContainerProviderSQLite>
         </SQLiteProvider>

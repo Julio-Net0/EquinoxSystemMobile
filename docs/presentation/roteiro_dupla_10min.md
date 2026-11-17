@@ -1,5 +1,11 @@
 # Roteiro para dois apresentadores — 10 minutos
 
+> **Atualizado em 17/11/2026.** Este roteiro foi escrito para a fase 100% local.
+> O app agora sincroniza com o Supabase (ADR seção 10). As respostas abaixo
+> foram corrigidas; para os doze pontos da apresentação, use
+> [respostas-da-banca.md](respostas-da-banca.md).
+
+
 Deck: `slides/apresentacao_camera_geolocalizacao_persistencia.html`
 Tema da banca: **Câmera, Geolocalização e Persistência de Dados**
 
@@ -50,7 +56,8 @@ foto. É o ajuste mais barato do roteiro.
 
 - **Foto obrigatória do visor** — sem foto, não existe leitura
 - **GPS como prova de apoio auditável** — não bloqueia o técnico, registra
-- **SQLite local** — grava na hora, sem nuvem, sem sincronização
+- **SQLite local + fila de envio** — grava na hora, sem depender de rede, e sobe
+  para o Supabase quando a conexão volta
 
 **Os três números do rodapé** (aponta): foto em 1080p e ~300 KB, raio de apoio
 de 500 m, 100% offline. Vira para a **página 2** e mostra a árvore de pastas:
@@ -255,15 +262,16 @@ transação exclusiva, atualizando a anterior antes de inserir a nova.
 A leitura é gravada sem coordenadas e gera notificação de auditoria. Bloquear
 seria transformar uma limitação de hardware em impedimento de trabalho.
 
-**"Por que não usaram um banco na nuvem?"**
-Nesta fase o app é 100% local, por decisão registrada em `docs/decisions.md`
-seção 9.2. O lugar onde o técnico trabalha não tem sinal; sincronizar seria
-resolver um problema que ainda não existe.
+**"E a nuvem?"**
+Supabase: Auth, Postgres com RLS e Storage privado. O aparelho grava primeiro
+no SQLite e numa fila na mesma transação; a fila sobe quando há rede, foto antes
+da leitura. As telas nunca consultam a nuvem — leem o SQLite, que o pull
+alimenta. Detalhes em `docs/decisions.md` seção 10.
 
 **"A senha está segura?"**
-É SHA-256 encadeado, **não é um KDF**. Está documentado como dívida consciente
-na seção 9.5 do ADR, com a troca por Argon2id prevista para quando houver
-backend. Para dados locais de demonstração serve; para produção não.
+Não há senha no aparelho. A conta é conferida pelo Supabase Auth; o aparelho
+guarda só os tokens da sessão, no Keychain/Keystore (`expo-secure-store`). O
+hash local da fase anterior (ADR 9.5) foi removido na migração 003.
 
 **"Os testes foram escritos antes do código?"**
 No domínio e na aplicação, sim — é de onde vêm os 96,6% e 99,2%. Os adaptadores

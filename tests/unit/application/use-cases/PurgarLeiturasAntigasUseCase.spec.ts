@@ -17,7 +17,7 @@ async function cenario() {
   const arquivoFoto = new ArquivoFotoGatewayFake();
   const caso = new PurgarLeiturasAntigasUseCase(leituraRepo, arquivoFoto, relogioFixo(AGORA));
 
-  async function leitura(dataLocalIso: string, decidida: boolean) {
+  async function leitura(dataLocalIso: string, decidida: boolean, sincronizada = true) {
     const [ano, mes, dia] = dataLocalIso.split('-').map(Number);
     const medidoEm = new Date(Date.UTC(ano, mes - 1, dia, 15));
     const l = new Leitura({
@@ -27,6 +27,7 @@ async function cenario() {
       medidoEm, dataLocal: DataLocal.de(medidoEm),
     });
     if (decidida) l.aprovar(usuarioId, AGORA);
+    if (sincronizada) l.marcarSincronizada(`empresa/endereco/${dataLocalIso}.jpg`);
     await leituraRepo.salvar(l);
     arquivoFoto.salvos.set(l.fotoLocalUri, {
       uri: l.fotoLocalUri, bytes: 300_000, largura: 1080, altura: 1440,
@@ -79,6 +80,18 @@ describe('PurgarLeiturasAntigasUseCase', () => {
 
     expect(saida.removidas).toBe(0);
     expect(await leituraRepo.buscarPorId(pendente.id)).not.toBeNull();
+  });
+
+  it('nunca remove leitura que ainda não subiu para a nuvem, mesmo decidida e antiga', async () => {
+    const { caso, leituraRepo, arquivoFoto, leitura } = await cenario();
+    const soNoAparelho = await leitura('2025-06-01', true, false);
+
+    const saida = await caso.executar();
+
+    // O aparelho é o único lugar onde ela existe: apagar seria perder o dado.
+    expect(saida.removidas).toBe(0);
+    expect(await leituraRepo.buscarPorId(soNoAparelho.id)).not.toBeNull();
+    expect(await arquivoFoto.existe(soNoAparelho.fotoLocalUri)).toBe(true);
   });
 
   it('não falha quando não há nada a expurgar', async () => {

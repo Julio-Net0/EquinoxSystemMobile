@@ -9,6 +9,7 @@ describe('Container', () => {
     const { repos } = criarContainerFake();
     const esperados: (keyof Container['repos'])[] = [
       'empresa', 'endereco', 'padrao', 'leitura', 'usuario', 'notificacao', 'actionQueue',
+      'syncMeta',
     ];
 
     for (const nome of esperados) expect(repos[nome]).toBeDefined();
@@ -17,7 +18,8 @@ describe('Container', () => {
   it('resolve todos os gateways', () => {
     const { gateways } = criarContainerFake();
     const esperados: (keyof Container['gateways'])[] = [
-      'camera', 'location', 'arquivoFoto', 'hashSenha', 'sessao',
+      'camera', 'location', 'arquivoFoto', 'sessao', 'diagnostico',
+      'autenticacaoRemota', 'sincronizacaoRemota', 'conectividade',
     ];
 
     for (const nome of esperados) expect(gateways[nome]).toBeDefined();
@@ -29,7 +31,8 @@ describe('Container', () => {
       'autenticar', 'cadastrarPendente', 'autorizar', 'gerenciarUsuarios',
       'gerenciarEmpresas', 'gerenciarEstrutura', 'perfil', 'consultarCatalogo',
       'registrarLeitura', 'decidirLeitura', 'notificacoes', 'avaliarAtrasadas', 'purgar',
-      'consultarLeiturasUsina',
+      'consultarLeiturasUsina', 'encerrarSessao', 'processarFila', 'baixarAlteracoes',
+      'sincronizar', 'estadoSincronizacao', 'fotoDaLeitura',
     ];
 
     for (const nome of esperados) expect(casos[nome]).toBeDefined();
@@ -49,6 +52,17 @@ describe('Container', () => {
 
     const pelaOutraPonta = await container.casos.gerenciarEmpresas.listar();
     expect(pelaOutraPonta.map((e) => e.nome)).toContain('Equinox Energia Solar');
+  });
+
+  it('toda escrita pelos repositórios do container deixa um item na fila de envio', async () => {
+    const container = criarContainerFake();
+
+    await container.repos.empresa.salvar(
+      new Empresa({ id: UUIDv4.gerar(), nome: 'Enfileirada', cnpj: new CNPJ('19131243000197') }),
+    );
+
+    const fila = await container.repos.actionQueue.obterPendentes();
+    expect(fila.map((i) => i.tipoOperacao)).toEqual(['UPSERT_EMPRESA']);
   });
 
   it('o relógio é compartilhado e fixo nos testes', () => {

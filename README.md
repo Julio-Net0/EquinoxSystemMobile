@@ -1,112 +1,104 @@
 # Equinox Mobile ☀️
 
-**Sistema de Gestão e Monitoramento de Usinas Fotovoltaicas**
+**Leitura de medidores de energia, com foto e GPS, que funciona sem internet.**
 
-O Equinox Mobile é um aplicativo **100% Mobile, Multi-Tenant e Offline-First**, desenvolvido para permitir que técnicos em campo realizem vistorias e registrem leituras de geração de energia em usinas solares, mesmo em locais remotos e sem conectividade com a internet.
-
----
-
-## 🚀 Principais Funcionalidades
-
-- **Sincronização Offline-First:** O aplicativo funciona de forma contínua sem internet. Todos os dados são salvos localmente e enviados para a nuvem automaticamente assim que a conexão é restabelecida.
-- **Gerenciamento de Multi-Tenancy:** Estrutura escalável para atender diversas Empresas (Tenants), Usinas e Usuários com rígido controle de acesso baseado em RLS (Row Level Security).
-- **Prova de Presença (Proof of Presence):** Validação de localização via GPS para garantir que a leitura foi feita fisicamente na usina correta.
-- **Otimização de Mídia:** Compressão automática local de fotos de relógios medidores (máx 1080p, ~300KB) para garantir uploads bem-sucedidos em redes 3G rurais.
+O Equinox Mobile é um aplicativo **offline-first e multiempresa** para técnicos
+registrarem a leitura dos padrões de energia (consumo e, em usinas solares,
+injeção) em endereços onde a internet falha. Tudo é gravado primeiro no
+aparelho e sobe para a nuvem (**Supabase**) quando há conexão.
 
 ---
 
-## 🛠️ Stack Tecnológica
+## Funcionalidades
 
-O sistema foi desenhado seguindo a filosofia de **Clean Architecture**, **Domain-Driven Design (DDD)** e **Test-Driven Development (TDD)**, utilizando as seguintes tecnologias:
+- **Leitura com comprovante:** foto obrigatória do visor (1080p, ~300 KB) e GPS
+  consultivo — fora do raio de 500 m vira aviso, nunca bloqueio.
+- **Funciona offline:** registro, decisões e administração gravam no SQLite e
+  entram numa fila de envio, na mesma transação.
+- **Sincroniza sozinho:** ao abrir o app, quando a rede volta, logo após cada
+  registro e por botão. Foto sobe antes da leitura; envio idempotente.
+- **Login offline:** depois do primeiro login online, o app reabre autenticado
+  em modo avião, com a sessão no `expo-secure-store`.
+- **Multiempresa com segurança no banco:** Row Level Security por empresa e por
+  nível; fotos num bucket privado, exibidas por URL assinada de 60 s.
+- **Três perfis:** Técnico, Administrador e Super Admin.
 
-- **Plataforma/Framework:** React Native + Expo SDK 58 (Expo Router)
-- **Linguagem:** TypeScript v5+ (`strict: true`)
-- **Backend / Nuvem:** Supabase (Auth, Storage, PostgreSQL)
-- **Persistência Local:** SQLite (Fonte Única de Verdade em modo offline)
-- **Testes:** Jest + `@testing-library/react-native`
-- **Validação de Formulários:** Zod + React Hook Form
+## Stack
 
----
+- **App:** React Native + Expo SDK 58 (Expo Router), TypeScript `strict`
+- **Local:** SQLite (`expo-sqlite`), migrações por `PRAGMA user_version`
+- **Nuvem:** Supabase — Auth, Postgres (RLS) e Storage — via `@supabase/supabase-js`
+- **Rede:** `@react-native-community/netinfo`
+- **Build:** EAS Build (APK de demonstração)
+- **Testes:** Jest (4 projetos, `jest-expo`) + Testing Library; políticas de
+  segurança testadas num Postgres embutido (PGlite)
 
-## 🏗️ Arquitetura do Sistema
+Arquitetura: Clean Architecture + DDD + TDD. O domínio não importa nenhuma
+biblioteca — há teste que reprova.
 
-O projeto adota a Arquitetura Limpa (Clean Architecture), isolando completamente a lógica de negócios da infraestrutura e interface do usuário.
+## Rodar
 
-```mermaid
-flowchart TB
-    subgraph Presentation["Camada de Apresentação (UI)"]
-        UI_Screens[Expo Router Screens]
-        UI_Components[React Native Components]
-        UI_Context[Auth & Connection Context]
-    end
+1. Instale as dependências:
 
-    subgraph Application["Camada de Aplicação (Use Cases)"]
-        UC_Leitura[RegistrarLeituraUseCase]
-        UC_Usina[CadastrarUsinaUseCase]
-        UC_Sync[ProcessarFilaSincronizacaoUseCase]
-    end
+   ```bash
+   npm install
+   ```
 
-    subgraph Domain["Camada de Domínio (Pure Business Logic)"]
-        Dom_Entities[Entidades: Usina, Leitura, Empresa, Usuario]
-        Dom_VO[Value Objects: CoordenadasGPS, UUID]
-        Dom_Ports[[Interfaces: ILeituraRepository, ISyncGateway, IGPSProvider]]
-    end
+2. Configure o Supabase — **obrigatório**; sem isso o app abre numa tela que
+   explica o que falta. Passo a passo em
+   [docs/supabase-setup.md](docs/supabase-setup.md):
 
-    subgraph Infrastructure["Camada de Infraestrutura (Drivers & Adapters)"]
-        Infra_SQLite[SQLite Database - expo-sqlite]
-        Infra_Supabase[Supabase Client - @supabase/supabase-js]
-        Infra_Hardware[Expo Camera / Location / SecureStore]
-        Infra_NetInfo[NetInfo Network Monitor]
-    end
+   ```bash
+   cp .env.example .env.local
+   ```
 
-    UI_Screens --> UI_Context
-    UI_Screens --> UC_Leitura
-    UI_Screens --> UC_Usina
-    UC_Leitura --> Dom_Entities
-    UC_Leitura --> Dom_Ports
-    UC_Sync --> Dom_Ports
-    Infra_SQLite -.implementa.-> Dom_Ports
-    Infra_Supabase -.implementa.-> Dom_Ports
-    Infra_Hardware -.implementa.-> Dom_Ports
+3. Suba o Expo e abra no Expo Go:
+
+   ```bash
+   npx expo start -c
+   ```
+
+Contas de demonstração: [docs/credenciais-demo.md](docs/credenciais-demo.md).
+
+## Testar
+
+```bash
+npx tsc --noEmit
 ```
 
----
-
-## 🔄 Motor de Sincronização (Offline-First)
-
-A arquitetura garante que nenhuma informação seja perdida. Se o app estiver offline, as ações são enfileiradas. Quando a rede volta, o **SyncManager** orquestra o envio dos arquivos de mídia e JSONs.
-
-```mermaid
-flowchart TD
-    Start((NetInfo: Online)) --> A1[SyncManager acionado]
-    A1 --> A2[Consultar itens pendentes na action_queue]
-    A2 --> D1{Existe item pendente?}
-    D1 -- Não --> A3[Executar Pull Sync Delta]
-    D1 -- Sim --> A4[Ler primeiro item da fila]
-    A4 --> D2{Tipo da Ação?}
-    D2 -- INSERT_LEITURA --> A5[Upload foto comprimida para Supabase Storage]
-    A5 --> A6[Enviar payload da leitura via Supabase Client API]
-    D2 -- INSERT_USINA --> A7[Enviar payload da usina via Supabase API]
-    A6 --> D3{Resposta Supabase?}
-    A7 --> D3
-    D3 -- Sucesso (200/201) --> A8[Remover item da action_queue]
-    A8 --> A9[Atualizar status no SQLite local para Sincronizada]
-    A9 --> A2
-    D3 -- Conflito (409) --> A10[Marcar status no SQLite para Conflito]
-    A10 --> A8
-    D3 -- Erro de Conexão --> End((Fim / Aguardar próxima janela))
-    A3 --> End
+```bash
+npm test
 ```
 
----
+```bash
+npm run test:coverage
+```
 
-## 📚 Documentação Técnica Completa
+```bash
+npm run test:rls
+```
 
-Para um aprofundamento na arquitetura, modelos de dados e diretrizes do sistema, consulte os arquivos abaixo:
+Nenhum teste fala com a nuvem. O último roda as políticas de RLS e Storage
+contra um Postgres de verdade embutido.
 
-- [📝 Regras de Arquitetura e Agentes (AGENTS.md)](./AGENTS.md)
-- [📖 Documentação de Software Completa](./docs/documento-software.md)
-- [⚖️ Registro de Decisões de Arquitetura (ADRs)](./docs/decisions.md)
-- [📊 Matriz de Rastreabilidade (TDD)](./docs/design/matriz_rastreabilidade_tdd.md)
-- [🗄️ Schemas de Banco de Dados (SQLite e Supabase)](./docs/design/)
-- [🗺️ Diagramas UML Detalhados](./docs/diagrams/)
+## Sincronização em uma figura
+
+```mermaid
+flowchart LR
+    UI[Telas] -->|lêem| SQLite[(SQLite)]
+    UC[Casos de uso] -->|gravam| Repo[Repositórios com fila]
+    Repo -->|mesma transação| SQLite
+    Repo -->|mesma transação| Fila[(action_queue)]
+    Fila -->|push: foto, depois linha| Nuvem[(Supabase)]
+    Nuvem -->|pull incremental, filtrado por RLS| SQLite
+```
+
+## Documentação
+
+- [Respostas para a banca (12 pontos da apresentação)](docs/presentation/respostas-da-banca.md)
+- [Decisões de arquitetura (ADR)](docs/decisions.md) — a seção 10 cobre a nuvem
+- [Configurar o Supabase](docs/supabase-setup.md) · [Gerar o APK](docs/eas-build.md)
+- [Regras para agentes e contribuidores](AGENTS.md)
+- [Roteiro de testes manuais](docs/roteiro-de-testes.md) · [Testar no Android](docs/testar-no-android.md)
+- [Especificação de software](docs/documento-software.md) · [Diagramas](docs/diagrams/)
+- Schema remoto: [supabase/migrations/](supabase/migrations/) · local: [src/infrastructure/database/sqlite/migrations/](src/infrastructure/database/sqlite/migrations/)

@@ -13,7 +13,7 @@ import { CampoTexto } from '@/presentation/components/CampoTexto';
 import { SolarButton } from '@/presentation/components/SolarButton';
 
 export interface LoginScreenProps {
-  onEntrar(login: string, senha: string): Promise<{ sucesso: boolean; erro?: string }>;
+  onEntrar(email: string, senha: string): Promise<{ sucesso: boolean; erro?: string }>;
   onIrParaCadastro(): void;
 }
 
@@ -22,9 +22,12 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 /**
  * Entrada no app, portada de example/Equinox.MOBILE/src/pages/login.ts.
  *
- * As validações de forma acontecem aqui, antes de consultar o banco, com as
- * mesmas mensagens do app antigo. O caso de uso é que decide sobre credencial
- * e status da conta.
+ * As validações de forma acontecem aqui, antes de falar com a nuvem. O caso de
+ * uso é que decide sobre credencial e status da conta.
+ *
+ * O acesso é só por e-mail: é ele a identidade no serviço de autenticação. O
+ * primeiro login neste aparelho exige internet; depois dele a sessão fica no
+ * armazenamento seguro e o app abre offline.
  */
 export function LoginScreen({ onEntrar, onIrParaCadastro }: LoginScreenProps) {
   const [login, setLogin] = useState('');
@@ -37,11 +40,14 @@ export function LoginScreen({ onEntrar, onIrParaCadastro }: LoginScreenProps) {
     const informado = login.trim();
 
     if (!informado) {
-      setErro('Informe o e-mail ou usuário.');
+      setErro('Informe o e-mail.');
       return;
     }
-    // Só valida formato quando parece um e-mail: o campo também aceita login.
-    if (informado.includes('@') && !EMAIL_REGEX.test(informado)) {
+    if (!informado.includes('@')) {
+      setErro('Entre com o seu e-mail — o acesso por nome de usuário foi desativado.');
+      return;
+    }
+    if (!EMAIL_REGEX.test(informado)) {
       setErro('O e-mail informado não parece válido.');
       return;
     }
@@ -83,8 +89,8 @@ export function LoginScreen({ onEntrar, onIrParaCadastro }: LoginScreenProps) {
 
         <View style={styles.formulario}>
           <CampoTexto
-            rotulo="E-mail ou usuário"
-            icone="person"
+            rotulo="E-mail"
+            icone="mail"
             placeholder="nome@empresa.com"
             value={login}
             onChangeText={(texto) => {
@@ -93,7 +99,7 @@ export function LoginScreen({ onEntrar, onIrParaCadastro }: LoginScreenProps) {
             }}
             autoCapitalize="none"
             autoCorrect={false}
-            autoComplete="username"
+            autoComplete="email"
             keyboardType="email-address"
             testID="input-login"
           />

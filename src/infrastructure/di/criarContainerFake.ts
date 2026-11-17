@@ -1,5 +1,6 @@
 import { Container, montarCasos } from './Container';
 import { IRelogio, relogioFixo } from '@/domain/services/Relogio';
+import { RepositoriosDaTransacao } from '@/domain/repositories/IUnidadeDeTrabalho';
 import { EmpresaRepositoryMemory } from '../fakes/EmpresaRepositoryMemory';
 import { EnderecoRepositoryMemory } from '../fakes/EnderecoRepositoryMemory';
 import { PadraoRepositoryMemory } from '../fakes/PadraoRepositoryMemory';
@@ -7,12 +8,16 @@ import { LeituraRepositoryMemory } from '../fakes/LeituraRepositoryMemory';
 import { UsuarioRepositoryMemory } from '../fakes/UsuarioRepositoryMemory';
 import { NotificacaoRepositoryMemory } from '../fakes/NotificacaoRepositoryMemory';
 import { ActionQueueRepositoryMemory } from '../fakes/ActionQueueRepositoryMemory';
+import { SyncMetaRepositoryMemory } from '../fakes/SyncMetaRepositoryMemory';
+import { UnidadeDeTrabalhoMemory } from '../fakes/UnidadeDeTrabalhoMemory';
 import { CameraGatewayFake } from '../fakes/CameraGatewayFake';
 import { LocationGatewayFake } from '../fakes/LocationGatewayFake';
 import { ArquivoFotoGatewayFake } from '../fakes/ArquivoFotoGatewayFake';
-import { HashSenhaFake } from '../fakes/HashSenhaFake';
 import { SessionStorageMemory } from '../fakes/SessionStorageMemory';
 import { DiagnosticoLocalFake } from '../fakes/DiagnosticoLocalFake';
+import { AutenticacaoRemotaFake } from '../fakes/AutenticacaoRemotaFake';
+import { SincronizacaoRemotaFake } from '../fakes/SincronizacaoRemotaFake';
+import { ConectividadeFake } from '../fakes/ConectividadeFake';
 
 /** Instante fixo padrão dos testes: 10/03/2026, 12:00 em Brasília. */
 export const AGORA_FIXO = new Date(Date.UTC(2026, 2, 10, 15));
@@ -23,7 +28,8 @@ export const AGORA_FIXO = new Date(Date.UTC(2026, 2, 10, 15));
  *
  * Monta exatamente o mesmo grafo de casos de uso que a versão SQLite, via
  * `montarCasos` — é isso que impede o teste de passar num grafo que a produção
- * não usa.
+ * não usa. Inclusive a fila: os casos de uso daqui também recebem os
+ * repositórios que enfileiram, então `fakes.actionQueue` mostra o que subiria.
  */
 export interface ContainerFake extends Container {
   fakes: {
@@ -34,17 +40,20 @@ export interface ContainerFake extends Container {
     usuario: UsuarioRepositoryMemory;
     notificacao: NotificacaoRepositoryMemory;
     actionQueue: ActionQueueRepositoryMemory;
+    syncMeta: SyncMetaRepositoryMemory;
     camera: CameraGatewayFake;
     location: LocationGatewayFake;
     arquivoFoto: ArquivoFotoGatewayFake;
-    hashSenha: HashSenhaFake;
     sessao: SessionStorageMemory;
     diagnostico: DiagnosticoLocalFake;
+    autenticacaoRemota: AutenticacaoRemotaFake;
+    sincronizacaoRemota: SincronizacaoRemotaFake;
+    conectividade: ConectividadeFake;
   };
 }
 
 export function criarContainerFake(relogio: IRelogio = relogioFixo(AGORA_FIXO)): ContainerFake {
-  const fakes = {
+  const fakes: ContainerFake['fakes'] = {
     empresa: new EmpresaRepositoryMemory(),
     endereco: new EnderecoRepositoryMemory(),
     padrao: new PadraoRepositoryMemory(),
@@ -52,15 +61,18 @@ export function criarContainerFake(relogio: IRelogio = relogioFixo(AGORA_FIXO)):
     usuario: new UsuarioRepositoryMemory(),
     notificacao: new NotificacaoRepositoryMemory(),
     actionQueue: new ActionQueueRepositoryMemory(),
+    syncMeta: new SyncMetaRepositoryMemory(),
     camera: new CameraGatewayFake(),
     location: new LocationGatewayFake(),
     arquivoFoto: new ArquivoFotoGatewayFake(),
-    hashSenha: new HashSenhaFake(),
     sessao: new SessionStorageMemory(),
     diagnostico: new DiagnosticoLocalFake(),
+    autenticacaoRemota: new AutenticacaoRemotaFake(),
+    sincronizacaoRemota: new SincronizacaoRemotaFake(),
+    conectividade: new ConectividadeFake(),
   };
 
-  const repos: Container['repos'] = {
+  const crus: RepositoriosDaTransacao = {
     empresa: fakes.empresa,
     endereco: fakes.endereco,
     padrao: fakes.padrao,
@@ -68,22 +80,27 @@ export function criarContainerFake(relogio: IRelogio = relogioFixo(AGORA_FIXO)):
     usuario: fakes.usuario,
     notificacao: fakes.notificacao,
     actionQueue: fakes.actionQueue,
+    syncMeta: fakes.syncMeta,
   };
 
   const gateways: Container['gateways'] = {
     camera: fakes.camera,
     location: fakes.location,
     arquivoFoto: fakes.arquivoFoto,
-    hashSenha: fakes.hashSenha,
     sessao: fakes.sessao,
     diagnostico: fakes.diagnostico,
+    autenticacaoRemota: fakes.autenticacaoRemota,
+    sincronizacaoRemota: fakes.sincronizacaoRemota,
+    conectividade: fakes.conectividade,
   };
 
+  const unidadeDeTrabalho = new UnidadeDeTrabalhoMemory(crus);
+
   return {
-    repos,
+    ...montarCasos(crus, unidadeDeTrabalho, gateways, relogio),
+    unidadeDeTrabalho,
     gateways,
     relogio,
-    casos: montarCasos(repos, gateways, relogio),
     fakes,
   };
 }

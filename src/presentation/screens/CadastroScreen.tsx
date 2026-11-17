@@ -21,6 +21,9 @@ export interface DadosCadastro {
 export interface CadastroScreenProps {
   empresas: ItemSelecionavel[];
   carregandoEmpresas: boolean;
+  /** Por que a lista de empresas não veio (sem conexão, por exemplo). */
+  avisoEmpresas?: string | null;
+  onRecarregarEmpresas?(): void;
   onEnviar(dados: DadosCadastro): Promise<{ sucesso: boolean; erro?: string }>;
   onVoltarAoLogin(): void;
 }
@@ -43,10 +46,15 @@ type Passo = 'formulario' | 'conferencia' | 'enviado';
  * Os dois passos vêm do original: o usuário confere os dados antes de
  * confirmar, e nada é enviado no primeiro passo. A senha não aparece na
  * conferência de propósito.
+ *
+ * O cadastro é feito na nuvem e por isso exige conexão — inclusive a lista de
+ * empresas, que vem de uma função do servidor que só expõe id e nome.
  */
 export function CadastroScreen({
   empresas,
   carregandoEmpresas,
+  avisoEmpresas,
+  onRecarregarEmpresas,
   onEnviar,
   onVoltarAoLogin,
 }: CadastroScreenProps) {
@@ -179,6 +187,12 @@ export function CadastroScreen({
                 desabilitado={carregandoEmpresas}
               />
 
+              {avisoEmpresas ? (
+                <Text style={styles.avisoEmpresas} onPress={onRecarregarEmpresas} testID="aviso-empresas">
+                  {avisoEmpresas} Toque para tentar de novo.
+                </Text>
+              ) : null}
+
               <CampoTexto
                 rotulo="Senha"
                 icone="lock"
@@ -267,6 +281,7 @@ function Linha({
 }
 
 const styles = StyleSheet.create({
+  avisoEmpresas: { ...Tipografia.meta, color: Cores.error, marginTop: -Espaco.xs },
   raiz: { flex: 1, backgroundColor: Cores.surface },
   conteudo: { paddingHorizontal: Espaco.xl, paddingTop: Espaco.xxl, gap: Espaco.xl },
   erro: { ...Tipografia.corpoSm, color: Cores.error, textAlign: 'center' },

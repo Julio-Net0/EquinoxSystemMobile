@@ -1,6 +1,6 @@
 import { IUsuarioRepository } from '@/domain/repositories/IUsuarioRepository';
 import { ISessionStorage } from '@/domain/gateways/ISessionStorage';
-import { IHashSenhaGateway } from '@/domain/gateways/IHashSenhaGateway';
+import { IAutenticacaoRemotaGateway } from '@/domain/gateways/IAutenticacaoRemotaGateway';
 import { Usuario } from '@/domain/entities/Usuario';
 import { UUIDv4 } from '@/domain/value-objects/UUIDv4';
 
@@ -26,12 +26,18 @@ export interface ResultadoPerfil {
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const MINIMO_SENHA = 6;
 
-/** O próprio usuário editando seus dados e sua senha. */
+/**
+ * O próprio usuário editando seus dados e sua senha.
+ *
+ * Nome e apelido mudam no aparelho e sobem pela fila, como qualquer escrita.
+ * Já o e-mail e a senha são a identidade no serviço de autenticação da nuvem:
+ * a senha só troca com rede, e o e-mail não troca por aqui.
+ */
 export class GerenciarPerfilUseCase {
   constructor(
     private readonly usuarioRepo: IUsuarioRepository,
     private readonly sessionStorage: ISessionStorage,
-    private readonly hashSenha: IHashSenhaGateway,
+    private readonly autenticacaoRemota: IAutenticacaoRemotaGateway,
   ) {}
 
   public async alterarDados(entrada: AlterarDadosInput): Promise<ResultadoPerfil> {
@@ -49,9 +55,11 @@ export class GerenciarPerfilUseCase {
       return { sucesso: false, erro: 'O e-mail informado não parece válido' };
     }
 
-    const donoDoEmail = await this.usuarioRepo.buscarPorEmail(email);
-    if (donoDoEmail && !donoDoEmail.id.equals(eu.id)) {
-      return { sucesso: false, erro: 'Este e-mail já está em uso' };
+    if (email !== eu.email) {
+      return {
+        sucesso: false,
+        erro: 'O e-mail é a sua identidade de acesso e não pode ser alterado por aqui. Procure um administrador',
+      };
     }
 
     const donoDoLogin = await this.usuarioRepo.buscarPorLogin(login);
@@ -65,7 +73,6 @@ export class GerenciarPerfilUseCase {
       nome,
       usuario: login,
       email,
-      senha: eu.senha,
       perfil: eu.perfil,
       status: eu.status,
       enderecosVinculados: eu.enderecosVinculados,
@@ -109,14 +116,21 @@ export class GerenciarPerfilUseCase {
       return { sucesso: false, erro: 'A nova senha precisa ser diferente da atual' };
     }
 
-    if (!(await this.hashSenha.verificar(entrada.senhaAtual, eu.senha))) {
+    // A senha vive só no serviço de autenticação da nuvem: é lá que a atual
+    // é conferida e a nova é gravada. O aparelho não guarda nenhuma das duas.
+    const troca = await this.autenticacaoRemota.alterarSenha(entrada.senhaAtual, entrada.novaSenha);
+    if (!troca.ok) {
+      if (troca.motivo === 'rede') {
+        return { sucesso: false, erro: 'Sem conexão. A troca de senha precisa de internet' };
+      }
+      if (troca.motivo === 'nao_autenticado') {
+        return { sucesso: false, erro: 'Sua sessão na nuvem expirou. Entre de novo para trocar a senha' };
+      }
       return { sucesso: false, erro: 'A senha atual está incorreta' };
     }
 
-    eu.trocarSenha(await this.hashSenha.gerar(entrada.novaSenha));
-    await this.usuarioRepo.atualizar(eu);
-
     // Força entrar de novo com a senha nova, como o app antigo faz.
+    await this.autenticacaoRemota.sair();
     await this.sessionStorage.limparSessao();
 
     return { sucesso: true };

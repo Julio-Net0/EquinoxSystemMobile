@@ -302,6 +302,8 @@ energia e por isso exige a leitura do campo 103.
 
 ### 9.2 Remoção da Nuvem e da Sincronização
 
+> **Revogada pela seção 10.1.** A nuvem voltou, desta vez integrada e testada.
+
 **Decisão.** Supabase (cliente, três gateways e `@supabase/supabase-js`),
 `SyncManager`, `NetworkMonitor`, `DataPurgeService` e `CrashReporterManager`
 saíram do caminho do app. `@react-native-community/netinfo` não foi instalado.
@@ -569,3 +571,316 @@ anterior acumulada).
   onde os dias que possuem leituras registradas são sinalizados visualmente com pontos indicadores,
   permitindo ao administrador auditar qualquer dia do histórico com um único toque.
 
+
+---
+
+## 10. Nuvem de Volta: Offline-First com Supabase (Fase 7)
+
+Esta fase traz de volta a nuvem que a seção 9.2 removeu — agora integrada de
+ponta a ponta e verificada por teste. Onde houver conflito, as decisões abaixo
+substituem as das seções 2, 3.2, 4.5, 4.6, 5 e 7, e **revogam a 9.2**.
+
+### 10.1 Reintrodução da Nuvem (revoga 9.2)
+
+**Contexto.** A disciplina exige, demonstrável no app: acesso a WebServices,
+autenticação, Context API e uso do `expo-secure-store`. A apresentação precisa
+explicar o que é online, o que é offline e como sincroniza. Com o app 100%
+local, metade disso não tinha o que mostrar.
+
+**Opções.** (a) Manter o app local e só descrever a nuvem nos slides. (b) Um
+backend próprio (API REST). (c) Supabase: Postgres, Auth e Storage gerenciados,
+com segurança declarada no próprio banco (RLS).
+
+**Decisão.** (c), com o projeto criado e administrado pelo dono do repositório.
+O app recebe só a URL e a chave anônima, por `EXPO_PUBLIC_SUPABASE_URL` e
+`EXPO_PUBLIC_SUPABASE_ANON_KEY` (`.env.local`).
+
+**Justificativa.** (a) seria exatamente a "ilusão de integração" que a 9.2
+condenou. (b) exigiria escrever, hospedar e proteger uma API inteira. O
+Supabase entrega autenticação e armazenamento prontos, e o modelo de segurança
+(RLS) fica versionado em SQL no repositório, testável.
+
+**O que a 9.2 ensinou e continua valendo.** Sem as variáveis, o app **não sobe**
+com um cliente de mentira: `lerConfiguracaoSupabase` lança
+`ConfiguracaoAusenteError` e o `ErrorBoundary` raiz mostra o que falta e como
+resolver. Nenhum teste fala com o Supabase real.
+
+### 10.2 Autenticação pelo Supabase Auth e Fim da Senha Local (encerra 9.5)
+
+**Decisão.** Login com e-mail e senha pelo Supabase Auth
+(`AutenticacaoSupabase`). O perfil (nível, empresa, endereços, status) vem da
+tabela `perfis` do banco remoto. O cadastro cria a identidade no Auth; o perfil
+nasce de um gatilho no banco, **sempre** como Técnico e `Pendente`, ignorando o
+que o cliente mandar nos metadados.
+
+**Login por nome de usuário: abandonado.** O Auth autentica por e-mail. Manter
+o nome de usuário exigiria traduzir nome → e-mail **antes** do login, ou seja,
+uma consulta aberta a anônimos que devolve e-mails — uma porta para descobrir
+quais contas existem. O campo `usuario` continua existindo e único, como
+apelido. O login recusa texto sem `@` com uma mensagem que explica a mudança.
+
+**Senha local: aposentada.** Nenhuma senha (nem hash) fica no aparelho.
+- `HashSenhaExpoCrypto` foi removido, e com ele a dívida de segurança da 9.5.
+- A coluna `usuarios.senha_hash` não pode sair: a migração 002 (publicada, não
+  editável) a preenche. A **migração 003** a esvazia e o repositório passa a
+  gravar sempre `''`.
+- A 002 ainda pede um `IHashSenhaGateway`; quem a atende é o
+  `HashSenhaAposentado`, que devolve um valor inerte e não deriva nada da senha.
+- Trocar a senha é feito na nuvem (`alterarSenha` confere a atual com um novo
+  login e grava a nova). O e-mail, por ser a identidade, não é editável no app.
+
+**PIN local (ADR 3.2): não adotado.** A sessão no armazenamento seguro já
+libera o uso offline (10.4). Um PIN acrescentaria fricção sem ganho na
+demonstração. Os métodos de PIN do `ISessionStorage` seguem sem uso.
+
+### 10.3 Tokens Somente no Armazenamento Seguro, em Partes
+
+**Contexto.** A sessão do Supabase serializada (token de acesso, token de
+renovação, dados do usuário) passa de 2 KB. A documentação do
+`expo-secure-store` da SDK 58 avisa que algumas versões do iOS recusam valores
+acima de ~2048 bytes. A documentação do Supabase para Expo contorna cifrando a
+sessão com AES, guardando o texto cifrado no AsyncStorage e só a chave no cofre.
+
+**Opções.** (a) A receita do Supabase (AsyncStorage + `aes-js` + gerador de
+aleatórios). (b) Repartir a sessão em vários itens do próprio cofre.
+
+**Decisão.** (b): `CofreSeguroEmPartes`. Partes de até 600 unidades UTF-16
+(≤ 1800 bytes em UTF-8), sem nunca partir um par substituto (emoji). Gravação
+em duas gerações: as partes novas vão para a geração livre e só então o
+ponteiro muda — se o app morrer no meio, a sessão anterior segue inteira.
+
+**Justificativa.** Nada da sessão, nem cifrado, sai do Keychain/Keystore; e são
+três dependências a menos. Na web (alvo só de desenvolvimento) a variante
+`.web.ts` usa `localStorage`, marcada no código como **não segura**.
+
+**Configuração do cliente** (`clienteSupabase.ts`): `autoRefreshToken: true`,
+`persistSession: true`, `detectSessionInUrl: false`; renovação ligada só com o
+app em primeiro plano (`AppState`), como o Supabase orienta para React Native.
+
+### 10.4 Divisão Online / Offline
+
+| Operação | Rede | Como |
+|---|---|---|
+| Primeiro login no aparelho | **Obrigatória** | Supabase Auth + primeira sincronização antes de liberar a interface |
+| Cadastro de usuário | **Obrigatória** | Supabase Auth + gatilho cria o perfil |
+| Busca de empresas no cadastro | **Obrigatória** | Função `buscar_empresas_cadastro` (só id e nome) |
+| Trocar a senha | **Obrigatória** | Supabase Auth |
+| Registrar leitura (foto + GPS) | Não | SQLite + fila; sobe depois |
+| Decidir leitura, avisos, estrutura, usuários | Não | SQLite + fila (10.6) |
+| Telas (consulta) | Não | Sempre o SQLite. Nenhuma tela consulta o Supabase para exibir |
+| Ver comprovante feito em outro aparelho | Sim, só nesse caso | URL assinada (10.8); a foto local tem prioridade |
+
+**Login offline.** O `AuthProvider` só lê a sessão do armazenamento seguro, sem
+rede: quem já entrou reabre o app autenticado em modo avião, mesmo com o token
+de acesso vencido. Com rede, o `SincronizarUseCase` chama `garantirSessao`, que
+renova o token. Falha de **rede** na renovação conta como "offline" e não
+derruba ninguém; token de renovação **recusado** pelo servidor vira a situação
+`reautenticar` — o técnico continua trabalhando, os pendentes ficam guardados e
+a tela pede novo login com internet. Logout (`EncerrarSessaoUseCase`) apaga a
+sessão e os tokens; o próximo login exige rede. A fila **não** é apagada no
+logout, e o Perfil avisa antes quantos itens ainda não subiram.
+
+### 10.5 Metodologia de Sincronização
+
+**Push — fila de envio transacional (outbox).**
+- Toda escrita local que precisa chegar à nuvem deixa um item na
+  `action_queue` **na mesma transação** (`IUnidadeDeTrabalho` /
+  `UnidadeDeTrabalhoSQLite`). Quem faz isso é o decorador
+  `repositoriosComFila`: os casos de uso continuam chamando
+  `leituraRepo.salvar()` e recebem, sem saber, um repositório que salva e
+  enfileira. Os tipos foram refeitos para o modelo atual (`UPSERT_LEITURA`,
+  `UPSERT_ENDERECO`, `EXCLUIR_PADRAO`… — nada de `INSERT_USINA`).
+- O item guarda **só o id**. No envio, o processador lê o estado atual do
+  SQLite: uma leitura decidida depois de enfileirada sobe já decidida.
+- `ProcessarFilaSincronizacaoUseCase`, em ordem de criação:
+  1. **Foto antes da linha** (ADR 5.5): o comprovante sobe para o Storage
+     (`{empresa}/{endereco}/{leitura}.jpg`) e só depois a leitura. Se a rede
+     cair no meio, sobra uma foto órfã, nunca uma leitura sem comprovante.
+  2. **Idempotência**: upload que já existe conta como sucesso; a leitura sobe
+     pela função `sincronizar_leitura` (upsert pelo UUID); estrutura e
+     usuários por upsert pelo id. O item só sai da fila após a confirmação.
+  3. **Rede não é culpa do dado**: sem conexão ou sem sessão a rodada para e
+     nada conta como tentativa.
+  4. **Isolamento**: só a recusa do servidor conta tentativa. Após 5
+     (`ActionQueueItem.MAX_TENTATIVAS`) o item sai do caminho, a leitura fica
+     `falhou` ("Não enviada") e a fila segue. A tela mostra o motivo em
+     português e oferece "Tentar de novo".
+- A confirmação do envio é gravada pelo repositório **cru** — senão geraria
+  outro envio, para sempre.
+
+**Pull — incremental, restrito ao que o usuário pode ver.**
+- Toda tabela remota tem `atualizado_em`, carimbado por gatilho com o relógio
+  **do servidor** (`clock_timestamp()`). Relógio de aparelho não serve de
+  cursor.
+- O aparelho guarda um cursor por tabela em `sync_meta` (tabela nova) e pede só
+  o que veio depois. O cursor é guardado como o servidor o mandou (com
+  microssegundos), para não repetir nem pular linhas.
+- Quem filtra é o RLS: o app não pede "dados da empresa X", pede "o que mudou".
+- Pacote e cursores são gravados **numa transação só**: cursor adiantado sem os
+  dados faria o aparelho pular alterações para sempre.
+- **Exclusões**: linha apagada não "muda", some. Gatilhos gravam lápides em
+  `exclusoes`, que o pull aplica.
+- **Escopo mudou** (vínculo novo, outro nível): linhas antigas que só agora
+  ficaram visíveis não têm carimbo novo. O pull detecta, zera os cursores e
+  baixa tudo de novo na mesma rodada. Trocar de usuário no aparelho também zera.
+- O que vem da nuvem é gravado pelos repositórios crus: não volta para a fila.
+
+**Conflito — última escrita vence, sem perguntar ao técnico.** Dois aparelhos
+leram o mesmo padrão no mesmo dia: a `sincronizar_leitura` aplica no servidor a
+mesma regra do aparelho (`RegraSubstituicaoLeituraService`): fica vigente a
+medida mais tarde, a outra vira `substituida`, e o servidor gera o aviso
+`LEITURA_SUBSTITUIDA` para o administrador. No pull, a decisão do servidor
+prevalece sobre a cópia local já sincronizada; uma leitura com alteração local
+**ainda não enviada** não é sobrescrita — espera o próprio envio.
+
+**Gatilhos.** Ao abrir o app autenticado; quando a conexão volta
+(`ConectividadeContext`, NetInfo); pelo botão "Sincronizar agora"; e, de
+conveniência, 1,5 s após qualquer escrita local.
+
+### 10.6 Operações Administrativas Pelo Mesmo Caminho
+
+**Opções.** (a) Escrita local + fila, como a leitura. (b) "Exigem conexão".
+
+**Decisão.** (a). Estrutura, autorizações, gestão de usuários, decisão sobre
+leitura e notificações gravam no SQLite e enfileiram.
+
+**Justificativa.** O decorador `repositoriosComFila` já cobre todas as escritas:
+um caminho só é mais simples de testar e de explicar. E o administrador também
+vai a campo.
+
+**Consequências.** A autoridade final é o servidor: uma operação que o RLS ou os
+gatilhos recusam (ex.: administrador tentando promover alguém a nível 3) vira
+item recusado com motivo legível e, após 5 recusas, fica isolada. Perfil e
+vínculos sobem juntos pela função `sincronizar_perfil` (SECURITY INVOKER: valem
+o RLS e o gatilho `proteger_perfil`). Excluir usuário apaga o **perfil**; a
+identidade no Auth fica, sem acesso a nada (apagar conta do Auth exige a
+`service_role`, que não pode estar no app).
+
+### 10.7 Notificações em Mais de Um Aparelho
+
+**Problema.** As notificações nascem no aparelho de quem registra a leitura.
+O administrador está em outro aparelho.
+
+**Decisão.** Elas sincronizam como qualquer escrita: sobem pela fila
+(`UPSERT_NOTIFICACAO`) e descem no pull para quem pode vê-las (administrador e
+super admin, pelo RLS). O técnico pode **inserir** aviso da própria empresa mas
+não lê-los. O aviso de conflito entre aparelhos é gerado **no servidor**, onde o
+conflito é resolvido. A varredura de leituras atrasadas
+(`AvaliarLeiturasAtrasadasUseCase`) roda só no aparelho de administrador.
+
+**Limite conhecido.** Dois administradores, cada um em seu aparelho, podem
+gerar o aviso de atraso da mesma leitura com ids diferentes antes de
+sincronizarem — haverá dois cartões para o mesmo caso. Corrigir exigiria um id
+determinístico por (leitura, tipo) ou uma restrição única no banco; ficou
+registrado e não foi feito nesta fase.
+
+### 10.8 Modelo de Segurança na Nuvem
+
+- **RLS em todas as tabelas.** Isolamento por empresa e por nível usando
+  funções `SECURITY DEFINER` no schema `private` (fora da Data API), que
+  consultam `perfis` por `auth.uid()`: `meu_nivel()`, `minha_empresa()`,
+  `meus_enderecos()`. Nada depende de claim gravado no JWT — o SQL antigo lia
+  `empresa_id` e `perfil` de dentro do token, e nada jamais os gravava. As
+  funções leem `perfis` sem passar pelo RLS dela, o que evita a recursão
+  infinita (`42P17`) que a documentação do Supabase descreve. Usuário
+  `Pendente`, `Recusado` ou `Inativo` tem nível 0 e não lê nada além do
+  próprio perfil.
+- **Técnico só insere leitura em endereço vinculado e em nome próprio**, na
+  política de INSERT e na `sincronizar_leitura`. Empresa e endereço da leitura
+  são derivados do padrão por gatilho, nunca aceitos do cliente.
+- **Medição imutável.** Gatilho `proteger_leitura`: depois de gravada, só mudam
+  status e rastros de decisão/substituição — nem o administrador reescreve o
+  valor.
+- **Ninguém se promove.** Gatilho `proteger_perfil`: política não enxerga
+  coluna; o gatilho decide o que cada nível pode mudar (administrador mexe em
+  nível ≤ 2 da própria empresa; só o super admin cria nível 3).
+- **Bucket `comprovantes` privado**, só JPEG, até 1 MB. Caminho
+  `{empresa}/{endereco}/{leitura}.jpg`; as políticas do Storage conferem o
+  prefixo (técnico: só pasta de endereço vinculado). Sem política de UPDATE nem
+  DELETE. A exibição usa **URL assinada de 60 s** (`VIDA_DA_URL_ASSINADA`). O SQL
+  antigo criava o bucket público.
+- **Cadastro sem abrir tabela.** O papel `anon` não tem privilégio em tabela
+  nenhuma. A busca de empresas é a função `buscar_empresas_cadastro`, que
+  devolve só id e nome.
+- **Só a chave anônima no app.** `lerConfiguracaoSupabase` recusa chave
+  `service_role` (JWT) e `sb_secret_…`. A `service_role` não aparece no
+  repositório.
+- **Segredos fora do git.** `.gitignore` passou de `.env*.local` para `.env` e
+  `.env.*` (exceto `.env.example`, sem valores).
+- **Senhas fora do aparelho** (10.2).
+
+### 10.9 Schema Remoto: Fonte Única e Seed Espelhado
+
+**Decisão.** `supabase/migrations/20261116120000_schema_equinox.sql` é a fonte
+única do schema remoto, com as mesmas regras do SQLite — inclusive o índice
+parcial único de uma leitura vigente por padrão por dia local e a restrição de
+que `data_local` é o dia de Brasília (UTC-3 fixo) de `medido_em`. O
+`001_initial_supabase_rls.sql` (modelo de usinas) foi removido;
+`docs/design/schema_supabase.sql` passou a apontar para a migração.
+
+`supabase/seed.sql` cria os dados de demonstração com **os mesmos UUIDs** do
+seed local: o primeiro pull atualiza em vez de duplicar. Inclui uma
+administradora da segunda empresa (`sindica@solardovale.dev`) para demonstrar o
+isolamento.
+
+**Limite.** Os dois seeds datam o histórico relativo ao dia em que rodam. Se o
+SQL remoto rodar em outro dia, o histórico fica deslocado; o pull realinha o
+aparelho à nuvem sem violar a vaga do dia (há teste de integração para isso).
+As fotos das leituras do seed não existem no bucket.
+
+### 10.10 Migração Local 003
+
+`003_sincronizacao`: colunas `leituras.foto_remota_path` e `leituras.sync_status`
+(`pendente | sincronizada | falhou`), `action_queue.ultimo_erro`, tabela
+`sync_meta`, `senha_hash` esvaziada. Leituras do seed local já contam como
+sincronizadas; leituras feitas antes da nuvem existir **entram na fila**, em
+ordem de medição, para subir no primeiro login online. As migrações 001 e 002
+não foram tocadas.
+
+**Detalhe de implementação.** O repositório de leituras insere usando só as
+colunas da versão 1 (e grava o estado de sincronização à parte quando ele não é
+o padrão), porque a migração 002 grava leituras por ele **antes** de a 003
+criar as colunas novas.
+
+### 10.11 Expurgo Respeita a Fila
+
+`PurgarLeiturasAntigasUseCase` só apaga leitura decidida, com mais de 30 dias
+**e sincronizada**. A que ainda não subiu existe só no aparelho e fica, tenha a
+idade que tiver. A cópia na nuvem não é apagada.
+
+### 10.12 Testes da Nuvem Sem Rede
+
+- Casos de uso de sincronização: dublês `AutenticacaoRemotaFake`,
+  `SincronizacaoRemotaFake`, `ConectividadeFake`, `UnidadeDeTrabalhoMemory` e
+  `SyncMetaRepositoryMemory`, todos no `criarContainerFake`.
+- Adaptadores Supabase: cliente falso que imita o construtor do PostgREST, o
+  Auth e o Storage (`tests/helpers/clienteSupabaseFalso.ts`).
+- Fila, migração 003 e pull contra SQLite de verdade (`node:sqlite`).
+- **Políticas de segurança** contra um Postgres de verdade embutido
+  (**PGlite**, dependência de desenvolvimento): `npm run test:rls` aplica a
+  migração e o seed sobre um dublê mínimo de `auth` e `storage`
+  (`tests/supabase/preludio.sql`) e age como cada usuário. Fica fora do Jest
+  porque o PGlite é ESM com WebAssembly.
+- **Limite.** O PGlite não é o Supabase: não exercita o PostgREST, o servidor
+  de Auth nem a API do Storage (URL assinada, upload). Isso fica para o roteiro
+  manual de `docs/supabase-setup.md`.
+
+### 10.13 Serviços de Nuvem: EAS Build Sim, Sentry Não (revisa 4.5 e 4.6)
+
+**EAS Build** gera o APK de demonstração (`eas.json`, perfil `preview`,
+`buildType: apk`, `distribution: internal`); guia em `docs/eas-build.md`. A
+conta Expo e a execução do build são do dono do projeto. **EAS Update** e
+**Sentry** ficam fora desta fase. Nenhuma dependência nova exige cliente de
+desenvolvimento customizado: `@supabase/supabase-js` é JavaScript puro e
+`@react-native-community/netinfo` faz parte do Expo Go; ambos instalados com
+`npx expo install`.
+
+### 10.14 Contextos da Interface
+
+Quatro contextos, de fora para dentro: `ContainerProvider` (dependências),
+`AuthProvider` (sessão), `ConectividadeProvider` (rede, sobre a porta
+`IConectividadeGateway`) e `SincronizacaoProvider` (gatilhos, pendentes, última
+sincronização, aviso). A Home e o Diagnóstico mostram o `PainelSincronizacao`;
+o catálogo mostra "Pendente de envio / Sincronizada / Não enviada" na última
+leitura de cada padrão; a tela de leituras da usina abre o comprovante
+(`VisualizadorComprovante`).

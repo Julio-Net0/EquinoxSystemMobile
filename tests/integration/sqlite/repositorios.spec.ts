@@ -1,5 +1,6 @@
 import { migrar } from '@/infrastructure/database/sqlite/migrar';
 import { migracaoSchemaInicial } from '@/infrastructure/database/sqlite/migrations/001_schema_inicial';
+import { migracaoSincronizacao } from '@/infrastructure/database/sqlite/migrations/003_sincronizacao';
 import { EmpresaRepositorySQLite } from '@/infrastructure/database/sqlite/repositories/EmpresaRepositorySQLite';
 import { EnderecoRepositorySQLite } from '@/infrastructure/database/sqlite/repositories/EnderecoRepositorySQLite';
 import { PadraoRepositorySQLite } from '@/infrastructure/database/sqlite/repositories/PadraoRepositorySQLite';
@@ -29,6 +30,19 @@ import { TipoNotificacaoEnum } from '@/domain/enums/TipoNotificacaoEnum';
 import { ResolucaoEnum } from '@/domain/enums/ResolucaoEnum';
 import { relogioFixo } from '@/domain/services/Relogio';
 import { abrirBancoDeTeste, BancoDeTeste } from '../../helpers/bancoDeTeste';
+
+// O container de produção cria o cliente do Supabase. Aqui ele é trocado por
+// um objeto inerte: nenhum teste fala com a nuvem, e o cliente de verdade
+// ligaria um temporizador de renovação de token.
+jest.mock('@supabase/supabase-js', () => ({
+  createClient: jest.fn(() => ({
+    auth: { startAutoRefresh: jest.fn(), stopAutoRefresh: jest.fn() },
+  })),
+}));
+jest.mock('@react-native-community/netinfo', () => ({
+  __esModule: true,
+  default: { fetch: jest.fn(), addEventListener: jest.fn() },
+}));
 
 const HOJE = new Date('2026-10-30T15:00:00.000Z');
 const ONTEM = new Date('2026-10-29T15:00:00.000Z');
@@ -136,7 +150,9 @@ describe('repositórios SQLite (banco de verdade)', () => {
   beforeEach(async () => {
     banco = abrirBancoDeTeste();
     // Só o schema, sem o seed: cada teste monta exatamente o que precisa.
-    await migrar(banco.db, [migracaoSchemaInicial]);
+    // Schema inicial + colunas de sincronização, sem o seed (versão 2): cada
+    // teste monta o próprio cenário.
+    await migrar(banco.db, [migracaoSchemaInicial, { ...migracaoSincronizacao, versao: 2 }]);
 
     empresas = new EmpresaRepositorySQLite(banco.db);
     enderecos = new EnderecoRepositorySQLite(banco.db);
@@ -307,13 +323,18 @@ describe('repositórios SQLite (banco de verdade)', () => {
       await enderecos.salvar(endereco());
     });
 
-    it('guarda o hash serializado e o traz de volta íntegro', async () => {
+    it('não grava senha nem hash dela: a coluna legada fica vazia', async () => {
+      // O usuário do cenário ainda é construído com `senha` (como a migração
+      // 002 faz); o repositório a ignora.
       await usuarios.salvar(usuario());
 
-      const lido = await usuarios.buscarPorId(TECNICO);
+      const [linha] = banco.consultar<{ senha_hash: string }>(
+        'SELECT senha_hash FROM usuarios WHERE id = ?',
+        TECNICO.value,
+      );
 
-      expect(lido?.senha.hash).toBe('a'.repeat(64));
-      expect(lido?.senha.iteracoes).toBe(1000);
+      expect(linha.senha_hash).toBe('');
+      expect(await usuarios.buscarPorId(TECNICO)).not.toBeNull();
     });
 
     it('persiste os endereços vinculados na tabela N:N', async () => {
@@ -503,6 +524,8 @@ describe('repositórios SQLite (banco de verdade)', () => {
     it('expurga as já decididas e devolve o que apagou, para a foto sair junto', async () => {
       const decidida = leitura({ medidoEm: ONTEM, dataLocal: DataLocal.de(ONTEM) });
       decidida.aprovar(ADMIN, ONTEM);
+      // Só sai do aparelho o que já está na nuvem.
+      decidida.marcarSincronizada('empresa/endereco/l1.jpg');
       await usuarios.salvar(
         usuario({ id: ADMIN, usuario: 'admin', email: 'admin@equinox.dev', enderecosVinculados: [] }),
       );
@@ -517,6 +540,89 @@ describe('repositórios SQLite (banco de verdade)', () => {
         'file:///documents/leituras/l1.jpg',
       ]);
       expect(await leituras.listarDoPadrao(PADRAO)).toHaveLength(1);
+    });
+
+    it('não expurga a decidida que ainda não subiu para a nuvem', async () => {
+      const decidida = leitura({ medidoEm: ONTEM, dataLocal: DataLocal.de(ONTEM) });
+      decidida.aprovar(ADMIN, ONTEM);
+      await usuarios.salvar(
+        usuario({ id: ADMIN, usuario: 'admin', email: 'admin@equinox.dev', enderecosVinculados: [] }),
+      );
+      await leituras.salvar(decidida);
+
+      expect(await leituras.excluirDecididasAntesDe(DataLocal.de(HOJE))).toEqual([]);
+      expect(await leituras.buscarPorId(decidida.id)).not.toBeNull();
+    });
+
+    it('toda leitura nasce pendente de envio e sem foto remota', async () => {
+      await leituras.salvar(leitura());
+
+      const [linha] = banco.consultar<{ sync_status: string; foto_remota_path: string | null }>(
+        'SELECT sync_status, foto_remota_path FROM leituras',
+      );
+      expect(linha).toEqual({ sync_status: 'pendente', foto_remota_path: null });
+    });
+
+    it('guarda e devolve o estado de sincronização e o caminho remoto da foto', async () => {
+      const enviada = leitura();
+      await leituras.salvar(enviada);
+
+      enviada.marcarSincronizada('empresa/endereco/l1.jpg');
+      await leituras.atualizar(enviada);
+
+      const lida = await leituras.buscarPorId(enviada.id);
+      expect(lida?.estaSincronizada()).toBe(true);
+      expect(lida?.fotoRemotaPath).toBe('empresa/endereco/l1.jpg');
+    });
+
+    describe('aplicarRemota (pull)', () => {
+      const remota = (sobrescrita: Parameters<typeof leitura>[0] = {}) => {
+        const l = leitura({ fotoLocalUri: '', fotoRemotaPath: 'empresa/endereco/r.jpg', ...sobrescrita });
+        l.marcarSincronizada('empresa/endereco/r.jpg');
+        return l;
+      };
+
+      it('insere a leitura que só existia na nuvem', async () => {
+        await leituras.aplicarRemota(remota({ id: id(150) }));
+
+        const lida = await leituras.buscarPorId(id(150));
+        expect(lida?.temFotoNoAparelho()).toBe(false);
+        expect(lida?.fotoRemotaPath).toBe('empresa/endereco/r.jpg');
+        expect(lida?.estaSincronizada()).toBe(true);
+      });
+
+      it('atualiza a que já existe e preserva a foto que está no aparelho', async () => {
+        await leituras.salvar(leitura());
+        const aprovada = remota();
+        aprovada.aprovar(TECNICO, HOJE);
+
+        await leituras.aplicarRemota(aprovada);
+
+        const lida = await leituras.buscarPorId(aprovada.id);
+        expect(lida?.status).toBe(StatusLeituraEnum.APROVADA);
+        expect(lida?.fotoLocalUri).toBe('file:///documents/leituras/l1.jpg');
+        expect(lida?.fotoRemotaPath).toBe('empresa/endereco/r.jpg');
+      });
+
+      it('quando a nuvem diz que outra leitura ocupa a vaga do dia, a local cede', async () => {
+        await leituras.salvar(leitura());
+
+        await leituras.aplicarRemota(remota({ id: id(151) }));
+
+        const local = await leituras.buscarPorId(id(100));
+        expect(local?.status).toBe(StatusLeituraEnum.SUBSTITUIDA);
+        expect(local?.substituidaPorId?.equals(id(151))).toBe(true);
+        expect((await leituras.buscarVigenteDoDia(PADRAO, DataLocal.de(HOJE)))?.id.value).toBe(
+          id(151).value,
+        );
+      });
+
+      it('aplicar duas vezes dá no mesmo', async () => {
+        await leituras.aplicarRemota(remota({ id: id(150) }));
+        await leituras.aplicarRemota(remota({ id: id(150) }));
+
+        expect(await leituras.listarDoPadrao(PADRAO)).toHaveLength(1);
+      });
     });
   });
 
@@ -610,23 +716,53 @@ describe('repositórios SQLite (banco de verdade)', () => {
     });
   });
 
-  describe('fila de ações (reservada)', () => {
-    it('enfileira, lista pendentes, conta tentativas e remove', async () => {
-      const item = new ActionQueueItem({
-        id: id(300),
-        tipoOperacao: 'INSERT_LEITURA',
-        payloadJSON: JSON.stringify({ leituraId: id(100).value }),
-        timestamp: HOJE,
+  describe('fila de envio', () => {
+    const item = (n: number, quando = HOJE) =>
+      new ActionQueueItem({
+        id: id(n),
+        tipoOperacao: 'UPSERT_LEITURA',
+        payloadJSON: JSON.stringify({ id: id(100).value }),
+        timestamp: quando,
       });
 
-      await fila.enfileirar(item);
-      expect(await fila.obterPendentes()).toHaveLength(1);
+    it('enfileira, conta, registra a recusa com o motivo e remove', async () => {
+      await fila.enfileirar(item(300));
+      expect(await fila.contar()).toBe(1);
 
-      await fila.incrementarTentativas(id(300));
-      expect((await fila.obterPendentes())[0].tentativas).toBe(1);
+      await fila.registrarFalha(id(300), 'A nuvem recusou');
+      const [lido] = await fila.obterPendentes();
+      expect(lido.tentativas).toBe(1);
+      expect(lido.ultimoErro).toBe('A nuvem recusou');
+      expect(lido.registroId?.equals(id(100))).toBe(true);
 
       await fila.remover(id(300));
       expect(await fila.obterPendentes()).toEqual([]);
+      expect(await fila.contar()).toBe(0);
+    });
+
+    it('devolve em ordem de criação, e a de inserção desempata', async () => {
+      await fila.enfileirar(item(302, HOJE));
+      await fila.enfileirar(item(301, ONTEM));
+      await fila.enfileirar(item(303, HOJE));
+
+      const ordem = (await fila.obterPendentes()).map((i) => i.id.value);
+      expect(ordem).toEqual([id(301).value, id(302).value, id(303).value]);
+    });
+
+    it('reativa só os itens isolados', async () => {
+      await fila.enfileirar(item(300));
+      await fila.enfileirar(item(301));
+      for (let i = 0; i < ActionQueueItem.MAX_TENTATIVAS; i += 1) {
+        await fila.registrarFalha(id(300), 'recusa');
+      }
+      await fila.registrarFalha(id(301), 'uma só');
+
+      await fila.reativarIsolados();
+
+      const [isolado, outro] = await fila.obterPendentes();
+      expect(isolado.tentativas).toBe(0);
+      expect(isolado.ultimoErro).toBeNull();
+      expect(outro.tentativas).toBe(1);
     });
   });
 
@@ -640,7 +776,7 @@ describe('repositórios SQLite (banco de verdade)', () => {
 
       expect(estado).toEqual({
         nomeDoArquivo: 'equinox.db',
-        versaoDoSchema: 1,
+        versaoDoSchema: 2,
         contagens: {
           empresas: 1, enderecos: 1, padroes: 1, usuarios: 1,
           vinculos: 1, leituras: 1, notificacoes: 1,
@@ -653,7 +789,10 @@ describe('repositórios SQLite (banco de verdade)', () => {
     it('monta tudo sobre o banco aberto, sem nenhuma tela instanciar nada', async () => {
       await montarCenario();
 
-      const container = criarContainerSQLite(banco.db, relogioFixo(HOJE));
+      const container = criarContainerSQLite(banco.db, relogioFixo(HOJE), 'equinox.db', {
+        url: 'https://projeto-de-teste.supabase.co',
+        chaveAnonima: 'chave-anonima-de-teste',
+      });
 
       // Prova que a fiação está certa de ponta a ponta: um caso de uso montado
       // pelo container lê o que o repositório gravou no SQLite.

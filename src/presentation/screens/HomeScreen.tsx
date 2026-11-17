@@ -10,6 +10,10 @@ import { Cartao } from '@/presentation/components/Cartao';
 import { IconeTile } from '@/presentation/components/IconeTile';
 import { EstadoVazio } from '@/presentation/components/EstadoVazio';
 import { PilulaStatus } from '@/presentation/components/PilulaStatus';
+import {
+  PainelSincronizacao,
+  PainelSincronizacaoProps,
+} from '@/presentation/components/PainelSincronizacao';
 
 export interface HomeScreenProps {
   nome: string;
@@ -25,6 +29,8 @@ export interface HomeScreenProps {
   onUsuarios(): void;
   onEstrutura(): void;
   onLeiturasUsina?(): void;
+  /** Estado da conexão e da fila de envio. Ausente só em teste isolado da tela. */
+  sincronizacao?: PainelSincronizacaoProps;
 }
 
 const primeiroNome = (nome: string): string => nome.trim().split(/\s+/)[0] ?? nome;
@@ -49,6 +55,7 @@ export function HomeScreen({
   onUsuarios,
   onEstrutura,
   onLeiturasUsina,
+  sincronizacao,
 }: HomeScreenProps) {
   const { top } = useSafeAreaInsets();
   const ehAdministrador = perfil === PerfilEnum.ADMIN || perfil === PerfilEnum.SUPER_ADMIN;
@@ -74,6 +81,8 @@ export function HomeScreen({
         <View style={styles.regua} />
         <Text style={[Tipografia.rotulo, styles.perfil]}>{rotuloDoPerfil(perfil)}</Text>
       </View>
+
+      {sincronizacao ? <PainelSincronizacao {...sincronizacao} /> : null}
 
       <AcaoCard
         icone="document-scanner"

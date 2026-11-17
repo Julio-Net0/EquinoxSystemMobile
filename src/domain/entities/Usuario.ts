@@ -9,7 +9,12 @@ export interface UsuarioProps {
   nome: string;
   usuario: string;
   email: string;
-  senha: SenhaHash;
+  /**
+   * Legado. A senha vive só no serviço de autenticação remoto; o campo existe
+   * apenas porque a migração de seed 002, que não pode ser editada, ainda o
+   * informa. Nada o lê e nada o grava.
+   */
+  senha?: SenhaHash;
   perfil: PerfilEnum;
   status: StatusUsuarioEnum;
   enderecosVinculados?: UUIDv4[];
@@ -22,8 +27,9 @@ export interface UsuarioProps {
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
- * Usuário do app. Autentica por e-mail ou pelo login (`usuario`), como no app
- * antigo, por isso os dois são obrigatórios.
+ * Usuário do app. A identidade (e-mail e senha) é do serviço de autenticação
+ * na nuvem; aqui mora o perfil de negócio. O `usuario` é o apelido exibido e
+ * continua único, mas o login é só por e-mail.
  *
  * O super admin tem escopo global e por isso é o único que pode ficar sem
  * empresa e sem endereço vinculado.
@@ -36,7 +42,6 @@ export class Usuario {
   public readonly email: string;
   public readonly criadoEm: Date;
 
-  private _senha: SenhaHash;
   private _perfil: PerfilEnum;
   private _status: StatusUsuarioEnum;
   private _enderecosVinculados: UUIDv4[];
@@ -65,17 +70,12 @@ export class Usuario {
     this.email = props.email.trim().toLowerCase();
     this.criadoEm = props.criadoEm ?? new Date();
 
-    this._senha = props.senha;
     this._perfil = props.perfil;
     this._status = props.status;
     this._enderecosVinculados = [...(props.enderecosVinculados ?? [])];
     this._perfilAnterior = props.perfilAnterior ?? null;
     this._autorizadoEm = props.autorizadoEm ?? null;
     this._autorizadoPorId = props.autorizadoPorId ?? null;
-  }
-
-  public get senha(): SenhaHash {
-    return this._senha;
   }
 
   public get perfil(): PerfilEnum {
@@ -140,9 +140,5 @@ export class Usuario {
 
   public vincularEnderecos(enderecos: UUIDv4[]): void {
     this._enderecosVinculados = [...enderecos];
-  }
-
-  public trocarSenha(nova: SenhaHash): void {
-    this._senha = nova;
   }
 }

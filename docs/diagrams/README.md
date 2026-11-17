@@ -1,24 +1,25 @@
 # Índice de Diagramas da Arquitetura — Equinox Mobile
 
-Esta pasta contém a especificação UML completa em **Mermaid** estruturada e modularizada:
+Diagramas em **Mermaid**.
 
----
+> **Situação de cada arquivo (17/11/2026).** Só o
+> `sequencia_e_arquitetura.md` corresponde ao código atual. Os outros três
+> ainda desenham o modelo **anterior à fase 6** (entidade `Usina`, ADR 9.1) e
+> precisam ser refeitos. Enquanto isso, as fontes que valem para o modelo de
+> dados são os schemas:
+> [SQLite](../../src/infrastructure/database/sqlite/migrations/) e
+> [Supabase](../../supabase/migrations/20261116120000_schema_equinox.sql).
 
-### 📂 Arquivos de Diagramas
+1. **[sequencia_e_arquitetura.md](sequencia_e_arquitetura.md)** — atualizado
+   - BCE da leitura
+   - Sequência: leitura registrada offline, com a fila na mesma transação
+   - Atividades: uma rodada de sincronização (push e pull)
+   - Estados de sincronização de uma leitura
+   - Componentes (Clean Architecture)
 
-1. 📄 **[casos_de_uso.md](file:///home/alunos/Desktop/www/EqSystemMobile/EquinoxSystemMobile/docs/diagrams/casos_de_uso.md)**
-   - **Diagrama de Casos de Uso (UML):** Mapeamento dos 4 atores (`Usuário`, `SuperAdmin`, `Admin`, `Técnico`), herança, `<<include>>` e `<<extend>>`.
+2. **[casos_de_uso.md](casos_de_uso.md)** — desatualizado (modelo `Usina`)
 
-2. 📄 **[classes_e_der.md](file:///home/alunos/Desktop/www/EqSystemMobile/EquinoxSystemMobile/docs/diagrams/classes_e_der.md)**
-   - **Diagrama de Classes de Domínio:** Entidades DDD e Value Objects.
-   - **Diagrama Entidade-Relacionamento (DER):** Modelagem relacional para SQLite e Supabase.
+3. **[classes_e_der.md](classes_e_der.md)** — desatualizado (modelo `Usina`)
 
-3. 📄 **[objetos_e_estados.md](file:///home/alunos/Desktop/www/EqSystemMobile/EquinoxSystemMobile/docs/diagrams/objetos_e_estados.md)**
-   - **Diagrama de Objetos:** Instantâneo da execução com dados de exemplo.
-   - **Diagramas de Estados:** Ciclo de vida das entidades `Leitura` e `Usina`.
-
-4. 📄 **[sequencia_e_arquitetura.md](file:///home/alunos/Desktop/www/EqSystemMobile/EquinoxSystemMobile/docs/diagrams/sequencia_e_arquitetura.md)**
-   - **Mapeamento BCE (Boundary-Control-Entity):** Separação de responsabilidades.
-   - **Diagrama de Sequência:** Fluxo temporal do lançamento offline de leitura.
-   - **Diagrama de Atividades:** Algoritmo de sincronização em segundo plano do `SyncManager`.
-   - **Diagrama de Componentes:** Camadas Clean Architecture e direção das dependências.
+4. **[objetos_e_estados.md](objetos_e_estados.md)** — desatualizado (modelo
+   `Usina`; o ciclo de sincronização atual está no item 1)

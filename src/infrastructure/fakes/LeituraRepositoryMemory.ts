@@ -73,11 +73,50 @@ export class LeituraRepositoryMemory implements ILeituraRepository {
     );
   }
 
+  async aplicarRemota(leitura: Leitura): Promise<void> {
+    if (leitura.estaVigente()) {
+      const ocupante = await this.buscarVigenteDoDia(leitura.padraoId, leitura.dataLocal);
+      if (ocupante && !ocupante.id.equals(leitura.id)) {
+        ocupante.substituirPor(leitura, leitura.medidoEm);
+      }
+    }
+
+    // Como no SQLite: a foto que já está no aparelho é preservada.
+    const local = this.items.get(leitura.id.value);
+    const fotoLocalUri = local?.temFotoNoAparelho() ? local.fotoLocalUri : leitura.fotoLocalUri;
+
+    this.items.set(
+      leitura.id.value,
+      new Leitura({
+        id: leitura.id,
+        padraoId: leitura.padraoId,
+        usuarioId: leitura.usuarioId,
+        valorConsumo: leitura.valorConsumo,
+        valorInjecao: leitura.valorInjecao,
+        fotoLocalUri,
+        fotoRemotaPath: leitura.fotoRemotaPath,
+        coordenadas: leitura.coordenadas,
+        medidoEm: leitura.medidoEm,
+        dataLocal: leitura.dataLocal,
+        status: leitura.status,
+        estadoSync: leitura.estadoSync,
+        substituidaEm: leitura.substituidaEm,
+        substituidaPorId: leitura.substituidaPorId,
+        decididaEm: leitura.decididaEm,
+        decididaPorId: leitura.decididaPorId,
+      }),
+    );
+  }
+
   async excluirDecididasAntesDe(dataLocal: DataLocal): Promise<Leitura[]> {
     // Leitura ainda REGISTRADA nunca é expurgada: ela aguarda decisão do
-    // administrador, e apagá-la perderia o caso em aberto.
+    // administrador, e apagá-la perderia o caso em aberto. E a que ainda não
+    // subiu para a nuvem também fica: o aparelho é o único lugar onde existe.
     const alvos = Array.from(this.items.values()).filter(
-      (l) => l.status !== StatusLeituraEnum.REGISTRADA && l.dataLocal.antesDe(dataLocal),
+      (l) =>
+        l.status !== StatusLeituraEnum.REGISTRADA &&
+        l.dataLocal.antesDe(dataLocal) &&
+        l.estaSincronizada(),
     );
     alvos.forEach((l) => this.items.delete(l.id.value));
     return alvos;

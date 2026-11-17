@@ -11,7 +11,12 @@ export interface AuthContextData {
   isAutenticado: boolean;
   /** Verdadeiro só até a sessão guardada ser lida, no primeiro render. */
   isCarregando: boolean;
-  entrar(login: string, senha: string): Promise<{ sucesso: boolean; erro?: string }>;
+  /**
+   * Login na nuvem, por e-mail. Exige rede. Em caso de sucesso já volta com os
+   * dados do usuário baixados para o banco local.
+   */
+  entrar(email: string, senha: string): Promise<{ sucesso: boolean; erro?: string }>;
+  /** Apaga a sessão local e os tokens. O próximo acesso exige rede. */
   sair(): Promise<void>;
   /** Relê a sessão do armazenamento — usar após alterar os próprios dados. */
   recarregar(): Promise<void>;
@@ -19,6 +24,19 @@ export interface AuthContextData {
 
 const AuthContext = createContext<AuthContextData | null>(null);
 
+/**
+ * Sessão do usuário para toda a interface.
+ *
+ * **Login offline.** Na abertura, este provedor só lê a sessão do
+ * armazenamento seguro — não fala com a rede. Quem já entrou uma vez reabre o
+ * app autenticado mesmo em modo avião e mesmo com o token de acesso vencido.
+ * A renovação do token acontece depois, em segundo plano, quando há conexão
+ * (ver `SincronizacaoContext`); se ela não for possível, o técnico continua
+ * trabalhando e só a sincronização fica à espera.
+ *
+ * Os tokens da nuvem não passam por aqui: ficam no armazenamento seguro, por
+ * conta do adaptador de autenticação.
+ */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { casos, gateways } = useContainer();
   const [usuario, setUsuario] = useState<SessaoUsuarioData | null>(null);
@@ -45,23 +63,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [gateways.sessao]);
 
   const entrar = useCallback(
-    async (login: string, senha: string) => {
-      const saida = await casos.autenticar.executar({ login, senha });
+    async (email: string, senha: string) => {
+      const saida = await casos.autenticar.executar({ login: email, senha });
 
-      if (saida.sucesso && saida.usuario) {
-        setUsuario(saida.usuario);
-        return { sucesso: true };
+      if (!saida.sucesso || !saida.usuario) {
+        return { sucesso: false, erro: saida.erro };
       }
 
-      return { sucesso: false, erro: saida.erro };
+      // Primeira sincronização antes de liberar a interface: é ela que traz a
+      // empresa, os endereços e os padrões para o SQLite. Sem isso o técnico
+      // entraria num app vazio e, se saísse para o campo, ficaria sem nada.
+      // Se falhar, ele entra mesmo assim e o app tenta de novo sozinho.
+      await casos.sincronizar.executar();
+
+      setUsuario((await gateways.sessao.obterSessao()) ?? saida.usuario);
+      return { sucesso: true };
     },
-    [casos.autenticar],
+    [casos.autenticar, casos.sincronizar, gateways.sessao],
   );
 
   const sair = useCallback(async () => {
-    await gateways.sessao.limparSessao();
+    await casos.encerrarSessao.executar();
     setUsuario(null);
-  }, [gateways.sessao]);
+  }, [casos.encerrarSessao]);
 
   const valor = useMemo<AuthContextData>(
     () => ({

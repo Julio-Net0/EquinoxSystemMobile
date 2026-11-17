@@ -1,11 +1,15 @@
-import { IUsuarioRepository } from '@/domain/repositories/IUsuarioRepository';
+import { IAutenticacaoRemotaGateway } from '@/domain/gateways/IAutenticacaoRemotaGateway';
 import { ISessionStorage, SessaoUsuarioData } from '@/domain/gateways/ISessionStorage';
-import { IHashSenhaGateway } from '@/domain/gateways/IHashSenhaGateway';
+import {
+  CHAVE_CURSORES,
+  CHAVE_USUARIO_DO_CURSOR,
+  ISyncMetaRepository,
+} from '@/domain/repositories/ISyncMetaRepository';
 import { Usuario } from '@/domain/entities/Usuario';
 import { StatusUsuarioEnum } from '@/domain/enums/StatusUsuarioEnum';
 
 export interface AutenticarUsuarioInput {
-  /** E-mail ou nome de login — o app antigo aceita os dois. */
+  /** E-mail. O login por nome de usuário foi aposentado com a ida para a nuvem. */
   login: string;
   senha: string;
 }
@@ -16,46 +20,60 @@ export interface AutenticarUsuarioOutput {
   erro?: string;
 }
 
-const CREDENCIAL_INVALIDA = 'E-mail, usuário ou senha incorretos';
+const CREDENCIAL_INVALIDA = 'E-mail ou senha incorretos';
+const SEM_REDE =
+  'Sem conexão. O primeiro acesso neste aparelho precisa de internet; depois dele o app funciona offline';
 
 /**
- * Login local, contra a tabela de usuários do SQLite. Não há rede nem token.
+ * Login na nuvem (Supabase Auth). É a única operação de entrada que exige
+ * rede: depois dela a sessão fica no armazenamento seguro e o app reabre
+ * autenticado mesmo sem sinal.
  *
- * Credencial errada e usuário inexistente devolvem a mesma mensagem, de
+ * Credencial errada e conta inexistente devolvem a mesma mensagem, de
  * propósito: distinguir as duas diria a quem tentasse adivinhar quais contas
- * existem no aparelho.
+ * existem.
  */
 export class AutenticarUsuarioUseCase {
   constructor(
-    private readonly usuarioRepo: IUsuarioRepository,
+    private readonly autenticacaoRemota: IAutenticacaoRemotaGateway,
     private readonly sessionStorage: ISessionStorage,
-    private readonly hashSenha: IHashSenhaGateway,
+    private readonly syncMeta: ISyncMetaRepository,
   ) {}
 
   public async executar(entrada: AutenticarUsuarioInput): Promise<AutenticarUsuarioOutput> {
-    const login = entrada.login?.trim() ?? '';
-    if (login === '') {
-      return { sucesso: false, erro: 'Informe o e-mail ou usuário' };
+    const email = entrada.login?.trim().toLowerCase() ?? '';
+    if (email === '') {
+      return { sucesso: false, erro: 'Informe o e-mail' };
+    }
+    if (!email.includes('@')) {
+      return {
+        sucesso: false,
+        erro: 'Entre com o seu e-mail — o acesso por nome de usuário foi desativado',
+      };
     }
     if (!entrada.senha) {
       return { sucesso: false, erro: 'Informe a senha' };
     }
 
-    const usuario = await this.usuarioRepo.buscarPorLogin(login);
-    if (!usuario) {
-      return { sucesso: false, erro: CREDENCIAL_INVALIDA };
+    const acesso = await this.autenticacaoRemota.entrar(email, entrada.senha);
+    if (!acesso.ok) {
+      return { sucesso: false, erro: acesso.motivo === 'rede' ? SEM_REDE : CREDENCIAL_INVALIDA };
     }
 
-    const senhaConfere = await this.hashSenha.verificar(entrada.senha, usuario.senha);
-    if (!senhaConfere) {
-      return { sucesso: false, erro: CREDENCIAL_INVALIDA };
+    const perfil = await this.autenticacaoRemota.obterMeuPerfil();
+    if (!perfil.ok) {
+      return this.recusar(perfil.motivo === 'rede' ? SEM_REDE : 'Não foi possível ler o seu perfil');
+    }
+    if (!perfil.valor) {
+      return this.recusar('Sua conta não tem perfil neste app. Procure um administrador');
     }
 
-    const impedimento = AutenticarUsuarioUseCase.impedimentoDeStatus(usuario);
+    const impedimento = AutenticarUsuarioUseCase.impedimentoDeStatus(perfil.valor);
     if (impedimento) {
-      return { sucesso: false, erro: impedimento };
+      return this.recusar(impedimento);
     }
 
+    const usuario = perfil.valor;
     const sessao: SessaoUsuarioData = {
       usuarioId: usuario.id.value,
       empresaId: usuario.empresaId?.value ?? null,
@@ -66,7 +84,20 @@ export class AutenticarUsuarioUseCase {
     };
     await this.sessionStorage.salvarSessao(sessao);
 
+    // Os cursores do pull valem para o que UM usuário pode ver. Trocou de
+    // usuário neste aparelho, o próximo pull recomeça do zero.
+    if ((await this.syncMeta.obter(CHAVE_USUARIO_DO_CURSOR)) !== sessao.usuarioId) {
+      await this.syncMeta.definir(CHAVE_CURSORES, null);
+      await this.syncMeta.definir(CHAVE_USUARIO_DO_CURSOR, sessao.usuarioId);
+    }
+
     return { sucesso: true, usuario: sessao };
+  }
+
+  /** Quem não pode entrar não deve ficar com token guardado no aparelho. */
+  private async recusar(erro: string): Promise<AutenticarUsuarioOutput> {
+    await this.autenticacaoRemota.sair();
+    return { sucesso: false, erro };
   }
 
   /**

@@ -1,143 +1,154 @@
 import { CadastrarUsuarioPendenteUseCase } from '@/application/use-cases/CadastrarUsuarioPendenteUseCase';
-import { Empresa } from '@/domain/entities/Empresa';
-import { Usuario } from '@/domain/entities/Usuario';
-import { UUIDv4 } from '@/domain/value-objects/UUIDv4';
-import { CNPJ } from '@/domain/value-objects/CNPJ';
 import { PerfilEnum } from '@/domain/enums/PerfilEnum';
 import { StatusUsuarioEnum } from '@/domain/enums/StatusUsuarioEnum';
-import { UsuarioRepositoryMemory } from '@/infrastructure/fakes/UsuarioRepositoryMemory';
-import { EmpresaRepositoryMemory } from '@/infrastructure/fakes/EmpresaRepositoryMemory';
-import { HashSenhaFake } from '@/infrastructure/fakes/HashSenhaFake';
+import { AutenticacaoRemotaFake } from '@/infrastructure/fakes/AutenticacaoRemotaFake';
+import { IDS, SENHA, novoUsuario } from '../../../helpers/cenarioSync';
 
-const SENHA = 'Equinox@2026';
-
-async function cenario() {
-  const usuarioRepo = new UsuarioRepositoryMemory();
-  const empresaRepo = new EmpresaRepositoryMemory();
-  const hash = new HashSenhaFake();
-  const caso = new CadastrarUsuarioPendenteUseCase(usuarioRepo, empresaRepo, hash);
-
-  const empresa = new Empresa({
-    id: UUIDv4.gerar(),
-    nome: 'Equinox Energia Solar',
-    cnpj: new CNPJ('19131243000197'),
-  });
-  await empresaRepo.salvar(empresa);
-
-  const entrada = {
-    empresaId: empresa.id.value,
-    nome: 'Maria Souza',
-    usuario: 'maria.souza',
-    email: 'maria@equinox.dev',
-    senha: SENHA,
-    confirmacaoSenha: SENHA,
-  };
-
-  return { caso, usuarioRepo, empresa, entrada, hash };
+function cenario() {
+  const remoto = new AutenticacaoRemotaFake();
+  remoto.empresas = [
+    { id: IDS.empresa.value, nome: 'Equinox Energia Solar' },
+    { id: IDS.outraEmpresa.value, nome: 'Condomínio Solar do Vale' },
+  ];
+  return { remoto, caso: new CadastrarUsuarioPendenteUseCase(remoto) };
 }
 
-describe('CadastrarUsuarioPendenteUseCase', () => {
-  it('cria o usuário como Técnico pendente de autorização', async () => {
-    const { caso, usuarioRepo, entrada } = await cenario();
+const entrada = (sobrescrita: Record<string, string> = {}) => ({
+  empresaId: IDS.empresa.value,
+  nome: 'Maria Souza',
+  usuario: 'Maria.Souza',
+  email: 'Maria@Equinox.dev',
+  senha: 'segredo1',
+  confirmacaoSenha: 'segredo1',
+  ...sobrescrita,
+});
 
-    const saida = await caso.executar(entrada);
+describe('CadastrarUsuarioPendenteUseCase', () => {
+  it('cadastra na nuvem, com e-mail e usuário normalizados', async () => {
+    const { caso, remoto } = cenario();
+
+    const saida = await caso.executar(entrada());
 
     expect(saida.sucesso).toBe(true);
-    const criado = [...usuarioRepo.items.values()][0];
-    expect(criado.status).toBe(StatusUsuarioEnum.PENDENTE);
-    expect(criado.perfil).toBe(PerfilEnum.TECNICO);
-    expect(criado.enderecosVinculados).toEqual([]);
-  });
-
-  it('guarda a senha hasheada, nunca em texto', async () => {
-    const { caso, usuarioRepo, entrada, hash } = await cenario();
-
-    await caso.executar(entrada);
-
-    const criado = [...usuarioRepo.items.values()][0];
-    expect(criado.senha.serializar()).not.toContain(SENHA);
-    expect(await hash.verificar(SENHA, criado.senha)).toBe(true);
-  });
-
-  it('recusa quando a empresa não existe', async () => {
-    const { caso, entrada } = await cenario();
-
-    const saida = await caso.executar({ ...entrada, empresaId: UUIDv4.gerar().value });
-
-    expect(saida.sucesso).toBe(false);
-    expect(saida.erro).toBe('Empresa não encontrada');
-  });
-
-  it('recusa e-mail já cadastrado', async () => {
-    const { caso, usuarioRepo, entrada, hash } = await cenario();
-    await usuarioRepo.salvar(
-      new Usuario({
-        id: UUIDv4.gerar(),
-        empresaId: UUIDv4.gerar(),
-        nome: 'Outra Maria',
-        usuario: 'outra.maria',
-        email: 'maria@equinox.dev',
-        senha: await hash.gerar('x'),
-        perfil: PerfilEnum.TECNICO,
-        status: StatusUsuarioEnum.ATIVO,
-        enderecosVinculados: [UUIDv4.gerar()],
-      }),
-    );
-
-    expect((await caso.executar(entrada)).erro).toBe('Este e-mail já está cadastrado');
-  });
-
-  it('recusa login já usado por outra pessoa', async () => {
-    const { caso, usuarioRepo, entrada, hash } = await cenario();
-    await usuarioRepo.salvar(
-      new Usuario({
-        id: UUIDv4.gerar(),
-        empresaId: UUIDv4.gerar(),
-        nome: 'Maria Antiga',
+    expect(saida.usuarioId).toBeDefined();
+    expect(remoto.cadastros).toEqual([
+      {
+        empresaId: IDS.empresa.value,
+        nome: 'Maria Souza',
         usuario: 'maria.souza',
-        email: 'antiga@equinox.dev',
-        senha: await hash.gerar('x'),
-        perfil: PerfilEnum.TECNICO,
-        status: StatusUsuarioEnum.ATIVO,
-        enderecosVinculados: [UUIDv4.gerar()],
-      }),
-    );
-
-    expect((await caso.executar(entrada)).erro).toBe('Este usuário já está em uso');
+        email: 'maria@equinox.dev',
+        senha: 'segredo1',
+      },
+    ]);
   });
 
-  it.each([
-    ['nome', { nome: '  ' }, 'Preencha todos os campos'],
-    ['usuário', { usuario: '' }, 'Preencha todos os campos'],
-    ['e-mail', { email: '' }, 'Preencha todos os campos'],
-    ['senha', { senha: '' }, 'Preencha todos os campos'],
-  ])('recusa %s vazio', async (_campo, sobrescrita, erro) => {
-    const { caso, entrada } = await cenario();
-    expect((await caso.executar({ ...entrada, ...sobrescrita })).erro).toBe(erro);
+  it('não envia nível nem status: quem os fixa é o servidor', async () => {
+    const { caso, remoto } = cenario();
+
+    await caso.executar(entrada());
+
+    expect(Object.keys(remoto.cadastros[0]).sort()).toEqual([
+      'email', 'empresaId', 'nome', 'senha', 'usuario',
+    ]);
   });
+
+  it('o cadastro nasce Técnico e Pendente, e não deixa sessão aberta', async () => {
+    const { caso, remoto } = cenario();
+    await caso.executar(entrada());
+
+    // O que a nuvem criou é o que o login vai encontrar.
+    await remoto.entrar('maria@equinox.dev', 'segredo1');
+    const perfil = await remoto.obterMeuPerfil();
+
+    expect(perfil.ok && perfil.valor?.perfil).toBe(PerfilEnum.TECNICO);
+    expect(perfil.ok && perfil.valor?.status).toBe(StatusUsuarioEnum.PENDENTE);
+  });
+
+  it('sem rede, explica que o cadastro precisa de internet', async () => {
+    const { caso, remoto } = cenario();
+    remoto.online = false;
+
+    const saida = await caso.executar(entrada());
+
+    expect(saida).toEqual({ sucesso: false, erro: 'Sem conexão. O cadastro precisa de internet' });
+  });
+
+  it('repassa a recusa da nuvem para e-mail já cadastrado', async () => {
+    const { caso, remoto } = cenario();
+    remoto.registrarConta(novoUsuario({ email: 'maria@equinox.dev' }), SENHA);
+
+    const saida = await caso.executar(entrada());
+
+    expect(saida).toEqual({ sucesso: false, erro: 'Este e-mail já está cadastrado' });
+  });
+
+  it('repassa a recusa da nuvem para usuário já em uso', async () => {
+    const { caso, remoto } = cenario();
+    remoto.registrarConta(novoUsuario({ usuario: 'maria.souza' }), SENHA);
+
+    const saida = await caso.executar(entrada());
+
+    expect(saida.erro).toBe('Este usuário já está em uso');
+  });
+
+  it.each(['nome', 'usuario', 'email', 'senha', 'empresaId'])(
+    'recusa quando falta %s',
+    async (campo) => {
+      const { caso } = cenario();
+      const saida = await caso.executar(entrada({ [campo]: '' }));
+      expect(saida).toEqual({ sucesso: false, erro: 'Preencha todos os campos' });
+    },
+  );
 
   it('exige senha de ao menos 6 caracteres, como no app antigo', async () => {
-    const { caso, entrada } = await cenario();
-    const curta = { ...entrada, senha: '12345', confirmacaoSenha: '12345' };
-    expect((await caso.executar(curta)).erro).toBe('A senha deve ter ao menos 6 caracteres');
+    const { caso } = cenario();
+    const saida = await caso.executar(entrada({ senha: '12345', confirmacaoSenha: '12345' }));
+    expect(saida.erro).toBe('A senha deve ter ao menos 6 caracteres');
   });
 
   it('exige que a confirmação coincida', async () => {
-    const { caso, entrada } = await cenario();
-    const saida = await caso.executar({ ...entrada, confirmacaoSenha: 'outra-coisa' });
+    const { caso } = cenario();
+    const saida = await caso.executar(entrada({ confirmacaoSenha: 'diferente' }));
     expect(saida.erro).toBe('As senhas não coincidem');
   });
 
   it('recusa e-mail mal formado', async () => {
-    const { caso, entrada } = await cenario();
-    expect((await caso.executar({ ...entrada, email: 'nao-e-email' })).erro).toBe(
-      'O e-mail informado não parece válido',
-    );
+    const { caso } = cenario();
+    const saida = await caso.executar(entrada({ email: 'maria-sem-arroba' }));
+    expect(saida.erro).toBe('O e-mail informado não parece válido');
   });
 
-  it('nada é gravado quando a validação falha', async () => {
-    const { caso, usuarioRepo, entrada } = await cenario();
-    await caso.executar({ ...entrada, senha: '123', confirmacaoSenha: '123' });
-    expect(usuarioRepo.items.size).toBe(0);
+  it('nada vai para a nuvem quando a validação falha', async () => {
+    const { caso, remoto } = cenario();
+    await caso.executar(entrada({ confirmacaoSenha: 'diferente' }));
+    expect(remoto.cadastros).toHaveLength(0);
+  });
+
+  describe('busca de empresa (antes do login)', () => {
+    it('devolve só id e nome', async () => {
+      const { caso } = cenario();
+
+      const saida = await caso.buscarEmpresas('solar');
+
+      expect(saida.erro).toBeUndefined();
+      expect(saida.empresas).toHaveLength(2);
+      expect(Object.keys(saida.empresas[0]).sort()).toEqual(['id', 'nome']);
+    });
+
+    it('filtra pelo termo', async () => {
+      const { caso } = cenario();
+      const saida = await caso.buscarEmpresas('vale');
+      expect(saida.empresas.map((e) => e.nome)).toEqual(['Condomínio Solar do Vale']);
+    });
+
+    it('sem rede, devolve lista vazia e avisa', async () => {
+      const { caso, remoto } = cenario();
+      remoto.online = false;
+
+      const saida = await caso.buscarEmpresas('');
+
+      expect(saida.empresas).toEqual([]);
+      expect(saida.erro).toContain('precisa de internet');
+    });
   });
 });

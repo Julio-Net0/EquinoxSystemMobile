@@ -4,13 +4,22 @@ import { PerfilEnum } from '@/domain/enums/PerfilEnum';
 import { PerfilScreen } from '@/presentation/screens/PerfilScreen';
 import { useAuth } from '@/presentation/hooks/useAuth';
 import { useCasos } from '@/presentation/context/ContainerProvider';
+import { useSincronizacao } from '@/presentation/context/SincronizacaoContext';
 
 export default function PerfilRoute() {
   const router = useRouter();
   const { usuario, perfil, recarregar, sair } = useAuth();
+  const { pendentes } = useSincronizacao();
   const casos = useCasos();
 
   if (!usuario) return null;
+
+  // Sair não apaga o que está na fila, mas o envio só volta a acontecer quando
+  // o mesmo usuário entrar de novo — e entrar exige rede. Vale avisar antes.
+  const avisoAoSair =
+    pendentes > 0
+      ? `Há ${pendentes} ${pendentes === 1 ? 'item ainda não enviado' : 'itens ainda não enviados'} à nuvem. Se você sair agora, ${pendentes === 1 ? 'ele fica guardado' : 'eles ficam guardados'} neste aparelho e só ${pendentes === 1 ? 'sobe' : 'sobem'} quando você entrar de novo, com internet.`
+      : null;
 
   return (
     <PerfilScreen
@@ -18,12 +27,13 @@ export default function PerfilRoute() {
       usuario={usuario.usuario}
       email={usuario.email}
       perfil={perfil ?? PerfilEnum.TECNICO}
+      avisoAoSair={avisoAoSair}
       onSalvarDados={async (dados) => {
         const saida = await casos.perfil.alterarDados({
           usuarioId: usuario.usuarioId,
           ...dados,
         });
-        // A sessão guarda nome, login e e-mail para o cabeçalho.
+        // A sessão guarda nome, apelido e e-mail para o cabeçalho.
         if (saida.sucesso) await recarregar();
         return saida;
       }}

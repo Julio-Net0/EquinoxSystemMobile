@@ -133,7 +133,6 @@ describe('mappers SQLite', () => {
       expect(volta.usuario).toBe(original.usuario);
       expect(volta.email).toBe(original.email);
       expect(volta.perfil).toBe(PerfilEnum.TECNICO);
-      expect(volta.senha.equals(original.senha)).toBe(true);
       expect(volta.enderecosVinculados).toHaveLength(1);
     });
 
@@ -150,10 +149,10 @@ describe('mappers SQLite', () => {
       expect(usuarioParaRow(base(PerfilEnum.SUPER_ADMIN, null)).empresa_id).toBeNull();
     });
 
-    it('a senha vai serializada numa coluna e não contém texto limpo', () => {
+    it('a linha do usuário não leva senha nem hash dela', () => {
       const row = usuarioParaRow(base(PerfilEnum.TECNICO, UUIDv4.gerar()));
-      expect(row.senha_hash).toBe(senha().serializar());
-      expect(row.senha_hash.split('$')).toHaveLength(4);
+      expect(Object.keys(row)).not.toContain('senha_hash');
+      expect(JSON.stringify(row)).not.toContain(senha().serializar());
     });
 
     it('preserva o perfil anterior de quem foi recusado', () => {

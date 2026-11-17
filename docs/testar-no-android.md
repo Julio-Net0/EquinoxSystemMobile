@@ -56,14 +56,17 @@ instalação**.
 
 ## 4. Entrar
 
-Três contas, todas com a senha **`Equinox@2026`**. O campo aceita o login ou o
-e-mail.
+Antes: o projeto Supabase precisa estar configurado e o `.env.local`
+preenchido ([supabase-setup.md](supabase-setup.md)). O **primeiro login exige
+internet**; depois dele o app abre offline.
+
+Contas com a senha **`Equinox@2026`**. O login é **por e-mail**.
 
 | Perfil | Login | O que ver |
 |---|---|---|
-| Técnico | `tecnico` | Registrar leitura; 3 abas |
-| Administrador | `admin` | 4 abas, avisos, telas de administração |
-| Super Admin | `super` | Tudo, mais a lista de Empresas na Estrutura |
+| Técnico | `tecnico@equinox.dev` | Registrar leitura; 3 abas |
+| Administrador | `admin@equinox.dev` | 4 abas, avisos, telas de administração |
+| Super Admin | `super@equinox.dev` | Tudo, mais a lista de Empresas na Estrutura |
 
 ---
 
@@ -71,7 +74,7 @@ e-mail.
 
 ### 5.1 Login — 1 min
 
-1. Entre com `tecnico` e uma senha errada → **"E-mail, usuário ou senha
+1. Entre com `tecnico@equinox.dev` e uma senha errada → **"E-mail ou senha
    incorretos"**.
 2. Entre com a senha certa → vai para a Home.
 3. A saudação mostra **JOÃO** em âmbar, perfil **USUÁRIO**.
@@ -152,19 +155,21 @@ O GPS continua funcionando em modo avião na maioria dos aparelhos, porque é
 recepção de satélite. Se o seu desligar junto, a leitura é gravada sem
 localização e gera um aviso — que também é o comportamento correto.
 
-> O app **nunca** usa rede. Não há servidor, não há sincronização. O modo avião
-> não muda nada, e é por isso que ele é uma boa prova.
+> Em modo avião o app continua funcionando: a leitura fica **pendente de
+> envio** e sobe sozinha quando a rede volta. Veja a seção C de
+> [roteiro-de-testes.md](roteiro-de-testes.md).
 
 ### 6.3 Tela de diagnóstico — ver o banco por dentro
 
-**Perfil → Diagnóstico local.**
+**Perfil → Diagnóstico e sincronização.**
 
 Mostra o que está gravado no SQLite deste aparelho:
 
 **Banco de dados**
 - `equinox.db` — o arquivo, na área privada do app
 - **Versão do schema** — o `PRAGMA user_version`, que diz até que migração o
-  banco foi levado. Deve ser **2** (1 = estrutura, 2 = dados de demonstração).
+  banco foi levado. Deve ser **3** (1 = estrutura, 2 = dados de demonstração,
+  3 = sincronização).
 
 **Linhas por tabela** — contagem real de cada tabela. Logo após instalar:
 

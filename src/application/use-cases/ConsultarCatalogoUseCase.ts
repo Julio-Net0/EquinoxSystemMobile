@@ -2,11 +2,14 @@ import { IEnderecoRepository } from '@/domain/repositories/IEnderecoRepository';
 import { IPadraoRepository } from '@/domain/repositories/IPadraoRepository';
 import { ILeituraRepository } from '@/domain/repositories/ILeituraRepository';
 import { UUIDv4 } from '@/domain/value-objects/UUIDv4';
+import { EstadoSyncEnum } from '@/domain/enums/EstadoSyncEnum';
 
 export interface UltimaLeituraDTO {
   valorConsumo: number;
   valorInjecao: number | null;
   dataLocal: string;
+  /** Se a leitura já está na nuvem ou ainda só neste aparelho. */
+  estadoSync: EstadoSyncEnum;
 }
 
 export interface PadraoCatalogoDTO {
@@ -91,6 +94,7 @@ export class ConsultarCatalogoUseCase {
       valorConsumo: ultima.valorConsumo.valor,
       valorInjecao: ultima.valorInjecao?.valor ?? null,
       dataLocal: ultima.dataLocal.value,
+      estadoSync: ultima.estadoSync,
     };
   }
 }
