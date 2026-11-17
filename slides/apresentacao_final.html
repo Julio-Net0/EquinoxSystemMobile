@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Apresentação Final — Roteiro de Apresentação como Prova | Equinox Mobile</title>
+<meta name="description" content="Apresentação Final do Equinox Mobile — Roteiro de apresentação como prova cobrindo produto, cliente, problema, público-alvo, perfis, recursos, câmera/GPS, online/offline, sincronização, Supabase, serviços em nuvem e segurança.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<style>
+  :root {
+    --bg: #070b14;
+    --panel: rgba(17, 24, 39, 0.84);
+    --border: rgba(148, 163, 184, 0.18);
+    --text: #e6ebf5;
+    --muted: #94a3b8;
+    --domain: #34d399;
+    --app: #60a5fa;
+    --adapters: #a78bfa;
+    --ui: #fb923c;
+    --fakes: #38bdf8;
+    --tests: #f472b6;
+    --security: #f43f5e;
+    --cloud: #2dd4bf;
+    --accent: #38bdf8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); }
+  body { font-family: 'Outfit', system-ui, sans-serif; color: var(--text); }
+
+  /* ---------- Stage (16:9 fixo, escalado ao viewport) ---------- */
+  .stage {
+    position: absolute; top: 50%; left: 50%;
+    width: 1600px; height: 900px;
+    transform-origin: center center;
+    overflow: hidden;
+    background:
+      radial-gradient(900px 500px at 10% -10%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%),
+      radial-gradient(700px 500px at 110% 110%, rgba(167, 139, 250, 0.16), transparent 70%),
+      linear-gradient(180deg, #0a1020 0%, #070b14 100%);
+    transition: background 0.8s ease;
+  }
+  .stage::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background-image:
+      linear-gradient(rgba(148,163,184,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148,163,184,0.05) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse at center, #000 30%, transparent 80%);
+  }
+
+  /* ---------- Slides ---------- */
+  .slide {
+    position: absolute; inset: 0;
+    padding: 46px 68px 80px;
+    display: flex; flex-direction: column;
+    opacity: 0; visibility: hidden;
+    transform: translateX(60px) scale(0.985);
+    transition: opacity 0.55s ease, transform 0.55s cubic-bezier(.2,.8,.2,1), visibility 0.55s;
+  }
+  .slide.active { opacity: 1; visibility: visible; transform: none; }
+  .slide.past { transform: translateX(-60px) scale(0.985); }
+
+  .slide[data-layer="overview"] { --accent: #38bdf8; }
+  .slide[data-layer="business"] { --accent: #fbbf24; }
+  .slide[data-layer="problem"]  { --accent: #fb7185; }
+  .slide[data-layer="audience"] { --accent: #60a5fa; }
+  .slide[data-layer="roles"]    { --accent: #a78bfa; }
+  .slide[data-layer="features"] { --accent: #fb923c; }
+  .slide[data-layer="hardware"] { --accent: #34d399; }
+  .slide[data-layer="offline"]  { --accent: #10b981; }
+  .slide[data-layer="sync"]     { --accent: #38bdf8; }
+  .slide[data-layer="supabase"] { --accent: #2dd4bf; }
+  .slide[data-layer="cloud"]    { --accent: #818cf8; }
+  .slide[data-layer="security"] { --accent: #f43f5e; }
+
+  .slide-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 7px 18px; border-radius: 999px;
+    font-size: 16px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+  .badge::before {
+    content: ""; width: 9px; height: 9px; border-radius: 50%;
+    background: var(--accent); box-shadow: 0 0 12px var(--accent);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse { 50% { opacity: 0.35; } }
+  .num {
+    font-family: 'JetBrains Mono', monospace; font-size: 18px; color: var(--muted);
+  }
+  .num b { color: var(--accent); font-weight: 700; }
+
+  .grid { flex: 1; display: grid; grid-template-columns: 0.94fr 1.06fr; gap: 44px; min-height: 0; }
+  .col-text { display: flex; flex-direction: column; justify-content: center; gap: 18px; min-height: 0; }
+  .col-code { display: flex; flex-direction: column; justify-content: center; gap: 16px; min-height: 0; }
+
+  h1 {
+    font-size: 56px; font-weight: 800; line-height: 1.04; letter-spacing: -0.03em;
+    background: linear-gradient(120deg, #ffffff 0%, #38bdf8 48%, #34d399 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .subtitle { font-size: 21px; color: var(--muted); font-weight: 400; margin-top: -4px; line-height: 1.38; }
+  .subtitle b { color: var(--text); font-weight: 600; }
+  h2 { font-size: 42px; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; }
+  .hl { color: var(--accent); text-shadow: 0 0 40px color-mix(in srgb, var(--accent) 40%, transparent); }
+
+  ul.points { list-style: none; display: flex; flex-direction: column; gap: 14px; }
+  ul.points li {
+    position: relative; padding-left: 28px;
+    font-size: 20.5px; line-height: 1.4; color: #cbd5e1; font-weight: 400;
+  }
+  ul.points li::before {
+    content: ""; position: absolute; left: 0; top: 13px;
+    width: 14px; height: 3px; border-radius: 2px;
+    background: var(--accent); box-shadow: 0 0 10px var(--accent);
+  }
+  ul.points strong { color: #fff; font-weight: 600; }
+  code.inline {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.84em;
+    padding: 2px 7px; border-radius: 6px;
+    background: color-mix(in srgb, var(--accent) 12%, rgba(15,23,42,0.8));
+    color: color-mix(in srgb, var(--accent) 70%, #fff);
+    border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  }
+
+  /* ---------- Fluxo ---------- */
+  .flow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .chip {
+    padding: 8px 15px; border-radius: 11px; font-weight: 600; font-size: 17px;
+    border: 1px solid; background: rgba(15,23,42,0.65);
+  }
+  .chip.dm { color: var(--domain); border-color: color-mix(in srgb, var(--domain) 40%, transparent); }
+  .chip.ap { color: var(--app); border-color: color-mix(in srgb, var(--app) 40%, transparent); }
+  .chip.ad { color: var(--adapters); border-color: color-mix(in srgb, var(--adapters) 40%, transparent); }
+  .chip.ui { color: var(--ui); border-color: color-mix(in srgb, var(--ui) 40%, transparent); }
+  .arrow { color: var(--muted); font-size: 20px; }
+
+  /* ---------- Cards de Destaque ---------- */
+  .card-box {
+    background: rgba(15, 23, 42, 0.78);
+    border-radius: 15px;
+    border: 1px solid var(--border);
+    padding: 16px 20px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .card-box.alert {
+    border-color: rgba(244, 63, 94, 0.38);
+    background: rgba(244, 63, 94, 0.08);
+  }
+  .card-box.success {
+    border-color: rgba(52, 211, 153, 0.38);
+    background: rgba(52, 211, 153, 0.08);
+  }
+  .card-box.info {
+    border-color: color-mix(in srgb, var(--accent) 38%, transparent);
+    background: color-mix(in srgb, var(--accent) 8%, rgba(15, 23, 42, 0.8));
+  }
+  .card-title {
+    font-size: 17px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+    display: flex; align-items: center; gap: 8px; color: var(--accent);
+  }
+  .card-box.alert .card-title { color: #fb7185; }
+  .card-box.success .card-title { color: #34d399; }
+  .card-box p { font-size: 18.5px; line-height: 1.42; color: #cbd5e1; }
+
+  /* ---------- Tabelas Arquiteturais ---------- */
+  .arch-table {
+    width: 100%; border-collapse: separate; border-spacing: 0;
+    border-radius: 14px; overflow: hidden; border: 1px solid var(--border);
+    background: var(--panel); font-size: 17px;
+  }
+  .arch-table th {
+    background: rgba(255, 255, 255, 0.04);
+    padding: 12px 16px; text-align: left; font-weight: 700; color: #f1f5f9;
+    border-bottom: 1px solid var(--border);
+  }
+  .arch-table td {
+    padding: 11px 16px; border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+    color: #cbd5e1; vertical-align: top; line-height: 1.38;
+  }
+  .arch-table tr:last-child td { border-bottom: none; }
+  .arch-tag {
+    display: inline-block; padding: 3px 9px; border-radius: 6px; font-weight: 700; font-size: 13px;
+    text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;
+  }
+  .tag-domain { background: rgba(52, 211, 153, 0.15); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.3); }
+  .tag-app { background: rgba(96, 165, 250, 0.15); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.3); }
+  .tag-infra { background: rgba(167, 139, 250, 0.15); color: #a78bfa; border: 1px solid rgba(167, 139, 250, 0.3); }
+  .tag-ui { background: rgba(251, 146, 60, 0.15); color: #fb923c; border: 1px solid rgba(251, 146, 60, 0.3); }
+  .tag-sec { background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3); }
+  .tag-amber { background: rgba(251, 191, 36, 0.15); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.3); }
+
+  /* ---------- Janela de Código ---------- */
+  .window {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    backdrop-filter: blur(14px);
+    box-shadow: 0 28px 56px -18px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.03) inset,
+                0 0 56px -28px var(--accent);
+    overflow: hidden; min-height: 0;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  .window:hover { transform: translateY(-2px); box-shadow: 0 36px 70px -20px rgba(0,0,0,0.7), 0 0 75px -25px var(--accent); }
+  .window-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px;
+    background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid var(--border);
+  }
+  .window-bar i { width: 11px; height: 11px; border-radius: 50%; background: #ff5f57; }
+  .window-bar i:nth-child(2) { background: #febc2e; }
+  .window-bar i:nth-child(3) { background: #28c840; }
+  .window-bar span {
+    margin-left: 8px; font-family: 'JetBrains Mono', monospace; font-size: 13.5px; color: var(--muted);
+  }
+  .window-bar span b { color: var(--accent); font-weight: 600; }
+  pre { margin: 0; }
+  pre code, .tree {
+    display: block;
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 14.5px; line-height: 1.5;
+    padding: 15px 20px !important;
+    background: transparent !important;
+    color: #d6deeb;
+    white-space: pre;
+  }
+  .tree { font-size: 15px; line-height: 1.56; }
+  .tree .d  { color: #e2e8f0; font-weight: 700; }
+  .tree .c  { color: #64748b; font-style: italic; }
+  .tree .dm { color: var(--domain); font-weight: 700; }
+  .tree .ap { color: var(--app); font-weight: 700; }
+  .tree .ad { color: var(--adapters); font-weight: 700; }
+  .tree .ui { color: var(--ui); font-weight: 700; }
+
+  .stats { display: flex; gap: 14px; }
+  .stat {
+    flex: 1; padding: 13px 16px; border-radius: 14px;
+    background: var(--panel); border: 1px solid var(--border);
+  }
+  .stat b {
+    display: block; font-size: 31px; font-weight: 800; line-height: 1.08;
+    background: linear-gradient(120deg, var(--accent), #a78bfa);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .stat span { font-size: 13.5px; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
+
+  /* Credenciais do seed (Slide 1) */
+  .creds {
+    border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+    background: color-mix(in srgb, var(--accent) 9%, rgba(15, 23, 42, 0.72));
+    border-radius: 15px; padding: 14px 18px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .creds-title {
+    font-size: 15.5px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--accent);
+  }
+  .creds-linha { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 16px; color: #cbd5e1; }
+  .creds-linha .rot { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); min-width: 54px; }
+  .creds-linha code {
+    font-family: 'JetBrains Mono', monospace; font-size: 16.5px; font-weight: 600;
+    padding: 4px 10px; border-radius: 8px; color: #f1f5f9;
+    background: rgba(15, 23, 42, 0.8); border: 1px solid var(--border);
+  }
+  .creds-nota { font-size: 13px; color: var(--muted); line-height: 1.38; }
+
+  /* ---------- Animações ---------- */
+  .slide .anim { opacity: 0; transform: translateY(16px); }
+  .slide.active .anim { animation: rise 0.55s cubic-bezier(.2,.8,.2,1) forwards; }
+  .slide.active .anim:nth-child(1) { animation-delay: 0.06s; }
+  .slide.active .anim:nth-child(2) { animation-delay: 0.12s; }
+  .slide.active .anim:nth-child(3) { animation-delay: 0.18s; }
+  .slide.active .anim:nth-child(4) { animation-delay: 0.24s; }
+  .slide.active .anim:nth-child(5) { animation-delay: 0.30s; }
+  .slide.active .anim:nth-child(6) { animation-delay: 0.36s; }
+  .slide.active ul.points li { animation: rise 0.45s cubic-bezier(.2,.8,.2,1) both; }
+  .slide.active ul.points li:nth-child(1) { animation-delay: 0.14s; }
+  .slide.active ul.points li:nth-child(2) { animation-delay: 0.22s; }
+  .slide.active ul.points li:nth-child(3) { animation-delay: 0.30s; }
+  .slide.active ul.points li:nth-child(4) { animation-delay: 0.38s; }
+  .slide.active ul.points li:nth-child(5) { animation-delay: 0.46s; }
+  @keyframes rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+
+  /* ---------- HUD ---------- */
+  .hud {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 58px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 68px; z-index: 10;
+    background: linear-gradient(180deg, transparent, rgba(7, 11, 20, 0.95));
+    border-top: 1px solid rgba(148, 163, 184, 0.08);
+    font-family: 'JetBrains Mono', monospace; font-size: 13.5px; color: var(--muted);
+  }
+  .progress { position: absolute; left: 0; bottom: 0; height: 4px; width: 100%; background: rgba(148,163,184,0.1); }
+  .progress > div {
+    height: 100%; width: 0;
+    background: linear-gradient(90deg, #38bdf8, #34d399, #fbbf24, #fb923c, #a78bfa, #f43f5e);
+    transition: width 0.5s cubic-bezier(.2,.8,.2,1);
+  }
+  .hud .brand { display: flex; align-items: center; gap: 10px; }
+  .hud .brand b { color: var(--text); font-weight: 600; }
+  .hud .keys kbd {
+    display: inline-block; min-width: 24px; padding: 2px 7px; margin: 0 2px;
+    border-radius: 6px; border: 1px solid var(--border); background: rgba(255,255,255,0.04);
+    color: var(--text); font-family: inherit; font-size: 12px; text-align: center;
+  }
+
+  .nav-zone { position: absolute; top: 0; bottom: 58px; width: 9%; z-index: 5; cursor: pointer; }
+  .nav-zone.left { left: 0; } .nav-zone.right { right: 0; }
+</style>
+</head>
+<body>
+<main class="stage" id="stage">
+
+  <!-- ===================== SLIDE 1: O QUE É O APLICATIVO ===================== -->
+  <section class="slide" data-layer="overview" id="slide-1">
+    <header class="slide-head">
+      <span class="badge">Roteiro de Apresentação como Prova · 01. O que é o Aplicativo</span>
+      <span class="num"><b>01</b> / 12</span>
+    </header>
+    <div class="grid">
+      <div class="col-text">
+        <h1 class="anim">Equinox Mobile:<br>Apresentação Final</h1>
+        <p class="subtitle anim">Plataforma <b>100% Mobile</b>, <b>Multi-Tenant</b> e <b>Offline-First</b> para gestão de usinas fotovoltaicas, padrões CEMIG e auditoria de leituras em campo.</p>
+        <div class="flow anim">
+          <span class="chip dm">Domain</span><span class="arrow">→</span>
+          <span class="chip ap">Application</span><span class="arrow">→</span>
+          <span class="chip ad">Infrastructure</span><span class="arrow">→</span>
+          <span class="chip ui">Presentation</span>
+        </div>
+        <ul class="points">
+          <li><strong>Stack Oficial</strong>: React Native + <strong>Expo SDK 58</strong>, TypeScript estrito, Expo Router e persistência SQLite local (<code class="inline">expo-sqlite</code>).</li>
+          <li><strong>Engenharia Rigorosa</strong>: Clean Architecture, DDD e TDD com <strong>56 suítes, 790 testes passando</strong> e <strong>98,7% de cobertura</strong>.</li>
+        </ul>
+        <div class="creds anim">
+          <div class="creds-title">▶ Credenciais de Demonstração (Seed Local Automático)</div>
+          <div class="creds-linha">
+            <span class="rot">Logins</span>
+            <code>tecnico</code><code>admin</code><code>super</code>
+            <span class="rot" style="margin-left:8px;">Senha</span>
+            <code>Equinox@2026</code>
+          </div>
+          <p class="creds-nota">Contas criadas automaticamente pelo seed (migração 002) no SQLite do aparelho na primeira abertura.</p>
+        </div>
+      </div>
+      <div class="col-code">
+        <div class="stats anim">
+          <div class="stat"><b>SDK 58</b><span>React Native 0.88</span></div>
+          <div class="stat"><b>790 / 790</b><span>Testes Aprovados</span></div>
+          <div class="stat"><b>98,7%</b><span>Cobertura TDD</span></div>
+        </div>
+        <div class="window anim">
+          <div class="window-bar"><i></i><i></i><i></i><span>EquinoxSystemMobile/ (Arquitetura em Camadas)</span></div>
+<div class="tree"><span class="d">EquinoxSystemMobile/</span>
+├── <span class="dm">src/domain/</span>          <span class="c">🟢 Entidades, VOs, Services e Contratos puros</span>
+│   ├── entities/        <span class="c">← Empresa, Endereco, PadraoCemig, Leitura, Usuario</span>
+│   ├── value-objects/   <span class="c">← UUIDv4, CNPJ, CoordenadasGPS, ValorKwh, DataLocal</span>
+│   └── services/        <span class="c">← ValidadorDistanciaGps, AvisoValorMenor, RBAC</span>
+├── <span class="ap">src/application/</span>     <span class="c">🔵 16 Casos de Uso (RegistrarLeitura, Monitoramento...)</span>
+├── <span class="ad">src/infrastructure/</span>  <span class="c">🟣 SQLite, Expo Camera/GPS, SecureStore e Fakes</span>
+├── <span class="ui">src/presentation/</span>    <span class="c">🟠 10 Telas Solar Dark Mode + Custom Hooks</span>
+├── <span class="ui">src/app/</span>             <span class="c">🟠 Rotas Expo Router com Guardas Declarativas</span>
+└── <span class="ad">supabase/migrations/</span> <span class="c">☁️ DDL PostgreSQL + Políticas RLS Multi-Tenant</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SLIDE 2: CLIENTE PRINCIPAL ===================== -->
+  <section class="slide" data-layer="business" id="slide-2">
+    <header class="slide-head">
+      <span class="badge">Roteiro de Apresentação como Prova · 02. Quem é o Cliente Principal</span>
+      <span class="num"><b>02</b> / 12</span>
+    </header>
+    <div class="grid">
+      <div class="col-text">
+        <h2 class="anim">Cliente Principal:<br><span class="hl">Ecossistema Equinox</span></h2>
+        <div class="card-box info anim">
+          <div class="card-title">☀️ Equinox Sistemas de Energia Solar</div>
+          <p>O cliente principal é a <b>Equinox</b>, gestora de geração distribuída e faturamento de energia solar, que opera a plataforma em modelo <b>B2B Multi-Tenant</b> para suas empresas parceiras, consórcios e clientes corporativos.</p>
+        </div>
+        <ul class="points">
+          <li><strong>Governança Centralizada (SuperAdmin)</strong>: A Equinox cadastra e homologa empresas clientes (<code class="inline">Empresa</code> com validação de <code class="inline">CNPJ</code>) na plataforma.</li>
+          <li><strong>Estrutura Real de Medição (ADR 9.1)</strong>: Cada empresa cliente possui <code class="inline">Endereco</code> (Unidades Consumidoras com flag <code class="inline">ehUsina</code>) e múltiplos <code class="inline">PadraoCemig</code> (medidores físicos).</li>
+          <li><strong>Faturamento Preciso</strong>: Coleta padronizada dos registradores CEMIG <strong>003 (Consumo kWh)</strong> e <strong>103 (Injeção kWh)</strong> para fechamento contábil de créditos solares.</li>
+        </ul>
+      </div>
+      <div class="col-code">
+        <div class="window anim">
+          <div class="window-bar"><i></i><i></i><i></i><span>Hierarquia de Domínio do Cliente (Multi-Tenant)</span></div>
+          <table class="arch-table">
+            <thead>
+              <tr>
+                <th>Nível do Modelo</th>
+                <th>Entidade / VO</th>
+                <th>Papel no Negócio da Equinox</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="arch-tag tag-amber">Plataforma</span></td>
+                <td><code class="inline">Equinox (SuperAdmin)</code></td>
+                <td>Detentora do produto; gerencia múltiplos tenants e audita toda a rede.</td>
+              </tr>
+              <tr>
+                <td><span class="arch-tag tag-app">Tenant (Cliente)</span></td>
+                <td><code class="inline">Empresa</code> + <code class="inline">CNPJ</code></td>
+                <td>Empresa parceira/integradora isolada por <code class="inline">empresaId</code> (UUIDv4).</td>
+              </tr>
+              <tr>
+                <td><span class="arch-tag tag-domain">Planta / UC</span></td>
+                <td><code class="inline">Endereco (ehUsina)</code></td>
+                <td>Unidade Consumidora com geocerca opcional; <code class="inline">ehUsina=true</code> habilita injeção 103.</td>
+              </tr>
+              <tr>
+                <td><span class="arch-tag tag-infra">Medidor</span></td>
+                <td><code class="inline">PadraoCemig</code></td>
+                <td>Relógio medidor físico inspecionado diariamente pelos técnicos em campo.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="window anim">
+          <div class="window-bar"><i></i><i></i><i></i><span>src/domain/entities/<b>Empresa.ts</b></span></div>
+<script type="text/plain" data-lang="typescript">
+export class Empresa {
+  public readonly id: UUIDv4;
+  public readonly nome: string;
+  public readonly cnpj: CNPJ; // Valida 14 dígitos e dígitos verificadores
+
+  constructor(props: EmpresaProps) {
+    if (!props.nome || !props.nome.trim()) {
+      throw new Error('Nome da empresa é obrigatório');
+    }
+    this.id = props.id;
+    this.nome = props.nome.trim();
+    this.cnpj = props.cnpj;
+  }
+}
+</script>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SLIDE 3: QUAL É O PROBLEMA QUE ELE RESOLVE ===================== -->
+  <section class="slide" data-layer="problem" id="slide-3">
+    <header class="slide-head">
+      <span class="badge">Roteiro de Apresentação como Prova · 03. Qual é o Problema que Ele Resolve</span>
+      <span class="num"><b>03</b> / 12</span>
+    </header>
+    <div class="grid">
+      <div class="col-text">
+        <h2 class="anim">O Problema em Campo<br><span class="hl">e a Solução de Engenharia</span></h2>
+        <div class="card-box alert anim">
+          <div class="card-title">⚠️ Dores Críticas Antes do Aplicativo</div>
+          <p>Usinas fotovoltaicas rurais e casas de força em subsolos <b>não têm internet 4G estável</b>. A coleta manual em papel ou planilha gerava <b>leituras sem prova visual</b>, risco de fraude fora do local, erros de digitação de kWh e perda de medições.</p>
+        </div>
+        <ul class="points">
+          <li><strong>Zero Bloqueio por Falta de Sinal</strong>: Arquitetura <em>Offline-First</em> onde o SQLite local é a Fonte Única da Verdade durante a operação em campo.</li>
+          <li><strong>Eliminação de "Leituras de Sofá"</strong>: Exigência de foto real do visor no momento da leitura aliada à validação de raio geográfico (500 m).</li>
+          <li><strong>Detecção Automática de Anomalias</strong>: O serviço <code class="inline">AvisoValorMenorService</code> compara na hora a medição atual com a referência histórica acumulada.</li>
+        </ul>
+      </div>
+      <div class="col-code">
+        <div class="window anim">
+          <div class="window-bar"><i></i><i></i><i></i><span>Mapeamento Problema × Solução no Equinox Mobile</span></div>
+          <table class="arch-table">
+            <thead>
+              <tr>
+                <th>Problema Operacional</th>
+                <th>Solução Implementada no Projeto</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Zona rural / subsolo sem internet</strong></td>
+                <td>Persistência imediata em <code class="inline">expo-sqlite</code> + fila transacional <code class="inline">action_queue</code> para sincronização posterior.</td>
+              </tr>
+              <tr>
+                <td><strong>Leitura sem comprovante ou fraudulenta</strong></td>
+                <td>Coluna <code class="inline">foto_local_uri NOT NULL</code> no banco e captura nativa via <code class="inline">CapturaMedidorCamera</code>.</td>
+              </tr>
+              <tr>
+                <td><strong>Técnico fora da usina ou sem GPS</strong></td>
+                <td><code class="inline">RegraLocalizacaoLeituraService</code> valida 500 m (Haversine) e gera alerta de auditoria sem travar o técnico.</td>
+              </tr>
+              <tr>
+                <td><strong>Valor digitado menor que o anterior</strong></td>
+                <td><code class="inline">AvisoValorMenorService</code> exige confirmação e cria notificação <code class="inline">LEITURA_VALOR_MENOR</code> para o Admin.</td>
+              </tr>
+              <tr>
+                <td><strong>Duplicidade de leituras no mesmo dia</strong></td>
+                <td>Índice parcial único <code class="inline">idx_leituras_vigente_dia</code> + substituição atômica preservando histórico.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SLIDE 4: PÚBLICO-ALVO ===================== -->
+  <section class="slide" data-layer="audience" id="slide-4">
+    <header class="slide-head">
+      <span class="badge">Roteiro de Apresentação como Prova · 04. Quem são os Públicos-Alvo</span>
+      <span class="num"><b>04</b> / 12</span>
+    </header>
+    <div class="grid">
+      <div class="col-text">
+        <h2 class="anim">Públicos-Alvo:<br><span class="hl">Do Campo ao Escritório</span></h2>
+        <ul class="points">
+          <li><strong>1. Equipes Técnicas de Campo (Leituristas e Eletricistas)</strong>: Operadores que percorrem usinas solares e padrões de entrada em zonas rurais ou industriais, necessitando de interface ágil, alto contraste (<em>Solar Dark Mode</em>) e funcionamento sem rede.</li>
+          <li><strong>2. Gestores Operacionais de Empresas de Energia (Tenants)</strong>: Engenheiros e supervisores que administram equipes de leituristas, auditam medições divergentes, acompanham usinas diariamente e gerenciam padrões CEMIG.</li>
+          <li><strong>3. Governança Corporativa Equinox</strong>: Administradores da plataforma que controlam o ecossistema multi-empresa, credenciam novos parceiros B2B e supervisionam toda a operação.</li>
+        </ul>
+        <div class="card-box success anim">
+          <div class="card-title">📱 Decisão Arquitetural ADR 1.2 · 100% Mobile</div>
+          <p>Em vez de dividir em painel Web + App de campo, todo o público-alvo utiliza <b>um único aplicativo móvel</b> com telas dinâmicas adaptadas ao perfil do usuário.</p>
+        </div>
+      </div>
+      <div class="col-code">
+        <div class="window anim">
+          <div class="window-bar"><i></i><i></i><i></i><span>Segmentação dos Públicos-Alvo e Necessidades Atendidas</span></div>
+          <table class="arch-table">
+            <thead>
+              <tr>
+                <th>Público-Alvo</th>
+                <th>Ambiente de Uso</th>
+                <th>O que Entrega para esse Público</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="arch-tag tag-domain">Operadores de Campo</span></td>
+                <td>Fazendas solares, subsolos, áreas sem 4G.</td>
+                <td>Fluxo rápido de leitura (003/103), moldura de câmera para o medidor, GPS com timeout de 10s e zero perda de dados.</td>
+              </tr>
+              <tr>
+                <td><span class="arch-tag tag-app">Gestores das Empresas</span></td>
+                <td>Escritório ou visitas técnicas em trânsito.</td>
+                <td>Monitoramento diário por usina com calendário, central de notificações de exceção, aprovação de equipe e gestão de estrutura.</td>
+              </tr>
+              <tr>
+                <td><span class="arch-tag tag-infra">Diretoria Equinox</span></td>
+                <td>Gestão executiva multi-empresa.</td>
+                <td>Cadastro de empresas por CNPJ, visão global de usinas de todos os clientes e promoção de administradores.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SLIDE 5: PERFIS DE USUÁRIO ===================== -->
+  <section class="slide" data-layer="roles" id="slide-5">
+    <header class="slide-head">
+      <span class="badge">Roteiro de Apresentação como Prova · 05. Quais são os Perfis de Usuário</span>
+      <span class="num"><b>05</b> / 12</span>
+    </header>
+    <div class="grid">
+      <div class="col-text">
+        <h2 class="anim">Perfis de Usuário:<br><span class="hl">Hierarquia &amp; Escopo RBAC</span></h2>
+        <ul class="points">
+          <li><strong>Técnico / <code class="inline">USUARIO</code> (Nível 1)</strong>: Visualiza apenas os endereços atribuídos a ele na tabela N:N <code class="inline">usuario_enderecos</code> e registra leituras diárias de consumo/injeção.</li>
+          <li><strong>Admin da Empresa / <code class="inline">ADMINISTRADOR</code> (Nível 2)</strong>: Escopo isolado no seu <code class="inline">empresaId</code>. Aprova usuários pendentes, gerencia técnicos, estrutura de endereços/padrões, audita notificações e monitora leituras diárias das suas usinas.</li>
+          <li><strong>SuperAdmin / <code class="inline">SUPER_ADMIN</code> (Nível 3)</strong>: Escopo global <em>cross-tenant</em>. Gerencia o catálogo de <code class="inline">Empresas</code>, promove <code class="inline">ADMINISTRADOR</code> e audita todas as usinas da plataforma.</li>
+        </ul>
+      </div>
+      <div class="col-code">
+        <div class="window anim">
+          <div class="window-bar"><i></i><i></i><i></i><span>src/domain/enums/<b>PerfilEnum.ts</b> &amp; <b>RegraAutorizacaoUsuarioService.ts</b></span></div>
+<script type="text/plain" data-lang="typescript">
+export enum PerfilEnum {
+  USUARIO = 'USUARIO',             // Nível 1 — Técnico / Leiturista
+  ADMINISTRADOR = 'ADMINISTRADOR', // Nível 2 — Gestor do Tenant (Empresa)
+  SUPER_ADMIN = 'SUPER_ADMIN',     // Nível 3 — Governança Global Equinox
+}
+
+export function nivelDe(perfil: PerfilEnum): number {
+  switch (perfil) {
+    case PerfilEnum.USUARIO:       return 1;
+    case PerfilEnum.ADMINISTRADOR: return 2;
+    case PerfilEnum.SUPER_ADMIN:   return 3;
+  }
+}
+
+export class RegraAutorizacaoUsuarioService {
+  /** Um ator só gerencia alvos de nível estritamente inferior (exceto SuperAdmin) */
+  static podeGerenciarAlvo(ator: Usuario, alvo: Usuario): boolean {
+    if (ator.perfil === PerfilEnum.SUPER_ADMIN) return true;
+    if (ator.perfil === PerfilEnum.ADMINISTRADOR) {
+      return (
+        ator.empresaId !== null &&
+        ator.empresaId.equals(alvo.empresaId) &&
+        nivelDe(alvo.perfil) < nivelDe(ator.perfil)
+      );
+    }
+    return false;
+  }
+}
+</script>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SLIDE 6: PRINCIPAIS RECURSOS ===================== -->
+  <section class="slide" data-layer="features" id="slide-6">
+    <header class="slide-head">
+      <span class="badge">Roteiro de Apresentação como Prova · 06. Quais são os Principais Recursos</span>
+      <span class="num"><b>06</b> / 12</span>
+    </header>
+    <div class="grid">
+      <div class="col-text">
+        <h2 class="anim">Principais Recursos<br><span class="hl">e Telas do Aplicativo</span></h2>
+        <ul class="points">
+          <li><strong>Coleta de Leitura de Padrão (<code class="inline">NovaLeituraScreen</code>)</strong>: Campos 003 (Consumo) e 103 (Injeção para usinas), foto obrigatória, GPS, alerta de valor menor e substituição atômica no dia.</li>
+          <li><strong>Monitoramento Diário de Usinas (<code class="inline">LeiturasUsinaScreen</code>)</strong>: Seleção de usinas em cartões, KPIs do dia (lidos, pendentes, substituições, alertas), calendário mensal com indicadores de leitura e histórico expansível.</li>
+          <li><strong>Auditoria de Exceções (<code class="inline">NotificacoesScreen</code>)</strong>: Central onde o Admin aprova ou descarta leituras fora do raio, sem GPS ou com valor abaixo do histórico.</li>
+          <li><strong>Gestão Corporativa Completa</strong>: Pré-cadastro em 2 etapas (<code class="inline">CadastroScreen</code>), Autorizações (<code class="inline">AutorizacoesScreen</code>), Estrutura de Endereços/Padrões (<code class="inline">EstruturaScreen</code>), Usuários, Empresas e Diagnóstico.</li>
+        </ul>
+      </div>
+      <div class="col-code">
+        <div class="window anim">
+          <div class="window-bar"><i></i><i></i><i></i><span>Mapa de Telas e Casos de Uso (10 Telas em Produção)</span></div>
+          <table class="arch-table">
+            <thead>
+              <tr>
+                <th>Rota Expo Router</th>
+                <th>Perfis</th>
+                <th>Recurso / Caso de Uso Principal</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code class="inline">/login</code> &amp; <code class="inline">/cadastro</code></td>
+                <td>Público</td>
+                <td>Login com sessão segura e solicitação de cadastro pendente por empresa.</td>
+              </tr>
+              <tr>
+                <td><code class="inline">/(tabs)/home</code></td>
+                <td>Todos</td>
+                <td>Lista de endereços/usinas e padrões CEMIG com status da leitura do dia.</td>
+              </tr>
+              <tr>
+                <td><code class="inline">/leitura/[padraoId]</code></td>
+                <td>Todos</td>
+                <td><code class="inline">RegistrarLeituraUseCase</code>: medição 003/103 + câmera + GPS + auditoria.</td>
+              </tr>
+              <tr>
+                <td><code class="inline">/admin/leituras-usina</code></td>
+                <td>Admin / Super</td>
+                <td><code class="inline">ConsultarLeiturasDiaUsinaUseCase</code>: calendário mensal, KPIs e substituições.</td>
+              </tr>
+              <tr>
+                <td><code class="inline">/admin/notificacoes</code></td>
+                <td>Admin / Super</td>
+                <td><code class="inline">DecidirLeituraUseCase</code>: aprovar ou descartar leituras em exceção.</td>
+              </tr>
+              <tr>
+                <td><code class="inline">/admin/estrutura</code> · <code class="inline">usuarios</code> · <code class="inline">empresas</code></td>
+                <td>Admin / Super</td>
+                <td>Gestão de Endereços/Padrões CEMIG, vínculo de técnicos e Empresas (CNPJ).</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SLIDE 7: CÂMERA E GEOLOCALIZAÇÃO ===================== -->
+  <section class="slide" data-layer="hardware" id="slide-7">
+    <header class="slide-head">
+      <span class="badge">Roteiro de Apresentação como Prova · 07. Como Foi Utilizada a Câmera e a Geolocalização</span>
+      <span class="num"><b>07</b> / 12</span>
+    </header>
+    <div class="grid">
+      <div class="col-text">
+        <h2 class="anim">Câmera (~300 KB) &amp;<br><span class="hl">GPS como Prova de Apoio</span></h2>
+        <ul class="points">
+          <li><strong>Câmera Nativa (<code class="inline">expo-camera</code>)</strong>: Modal <code class="inline">CapturaMedidorCamera</code> com guia de visor e registro de capturador único em <code class="inline">CameraGatewayExpo</code>.</li>
+          <li><strong>Compressão e Persistência (<code class="inline">expo-image-manipulator</code>)</strong>: Redimensiona para <strong>1080p</strong>, ajusta qualidade JPEG (<code class="inline">0.8 → 0.5</code>) até <strong>~300 KB</strong> e move do cache volátil para <code class="inline">Paths.document/leituras/</code>.</li>
+          <li><strong>Geolocalização Resiliente (<code class="inline">expo-location</code>)</strong>: Corrida contra timeout de <strong>10 segundos</strong> (<code class="inline">Promise.race</code>) e cálculo de distância via <strong>Fórmula de Haversine (raio de 500 m)</strong>.</li>
+          <li><strong>Decisão ADR 9.4</strong>: Foto é condição obrigatória (<code class="inline">NOT NULL</code>); GPS nunca trava o técnico em subsolos — se falhar ou sair do raio, grava e gera notificação para o Admin.</li>
+        </ul>
+      </div>
+      <div class="col-code">
+        <div class="window anim">
+          <div class="window-bar"><i></i><i></i><i></i><span>src/infrastructure/hardware/midia/<b>ArquivoFotoGatewayExpo.ts</b></span></div>
+<script type="text/plain" data-lang="typescript">
+async comprimirEPersistir(uriTemp: string, nome: string) {
+  const ctx = ImageManipulator.manipulate(uriTemp);
+  ctx.resize({ width: 1080 });                 // preserva a proporção original
+  const img = await ctx.renderAsync();
+
+  let salva = await img.saveAsync({ format: SaveFormat.JPEG, compress: 0.8 });
+  for (const q of [0.7, 0.6, 0.5]) {           // reduz qualidade até caber em ~300KB
+    if (new File(salva.uri).size <= 320_000) break;
+    salva = await img.saveAsync({ format: SaveFormat.JPEG, compress: q });
+  }
+  const destino = new File(Paths.document, `leituras/${nome}.jpg`);
+  await new File(salva.uri).move(destino);     // move do cache volátil p/ definitivo
+  return { uri: destino.uri, bytes: destino.size ?? 0, ... };
+}
+</script>
+        </div>
+        <div class="window anim">
+          <div class="window-bar"><i></i><i></i><i></i><span>src/domain/services/<b>RegraLocalizacaoLeituraService.ts</b> (Haversine 500m)</span></div>
+<script type="text/plain" data-lang="typescript">
+// Nenhuma situação impede o registro: divergência vira auditoria para o Admin
+if (!coordenadasLeitura) {
+  return { tipo: TipoNotificacaoEnum.LEITURA_SEM_GPS, ... };
+}
+const distancia = ValidadorDistanciaGpsService.calcularDistanciaMetros(
+  coordenadasLeitura, endereco.coordenadas
+);
+if (distancia > RAIO_MAXIMO_METROS) { // 500 metros
+  return { tipo: TipoNotificacaoEnum.LEITURA_FORA_DE_RAIO, distancia, ... };
+}
+</script>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SLIDE 8: ONLINE VS OFFLINE ===================== -->
+  <section class="slide" data-layer="offline" id="slide-8">
+    <header class="slide-head">
+      <span class="badge">Roteiro de Apresentação como Prova · 08. O que é Online e o que é Offline</span>
+      <span class="num"><b>08</b> / 12</span>
+    </header>
+    <div class="grid">
+      <div class="col-text">
+        <h2 class="anim">Divisão de Trabalho:<br><span class="hl">Offline-First vs. Online</span></h2>
+        <ul class="points">
+          <li><strong>O que roda 100% Offline (Local no Aparelho)</strong>:
+            Validação de sessão (<code class="inline">expo-secure-store</code>), consulta ao catálogo de empresas, endereços/usinas e padrões CEMIG, registro e substituição de leituras, compressão de fotos no <code class="inline">FileSystem</code>, validação de GPS, auditoria de notificações e gravação na fila <code class="inline">action_queue</code>.</li>
+          <li><strong>O que utiliza Rede Online (Sincronização Posterior)</strong>:
+            <em>Cold Start</em> no 1º acesso (ADR 1.3) para carga inicial do tenant, envio assíncrono da <code class="inline">action_queue</code> (<em>Push Sync</em>), upload das fotos para o Storage remoto, busca incremental de novidades (<em>Pull Delta Sync</em>) e reset de senha online.</li>
+          <li><strong>Estado Atual (ADR 9.2)</strong>: O app executa 100% funcional no SQLite local com <em>seed</em> integrado, mantendo a tabela <code class="inline">action_queue</code> e o repositório prontos para o acoplamento com a nuvem.</li>
+        </ul>
+      </div>
+      <div class="col-code">
+        <div class="window anim">
+          <div class="window-bar"><i></i><i></i><i></i><span>Matriz de Operação: Offline (SQLite Local) × Online (Sincronização Nuvem)</span></div>
+          <table class="arch-table">
+            <thead>
+              <tr>
+                <th>Funcionalidade / Dado</th>
+                <th>Modo Offline (Em Campo)</th>
+                <th>Modo Online (Com Conectividade)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Autenticação e Sessão</strong></td>
+                <td>Sessão persistida no <code class="inline">expo-secure-store</code> + validação local.</td>
+                <td>Emissão/renovação de JWT no Supabase Auth e <em>Cold Start</em>.</td>
+              </tr>
+              <tr>
+                <td><strong>Catálogo (Usinas e Padrões)</strong></td>
+                <td>Leitura e busca instantânea nas tabelas SQLite locais.</td>
+                <td><em>Pull Sync</em> incremental filtrado pelo <code class="inline">empresa_id</code> do usuário.</td>
+              </tr>
+              <tr>
+                <td><strong>Leituras de Medidor (003/103)</strong></td>
+                <td>Grava em <code class="inline">leituras</code> (SQLite) + enfileira em <code class="inline">action_queue</code>.</td>
+                <td><em>Push Sync</em> consome a <code class="inline">action_queue</code> e replica no PostgreSQL.</td>
+              </tr>
+              <tr>
+                <td><strong>Foto Comprobatória</strong></td>
+                <td>Salva JPEG (~300 KB) em <code class="inline">Paths.document/leituras/</code>.</td>
+                <td>Upload para o bucket <code class="inline">comprovantes</code> e vínculo da URL remota.</td>
+              </tr>
+              <tr>
+                <td><strong>Auditoria e Conflitos</strong></td>
+                <td>Substituição atômica local (<code class="inline">salvarSubstituindo</code>) + notificações.</td>
+                <td>Merge automático <em>Last Write Wins</em> e expurgo após 30 dias.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SLIDE 9: METODOLOGIA DE SINCRONIZAÇÃO ===================== -->
+  <section class="slide" data-layer="sync" id="slide-9">
+    <header class="slide-head">
+      <span class="badge">Roteiro de Apresentação como Prova · 09. Qual a Metodologia de Sincronização</span>
+      <span class="num"><b>09</b> / 12</span>
+    </header>
+    <div class="grid">
+      <div class="col-text">
+        <h2 class="anim">Metodologia de Sync:<br><span class="hl">Fila, Delta &amp; Last Write Wins</span></h2>
+        <ul class="points">
+          <li><strong>1. Chaves Primárias UUIDv4 no Domínio (ADR 2.1)</strong>: Todos os IDs são gerados no aparelho antes de persistir, garantindo zero colisão de chave primária ao sincronizar múltiplos dispositivos.</li>
+          <li><strong>2. Push via Fila Transacional (<code class="inline">action_queue</code> — ADR 2.2)</strong>: Ações offline (<code class="inline">INSERT_LEITURA</code>, <code class="inline">UPDATE_USINA</code>) viram itens seriados em JSON processados em ordem FIFO assim que há rede.</li>
+          <li><strong>3. Ordem "Storage Sempre Primeiro" (ADR 5.5)</strong>: A foto (~300 KB) sobe primeiro para o Storage; só com a URL remota confirmada o registro sobe para o banco PostgreSQL.</li>
+          <li><strong>4. Pull Incremental (Delta) &amp; Resolução de Conflitos (ADR 2.3)</strong>: Busca apenas deltas via <code class="inline">last_sync_timestamp</code> e resolve colisões por <strong>Last Write Wins</strong> (mantendo rastreabilidade de substituições).</li>
+        </ul>
+      </div>
+      <div class="col-code">
+        <div class="window anim">
+          <div class="window-bar"><i></i><i></i><i></i><span>src/infrastructure/database/sqlite/repositories/<b>ActionQueueRepositorySQLite.ts</b></span></div>
+<script type="text/plain" data-lang="typescript">
+export class ActionQueueRepositorySQLite implements IActionQueueRepository {
+  async enfileirar(item: ActionQueueItem): Promise<void> {
+    await this.db.runAsync(
+      `INSERT INTO action_queue
+         (id, tipo_operacao, payload_json, timestamp, tentativas)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         tentativas = excluded.tentativas`,
+      [item.id.value, item.tipoOperacao, item.payloadJSON,
+       item.timestamp.toISOString(), item.tentativas]
+    );
+  }
+  async buscarPendentes(): Promise<ActionQueueItem[]> {
+    const rows = await this.db.getAllAsync<LinhaActionQueue>(
+      'SELECT * FROM action_queue ORDER BY timestamp ASC'
+    );
+    return rows.map(hidratar);
+  }
+}
+</script>
+        </div>
+        <div class="window anim">
+          <div class="window-bar"><i></i><i></i><i></i><span>src/domain/services/<b>RegraSincronizacaoService.ts</b> (Last Write Wins)</span></div>
+<script type="text/plain" data-lang="typescript">
+export class RegraSincronizacaoService {
+  /** A medição com timestamp mais recente vence sem bloquear a UI do técnico */
+  public static resolverConflito(local: Leitura, remota: Leitura): Leitura {
+    return local.medidoEm.getTime() >= remota.medidoEm.getTime() ? local : remota;
+  }
+}
+</script>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SLIDE 10: COMO O SUPABASE É UTILIZADO ===================== -->
+  <section class="slide" data-layer="supabase" id="slide-10">
+    <header class="slide-head">
+      <span class="badge">Roteiro de Apresentação como Prova · 10. Como o Supabase é Utilizado</span>
+      <span class="num"><b>10</b> / 12</span>
+    </header>
+    <div class="grid">
+      <div class="col-text">
+        <h2 class="anim">Papel do Supabase:<br><span class="hl">Auth, PostgreSQL &amp; Storage</span></h2>
+        <ul class="points">
+          <li><strong>1. Banco PostgreSQL Multi-Tenant (<code class="inline">public.*</code>)</strong>: Centraliza o esquema relacional na nuvem (<code class="inline">empresas</code>, <code class="inline">usuarios</code>/<code class="inline">profiles</code>, <code class="inline">usinas</code>, <code class="inline">leituras</code>) versionado via migrações em <code class="inline">supabase/migrations/</code> (ADR 5.10).</li>
+          <li><strong>2. Supabase Auth (JWT Custom Claims)</strong>: Autentica usuários online e emite tokens JWT contendo <code class="inline">empresa_id</code> e <code class="inline">perfil</code> para autorização direta no banco.</li>
+          <li><strong>3. Supabase Storage (Bucket <code class="inline">comprovantes</code>)</strong>: Recebe o upload das fotos de medidores (<code class="inline">{empresa_id}/{usina_id}/{leitura_id}.jpg</code>) e fornece a <code class="inline">url_imagem_remota</code> com fallback local (ADR 5.3).</li>
+          <li><strong>4. Isolamento Arquitetural (ADR 7.3 &amp; 9.2)</strong>: Desacoplado por Gateways; as migrações SQL residem no repositório prontas para provisionamento de <em>staging/produção</em>.</li>
+        </ul>
+      </div>
+      <div class="col-code">
+        <div class="window anim">
+          <div class="window-bar"><i></i><i></i><i></i><span>supabase/migrations/<b>001_initial_supabase_rls.sql</b> (Tabelas &amp; Storage Bucket)</span></div>
+<script type="text/plain" data-lang="sql">
+CREATE TABLE IF NOT EXISTS public.empresas (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    nome_fantasia VARCHAR(255) NOT NULL,
+    cnpj VARCHAR(18) NOT NULL UNIQUE,
+    ativa BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+CREATE TABLE IF NOT EXISTS public.leituras (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    usina_id UUID NOT NULL REFERENCES public.usinas(id) ON DELETE CASCADE,
+    usuario_id UUID NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
+    leitura_kwh NUMERIC(12, 2) NOT NULL,
+    data_hora TIMESTAMPTZ NOT NULL,
+    caminho_imagem_local TEXT,
+    url_imagem_remota TEXT,
+    latitude NUMERIC(10, 8),
+    longitude NUMERIC(11, 8),
+    status_sync VARCHAR(50) NOT NULL DEFAULT 'Sincronizado'
+);
+
+-- Bucket dedicado para as fotos comprobatórias (~300 KB) dos medidores
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('comprovantes', 'comprovantes', true)
+ON CONFLICT (id) DO NOTHING;
+</script>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SLIDE 11: OUTROS SERVIÇOS NA NUVEM ===================== -->
+  <section class="slide" data-layer="cloud" id="slide-11">
+    <header class="slide-head">
+      <span class="badge">Roteiro de Apresentação como Prova · 11. Outros Serviços na Nuvem Utilizados</span>
+      <span class="num"><b>11</b> / 12</span>
+    </header>
+    <div class="grid">
+      <div class="col-text">
+        <h2 class="anim">Outros Serviços Cloud:<br><span class="hl">CI/CD, OTA &amp; Observabilidade</span></h2>
+        <ul class="points">
+          <li><strong>1. Expo EAS Build (ADR 4.6 / RNF10)</strong>: Compilação em nuvem dos binários nativos Android (<code class="inline">.apk</code>/<code class="inline">.aab</code>) e iOS (<code class="inline">.ipa</code>) com gestão automatizada de credenciais de assinatura.</li>
+          <li><strong>2. Expo EAS Update — OTA (ADR 4.6)</strong>: Envio de atualizações <em>Over-The-Air</em> instantâneas do bundle JavaScript/regras de negócio para os celulares em campo sem depender de fila de revisão nas lojas.</li>
+          <li><strong>3. Sentry / Crashlytics (ADR 4.5 &amp; 8.1 / RNF09)</strong>: Monitoramento de erros e <em>stack traces</em> em campo. Em modo offline, armazena falhas em buffer local e envia os relatórios automaticamente quando a conexão retorna.</li>
+          <li><strong>4. GitHub &amp; Expo Tunnel (<code class="inline">@expo/ngrok</code>)</strong>: Controle de versão das migrações/código e túnel seguro na nuvem para homologação remota em dispositivos físicos via <strong>Expo Go SDK 58</strong>.</li>
+        </ul>
+      </div>
+      <div class="col-code">
+        <div class="window anim">
+          <div class="window-bar"><i></i><i></i><i></i><span>Catálogo de Serviços em Nuvem Complementares ao Supabase</span></div>
+          <table class="arch-table">
+            <thead>
+              <tr>
+                <th>Serviço Cloud</th>
+                <th>Categoria</th>
+                <th>Como é Utilizado no Equinox Mobile</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="arch-tag tag-app">EAS Build</span></td>
+                <td>CI/CD Mobile</td>
+                <td>Gera builds nativas de homologação e produção na nuvem Expo sem exigir macOS/Android Studio local.</td>
+              </tr>
+              <tr>
+                <td><span class="arch-tag tag-domain">EAS Update</span></td>
+                <td>Entrega OTA</td>
+                <td>Publica correções rápidas de UI e regras de domínio diretamente para a frota de leituristas.</td>
+              </tr>
+              <tr>
+                <td><span class="arch-tag tag-sec">Sentry Cloud</span></td>
+                <td>Observabilidade</td>
+                <td>Captura exceções não tratadas (inclusive na <code class="inline">action_queue</code>) com retenção offline e despacho sem dados PII.</td>
+              </tr>
+              <tr>
+                <td><span class="arch-tag tag-infra">Expo Tunnel / Ngrok</span></td>
+                <td>Dev &amp; Homologação</td>
+                <td>Expõe o servidor Metro via túnel HTTPS na nuvem para testes em aparelhos fora da mesma rede Wi-Fi.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SLIDE 12: MEDIDAS DE SEGURANÇA ===================== -->
+  <section class="slide" data-layer="security" id="slide-12">
+    <header class="slide-head">
+      <span class="badge">Roteiro de Apresentação como Prova · 12. Medidas de Segurança (Nuvem e Local)</span>
+      <span class="num"><b>12</b> / 12</span>
+    </header>
+    <div class="grid">
+      <div class="col-text">
+        <h2 class="anim">Segurança em Camadas:<br><span class="hl">RLS, Cofre Nativo &amp; Domínio</span></h2>
+        <ul class="points">
+          <li><strong>1. Row Level Security (RLS) no Supabase (ADR 7.2)</strong>: Políticas SQL ativas em todas as tabelas e no Storage garantem via JWT (<code class="inline">empresa_id</code> e <code class="inline">perfil</code>) isolamento absoluto entre empresas concorrentes e inserção restrita ao <code class="inline">auth.uid()</code>.</li>
+          <li><strong>2. Pull Sync Isolado por Tenant (ADR 5.6)</strong>: O dispositivo sincroniza apenas dados do seu <code class="inline">empresa_id</code>, impedindo vazamento de dados corporativos no SQLite local.</li>
+          <li><strong>3. Cofre Criptográfico &amp; Hash com Salt (RNF05 / ADR 9.5)</strong>: Sessão guardada no Keystore/Keychain nativo via <code class="inline">expo-secure-store</code> (<code class="inline">SessionStorageSecureStore</code>) e senhas com salt aleatório de 16 bytes + SHA-256 encadeado (<code class="inline">HashSenhaExpoCrypto</code>).</li>
+          <li><strong>4. Guardas de Rota, RBAC e Soft Delete (ADR 5.1 &amp; 9.13)</strong>: Bloqueio declarativo de rotas (<code class="inline">&lt;Redirect&gt;</code>), validação de ator nos Use Cases e proibição de <em>Hard Delete</em> em campo.</li>
+        </ul>
+      </div>
+      <div class="col-code">
+        <div class="window anim">
+          <div class="window-bar"><i></i><i></i><i></i><span>supabase/migrations/<b>001_initial_supabase_rls.sql</b> (Políticas RLS na Nuvem)</span></div>
+<script type="text/plain" data-lang="sql">
+ALTER TABLE public.empresas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.usuarios ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.usinas   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.leituras ENABLE ROW LEVEL SECURITY;
+
+-- Isolamento Multi-Tenant: Admin/Técnico só enxergam usinas da própria empresa
+CREATE POLICY usinas_tenant_policy ON public.usinas
+  FOR ALL TO authenticated
+  USING (empresa_id = (auth.jwt() ->> 'empresa_id')::uuid);
+
+-- Integridade de Auditoria: Técnico só insere leitura assinada pelo seu próprio UID
+CREATE POLICY leituras_tech_insert_policy ON public.leituras
+  FOR INSERT TO authenticated
+  WITH CHECK (usuario_id = auth.uid());
+
+-- Proteção do Bucket Storage: Apenas usuários autenticados enviam/leem comprovantes
+CREATE POLICY storage_comprovantes_insert_policy ON storage.objects
+  FOR INSERT TO authenticated WITH CHECK (bucket_id = 'comprovantes');
+</script>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== HUD ===================== -->
+  <div class="nav-zone left" id="nav-prev" title="Anterior"></div>
+  <div class="nav-zone right" id="nav-next" title="Próximo"></div>
+  <footer class="hud">
+    <div class="brand">◆ <b>Equinox Mobile</b> · Apresentação Final — Roteiro de Apresentação como Prova</div>
+    <div class="keys"><kbd>←</kbd><kbd>→</kbd> navegar · <kbd>F</kbd> tela cheia</div>
+    <div class="progress"><div id="progress-bar"></div></div>
+  </footer>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+(() => {
+  // Transforma <script type="text/plain"> em blocos formatados com highlight.js
+  const dedent = (txt) => {
+    const lines = txt.replace(/\t/g, '  ').split('\n');
+    while (lines.length && !lines[0].trim()) lines.shift();
+    while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
+    const indent = Math.min(...lines.filter(l => l.trim()).map(l => l.match(/^ */)[0].length));
+    return lines.map(l => l.slice(indent)).join('\n');
+  };
+  document.querySelectorAll('script[type="text/plain"]').forEach(src => {
+    const pre = document.createElement('pre');
+    const code = document.createElement('code');
+    code.className = 'language-' + (src.dataset.lang || 'typescript');
+    code.textContent = dedent(src.textContent);
+    pre.appendChild(code);
+    src.replaceWith(pre);
+    if (window.hljs) hljs.highlightElement(code);
+  });
+
+  // Escala dinâmica do palco 16:9
+  const stage = document.getElementById('stage');
+  const fit = () => {
+    const s = Math.min(window.innerWidth / 1600, window.innerHeight / 900);
+    stage.style.transform = `translate(-50%, -50%) scale(${s})`;
+  };
+  window.addEventListener('resize', fit);
+  fit();
+
+  // Navegação
+  const slides = [...document.querySelectorAll('.slide')];
+  const bar = document.getElementById('progress-bar');
+  let current = 0;
+
+  const go = (i) => {
+    current = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach((s, idx) => {
+      s.classList.toggle('active', idx === current);
+      s.classList.toggle('past', idx < current);
+    });
+    const accent = getComputedStyle(slides[current]).getPropertyValue('--accent');
+    stage.style.setProperty('--accent', accent);
+    bar.style.width = `${((current + 1) / slides.length) * 100}%`;
+    history.replaceState(null, '', `#${current + 1}`);
+  };
+  const next = () => go(current + 1);
+  const prev = () => go(current - 1);
+
+  document.getElementById('nav-next').addEventListener('click', next);
+  document.getElementById('nav-prev').addEventListener('click', prev);
+
+  document.addEventListener('keydown', (e) => {
+    switch (e.key) {
+      case 'ArrowRight': case 'PageDown': case ' ': case 'Enter': e.preventDefault(); next(); break;
+      case 'ArrowLeft': case 'PageUp': case 'Backspace': e.preventDefault(); prev(); break;
+      case 'Home': go(0); break;
+      case 'End': go(slides.length - 1); break;
+      case 'f': case 'F':
+        document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+        break;
+    }
+  });
+
+  // Swipe para dispositivos móveis
+  let touchX = null;
+  document.addEventListener('touchstart', e => { touchX = e.touches[0].clientX; }, { passive: true });
+  document.addEventListener('touchend', e => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (Math.abs(dx) > 50) (dx < 0 ? next : prev)();
+    touchX = null;
+  });
+
+  const fromHash = parseInt(location.hash.slice(1), 10);
+  go(Number.isFinite(fromHash) ? fromHash - 1 : 0);
+})();
+</script>
+</body>
+</html>
