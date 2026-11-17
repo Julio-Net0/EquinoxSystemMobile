@@ -1,7 +1,6 @@
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
 import { Cores, Espaco, Raio, Tipografia } from '@/constants/theme';
+import { MaterialIcons } from '@expo/vector-icons';
+import { StyleSheet, Text, View } from 'react-native';
 import { Cartao } from './Cartao';
 import { IconeTile } from './IconeTile';
 
@@ -9,7 +8,6 @@ export interface AcaoCardProps {
   icone: keyof typeof MaterialIcons.glyphMap;
   titulo: string;
   subtitulo: string;
-  /** Contador no canto do ícone; oculto quando zero. */
   badge?: number;
   destaque?: boolean;
   onPress(): void;
