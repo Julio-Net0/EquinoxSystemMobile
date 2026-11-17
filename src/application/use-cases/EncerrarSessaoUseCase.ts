@@ -1,6 +1,7 @@
 import { IAutenticacaoRemotaGateway } from '@/domain/gateways/IAutenticacaoRemotaGateway';
 import { ISessionStorage } from '@/domain/gateways/ISessionStorage';
 import { IActionQueueRepository } from '@/domain/repositories/IActionQueueRepository';
+import { AcessoOfflineService } from '@/domain/services/AcessoOfflineService';
 
 export interface EncerrarSessaoOutput {
   /** Itens que ficaram na fila, ainda só neste aparelho. */
@@ -8,8 +9,9 @@ export interface EncerrarSessaoOutput {
 }
 
 /**
- * Logout. Apaga os tokens da nuvem e a sessão local: o próximo acesso exige
- * rede de novo.
+ * Logout. Apaga os tokens da nuvem, a sessão local e a senha que estivesse em
+ * memória. A verificação de senha do aparelho fica: quem já entrou com
+ * internet aqui pode entrar de novo sem rede (ADR 10.18).
  *
  * O que ainda está na fila de envio NÃO é apagado — fica no SQLite e sobe
  * quando o mesmo usuário entrar outra vez. Por isso o caso de uso informa
@@ -20,17 +22,22 @@ export class EncerrarSessaoUseCase {
     private readonly autenticacaoRemota: IAutenticacaoRemotaGateway,
     private readonly sessionStorage: ISessionStorage,
     private readonly fila: IActionQueueRepository,
+    private readonly acessoOffline: AcessoOfflineService,
   ) {}
 
+  /** Itens de quem está saindo que ainda não subiram (os de outros não contam). */
   public async pendentes(): Promise<number> {
-    return this.fila.contar();
+    const sessao = await this.sessionStorage.obterSessao();
+    const itens = await this.fila.obterPendentes();
+    return sessao ? itens.filter((i) => i.pertenceA(sessao.usuarioId)).length : itens.length;
   }
 
   public async executar(): Promise<EncerrarSessaoOutput> {
-    const pendentes = await this.fila.contar();
+    const pendentes = await this.pendentes();
 
     await this.autenticacaoRemota.sair();
     await this.sessionStorage.limparSessao();
+    this.acessoOffline.concluirReautenticacao();
 
     return { pendentes };
   }

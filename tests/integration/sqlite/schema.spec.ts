@@ -25,8 +25,8 @@ describe('schema SQLite (banco de verdade)', () => {
     it('leva o banco novo até a última versão', async () => {
       expect(banco.versao()).toBe(0);
 
-      expect(await migrarTudo()).toBe(3);
-      expect(banco.versao()).toBe(3);
+      expect(await migrarTudo()).toBe(6);
+      expect(banco.versao()).toBe(6);
     });
 
     it('cria todas as tabelas do modelo', async () => {
@@ -47,8 +47,8 @@ describe('schema SQLite (banco de verdade)', () => {
       await migrarTudo();
       const antes = banco.consultar<{ n: number }>('SELECT COUNT(*) AS n FROM usuarios')[0].n;
 
-      // Segunda abertura do app: o user_version já está em 3.
-      expect(await migrarTudo()).toBe(3);
+      // Segunda abertura do app: o user_version já está em 6.
+      expect(await migrarTudo()).toBe(6);
 
       expect(banco.consultar<{ n: number }>('SELECT COUNT(*) AS n FROM usuarios')[0].n).toBe(antes);
     });
@@ -197,8 +197,8 @@ describe('schema SQLite (banco de verdade)', () => {
         leituras: contar('leituras'),
         notificacoes: contar('notificacoes'),
       }).toEqual({
-        empresas: 2, enderecos: 6, padroes: 7, usuarios: 4,
-        vinculos: 7, leituras: 12, notificacoes: 3,
+        empresas: 2, enderecos: 6, padroes: 7, usuarios: 5,
+        vinculos: 9, leituras: 12, notificacoes: 3,
       });
     });
 
@@ -209,7 +209,7 @@ describe('schema SQLite (banco de verdade)', () => {
         .consultar<{ senha_hash: string }>('SELECT senha_hash FROM usuarios')
         .map((l) => l.senha_hash);
 
-      expect(hashes).toEqual(['', '', '', '']);
+      expect(hashes).toEqual(['', '', '', '', '']);
       expect(SENHA_DEMO.length).toBeGreaterThan(0);
     });
 
@@ -219,7 +219,11 @@ describe('schema SQLite (banco de verdade)', () => {
       );
 
       expect(usuarios.map((u) => u.usuario + ':' + u.nivel_acesso + ':' + u.status)).toEqual([
-        'super:3:Ativo', 'admin:2:Ativo', 'maria.souza:1:Pendente', 'tecnico:1:Ativo',
+        'super:3:Ativo',
+        'admin:2:Ativo',
+        'sindica:2:Ativo',
+        'maria.souza:1:Pendente',
+        'tecnico:1:Ativo',
       ]);
     });
 

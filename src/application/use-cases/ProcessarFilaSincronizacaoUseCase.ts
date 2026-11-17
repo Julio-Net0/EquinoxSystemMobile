@@ -42,6 +42,16 @@ export interface ProcessarFilaOutput {
   restantes: number;
   /** Preenchido quando a rodada parou no meio por falta de rede ou de sessão. */
   interrompidoPor?: Exclude<MotivoFalhaRemota, 'rejeitado'>;
+  /**
+   * Itens de outra pessoa que usou este aparelho: esperam o dono entrar
+   * (ADR 10.19). Fora de `restantes`, que é só de quem está logado.
+   */
+  deOutrosUsuarios: number;
+}
+
+export interface ProcessarFilaInput {
+  /** Quem está logado. Sem ele, todos os itens são processados. */
+  usuarioId?: string;
 }
 
 /**
@@ -67,10 +77,18 @@ export class ProcessarFilaSincronizacaoUseCase {
     private readonly arquivoFoto: IArquivoFotoGateway,
   ) {}
 
-  public async executar(): Promise<ProcessarFilaOutput> {
-    const saida: ProcessarFilaOutput = { enviados: 0, recusados: 0, isolados: 0, restantes: 0 };
+  public async executar(entrada: ProcessarFilaInput = {}): Promise<ProcessarFilaOutput> {
+    const saida: ProcessarFilaOutput = {
+      enviados: 0, recusados: 0, isolados: 0, restantes: 0, deOutrosUsuarios: 0,
+    };
+    const ehMeu = (item: ActionQueueItem): boolean =>
+      !entrada.usuarioId || item.pertenceA(entrada.usuarioId);
 
     for (const item of await this.fila.obterPendentes()) {
+      // Enviar com a sessão de outra pessoa gravaria o dado em nome errado —
+      // ou seria recusado. O item espera o dono, sem gastar tentativa.
+      if (!ehMeu(item)) continue;
+
       if (item.estaIsolado()) {
         saida.isolados += 1;
         continue;
@@ -91,8 +109,10 @@ export class ProcessarFilaSincronizacaoUseCase {
 
       // Conta feita antes de gravar, sem mexer no item: quem registra a recusa
       // é o repositório, e o item em mãos pode ser a mesma instância dele.
-      const estourouOLimite = item.tentativas + 1 >= ActionQueueItem.MAX_TENTATIVAS;
-      await this.fila.registrarFalha(item.id, resultado.mensagem);
+      const definitiva = resultado.definitivo === true;
+      const estourouOLimite =
+        definitiva || item.tentativas + 1 >= ActionQueueItem.MAX_TENTATIVAS;
+      await this.fila.registrarFalha(item.id, resultado.mensagem, definitiva);
       saida.recusados += 1;
 
       if (estourouOLimite) {
@@ -101,7 +121,9 @@ export class ProcessarFilaSincronizacaoUseCase {
       }
     }
 
-    saida.restantes = await this.fila.contar();
+    const sobraram = await this.fila.obterPendentes();
+    saida.restantes = sobraram.filter(ehMeu).length;
+    saida.deOutrosUsuarios = sobraram.length - saida.restantes;
     return saida;
   }
 
@@ -183,13 +205,14 @@ export class ProcessarFilaSincronizacaoUseCase {
     const padrao = await this.repos.padrao.buscarPorId(leitura.padraoId);
     const endereco = padrao ? await this.repos.endereco.buscarPorId(padrao.enderecoId) : null;
     if (!padrao || !endereco) {
-      return remotoFalhou('rejeitado', 'O padrão desta leitura não existe mais neste aparelho');
+      return remotoFalhou('rejeitado', 'O padrão desta leitura não existe mais neste aparelho', true);
     }
 
     if (!leitura.temFotoNoAparelho() || !(await this.arquivoFoto.existe(leitura.fotoLocalUri))) {
       return remotoFalhou(
         'rejeitado',
         'A foto do medidor não foi encontrada no aparelho, e sem ela a leitura não pode subir',
+        true,
       );
     }
 

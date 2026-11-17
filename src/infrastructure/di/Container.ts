@@ -1,4 +1,5 @@
 import { IActionQueueRepository } from '@/domain/repositories/IActionQueueRepository';
+import { IDadosLocaisRepository } from '@/domain/repositories/IDadosLocaisRepository';
 import { ISyncMetaRepository } from '@/domain/repositories/ISyncMetaRepository';
 import {
   IUnidadeDeTrabalho,
@@ -12,6 +13,11 @@ import { IDiagnosticoLocalGateway } from '@/domain/gateways/IDiagnosticoLocalGat
 import { IAutenticacaoRemotaGateway } from '@/domain/gateways/IAutenticacaoRemotaGateway';
 import { ISincronizacaoRemotaGateway } from '@/domain/gateways/ISincronizacaoRemotaGateway';
 import { IConectividadeGateway } from '@/domain/gateways/IConectividadeGateway';
+import { ICredencialOfflineGateway } from '@/domain/gateways/ICredencialOfflineGateway';
+import { IHashSenhaGateway } from '@/domain/gateways/IHashSenhaGateway';
+import { IReautenticacaoPendente } from '@/domain/gateways/IReautenticacaoPendente';
+import { AcessoOfflineService } from '@/domain/services/AcessoOfflineService';
+import { TrocaDeUsuarioService } from '@/domain/services/TrocaDeUsuarioService';
 import { IRelogio } from '@/domain/services/Relogio';
 import { AutenticarUsuarioUseCase } from '@/application/use-cases/AutenticarUsuarioUseCase';
 import { EncerrarSessaoUseCase } from '@/application/use-cases/EncerrarSessaoUseCase';
@@ -75,6 +81,12 @@ export interface Container {
     autenticacaoRemota: IAutenticacaoRemotaGateway;
     sincronizacaoRemota: ISincronizacaoRemotaGateway;
     conectividade: IConectividadeGateway;
+    /** Acesso offline (ADR 10.18): verificações de senha, hash e senha em memória. */
+    credenciaisOffline: ICredencialOfflineGateway;
+    hashSenha: IHashSenhaGateway;
+    reautenticacao: IReautenticacaoPendente;
+    /** Limpeza dos dados locais na troca de usuário (ADR 10.19). */
+    dadosLocais: IDadosLocaisRepository;
   };
 
   relogio: IRelogio;
@@ -132,9 +144,16 @@ export function montarCasos(
     };
   };
 
-  const comFila = repositoriosComFila(crus, unidadeDeTrabalho, relogio, () => {
-    ouvintesDaFila.forEach((ouvinte) => ouvinte());
-  });
+  const donoAtual = async () => (await gateways.sessao.obterSessao())?.usuarioId ?? null;
+  const comFila = repositoriosComFila(
+    crus,
+    unidadeDeTrabalho,
+    relogio,
+    () => {
+      ouvintesDaFila.forEach((ouvinte) => ouvinte());
+    },
+    donoAtual,
+  );
   const repos: Container['repos'] = {
     ...comFila,
     actionQueue: crus.actionQueue,
@@ -153,16 +172,30 @@ export function montarCasos(
     crus.syncMeta,
   );
 
+  const acessoOffline = new AcessoOfflineService(
+    gateways.credenciaisOffline,
+    gateways.hashSenha,
+    gateways.reautenticacao,
+  );
+  const trocaDeUsuario = new TrocaDeUsuarioService(
+    crus.syncMeta,
+    crus.actionQueue,
+    gateways.dadosLocais,
+    gateways.arquivoFoto,
+  );
+
   const casos: Container['casos'] = {
     autenticar: new AutenticarUsuarioUseCase(
       gateways.autenticacaoRemota,
       gateways.sessao,
-      crus.syncMeta,
+      acessoOffline,
+      trocaDeUsuario,
     ),
     encerrarSessao: new EncerrarSessaoUseCase(
       gateways.autenticacaoRemota,
       gateways.sessao,
       crus.actionQueue,
+      acessoOffline,
     ),
     cadastrarPendente: new CadastrarUsuarioPendenteUseCase(gateways.autenticacaoRemota),
     autorizar: new AutorizarUsuarioUseCase(repos.usuario, repos.endereco, relogio),
@@ -177,7 +210,12 @@ export function montarCasos(
       repos.padrao,
       repos.usuario,
     ),
-    perfil: new GerenciarPerfilUseCase(repos.usuario, gateways.sessao, gateways.autenticacaoRemota),
+    perfil: new GerenciarPerfilUseCase(
+      repos.usuario,
+      gateways.sessao,
+      gateways.autenticacaoRemota,
+      acessoOffline,
+    ),
     consultarCatalogo: new ConsultarCatalogoUseCase(repos.endereco, repos.padrao, repos.leitura),
     registrarLeitura: new RegistrarLeituraUseCase(
       repos.leitura,
@@ -229,12 +267,15 @@ export function montarCasos(
       baixarAlteracoes,
       crus.usuario,
       crus.syncMeta,
+      acessoOffline,
       relogio,
     ),
     estadoSincronizacao: new ConsultarEstadoSincronizacaoUseCase(
       crus.actionQueue,
       crus.syncMeta,
       crus.leitura,
+      gateways.arquivoFoto,
+      gateways.sessao,
     ),
     fotoDaLeitura: new ObterFotoDaLeituraUseCase(
       crus.leitura,

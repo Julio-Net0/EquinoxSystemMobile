@@ -5,6 +5,7 @@
   "dependencies": {
     "@expo/ui": "~58.0.26",
     "@expo/vector-icons": "^15.0.2",
+    "@noble/hashes": "^1.8.0",
     "@react-native-community/netinfo": "12.0.1",
     "@supabase/supabase-js": "^2.119.0",
     "expo": "~58.0.22",

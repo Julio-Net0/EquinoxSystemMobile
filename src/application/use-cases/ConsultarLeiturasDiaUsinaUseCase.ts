@@ -20,6 +20,8 @@ export interface UsinaItemDTO {
   logradouro: string;
   temGeocerca: boolean;
   totalMedidores: number;
+  /** Usina pede também a injeção; a tela mostra o selo. */
+  ehUsina: boolean;
 }
 
 export interface LeituraDetalheDTO {
@@ -87,11 +89,15 @@ function formatarHora(data: Date): string {
 }
 
 /**
- * Consulta de monitoramento diário de usina para Administradores e SuperAdmins.
+ * Monitoramento diário das leituras, para Administradores e SuperAdmins.
  *
- * Permite visualizar quais medidores da usina foram lidos no dia selecionado,
- * inspecionar eventuais substituições com histórico e alertar sobre medições
- * que apresentaram valores inferiores ao histórico conhecido.
+ * Mostra quais medidores de um endereço foram lidos no dia selecionado,
+ * as substituições com histórico e os alertas de valor abaixo do histórico.
+ *
+ * Vale para **todos** os endereços do escopo do ator — usina ou não. Nasceu
+ * só para usinas (ADR 9.15) e foi ampliada para que o administrador acompanhe,
+ * e abra o comprovante de, qualquer leitura da empresa (ADR 10.17). Os nomes
+ * "usina" no código vêm dessa origem.
  */
 export class ConsultarLeiturasDiaUsinaUseCase {
   constructor(
@@ -114,12 +120,11 @@ export class ConsultarLeiturasDiaUsinaUseCase {
     }
 
     if (ator.perfil === PerfilEnum.TECNICO) {
-      return this.falha('Seu perfil não permite acessar o monitoramento de usinas');
+      return this.falha('Seu perfil não permite acessar o monitoramento de leituras');
     }
 
     const todosEnderecos = await this.enderecoRepo.listarTodos();
     const usinasDisponiveis = todosEnderecos.filter((e) => {
-      if (!e.ehUsina) return false;
       if (ator.ehGlobal()) return true;
       return ator.empresaId ? e.empresaId.equals(ator.empresaId) : false;
     });
@@ -139,6 +144,7 @@ export class ConsultarLeiturasDiaUsinaUseCase {
         logradouro: u.logradouro(),
         temGeocerca: u.temGeocerca(),
         totalMedidores: padroes.length,
+        ehUsina: u.ehUsina,
       });
     }
 
@@ -170,7 +176,7 @@ export class ConsultarLeiturasDiaUsinaUseCase {
     if (entrada.usinaId) {
       usinaAlvoDTO = usinasDTO.find((u) => u.id === entrada.usinaId) ?? null;
       if (!usinaAlvoDTO) {
-        return this.falha('Usina não encontrada ou fora do seu escopo');
+        return this.falha('Endereço não encontrado ou fora do seu escopo');
       }
     } else {
       usinaAlvoDTO = usinasDTO[0];

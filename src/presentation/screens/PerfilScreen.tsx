@@ -117,7 +117,7 @@ export function PerfilScreen({
           <View style={styles.secao}>
             <Text style={[Tipografia.rotulo, styles.secaoTitulo]}>Dados do usuário</Text>
             <Text style={[Tipografia.corpoSm, styles.secaoAjuda]}>
-              Altere seu nome, e-mail e login.
+              Altere seu nome e seu nome de usuário.
             </Text>
 
             {avisoDados ? <Aviso aviso={avisoDados} /> : null}

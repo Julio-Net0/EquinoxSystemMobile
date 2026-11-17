@@ -57,8 +57,9 @@ instalação**.
 ## 4. Entrar
 
 Antes: o projeto Supabase precisa estar configurado e o `.env.local`
-preenchido ([supabase-setup.md](supabase-setup.md)). O **primeiro login exige
-internet**; depois dele o app abre offline.
+preenchido ([supabase-setup.md](supabase-setup.md)). O **primeiro login de
+cada conta exige internet**; depois dele o app abre offline e aceita entrar de
+novo sem rede.
 
 Contas com a senha **`Equinox@2026`**. O login é **por e-mail**.
 
@@ -168,18 +169,21 @@ Mostra o que está gravado no SQLite deste aparelho:
 **Banco de dados**
 - `equinox.db` — o arquivo, na área privada do app
 - **Versão do schema** — o `PRAGMA user_version`, que diz até que migração o
-  banco foi levado. Deve ser **3** (1 = estrutura, 2 = dados de demonstração,
-  3 = sincronização).
+  banco foi levado. Deve ser **6** (1 = estrutura, 2 = dados de demonstração,
+  3 = sincronização, 4 = foto por caminho relativo, 5 = fila com dono,
+  6 = autoria do seed do condomínio).
 
-**Linhas por tabela** — contagem real de cada tabela. Logo após instalar:
+**Linhas por tabela** — contagem real de cada tabela. No seed completo (ou
+logado como `super@equinox.dev`; para técnico ou admin, a troca de usuário com
+rede limpa o banco e mantém só o escopo de quem entrou):
 
-| Tabela | Esperado |
+| Tabela | Esperado (seed / super) |
 |---|---|
 | Empresas | 2 |
 | Endereços | 6 |
 | Padrões | 7 |
-| Usuários | 4 |
-| Vínculos usuário-endereço | 7 |
+| Usuários | 5 |
+| Vínculos usuário-endereço | 9 |
 | Leituras | 12 |
 | Notificações | 3 |
 

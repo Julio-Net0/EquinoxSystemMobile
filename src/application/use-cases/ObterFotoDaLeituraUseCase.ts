@@ -32,7 +32,7 @@ export class ObterFotoDaLeituraUseCase {
     if (!leitura) return { uri: null, origem: null, aviso: 'Leitura não encontrada' };
 
     if (leitura.temFotoNoAparelho() && (await this.existeNoAparelho(leitura.fotoLocalUri))) {
-      return { uri: leitura.fotoLocalUri, origem: 'aparelho' };
+      return { uri: this.arquivoFoto.uriParaExibir(leitura.fotoLocalUri), origem: 'aparelho' };
     }
 
     if (!leitura.fotoRemotaPath) {

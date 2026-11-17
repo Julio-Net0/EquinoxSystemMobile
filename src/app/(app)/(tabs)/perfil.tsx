@@ -18,7 +18,7 @@ export default function PerfilRoute() {
   // o mesmo usuário entrar de novo — e entrar exige rede. Vale avisar antes.
   const avisoAoSair =
     pendentes > 0
-      ? `Há ${pendentes} ${pendentes === 1 ? 'item ainda não enviado' : 'itens ainda não enviados'} à nuvem. Se você sair agora, ${pendentes === 1 ? 'ele fica guardado' : 'eles ficam guardados'} neste aparelho e só ${pendentes === 1 ? 'sobe' : 'sobem'} quando você entrar de novo, com internet.`
+      ? `Há ${pendentes} ${pendentes === 1 ? 'item ainda não enviado' : 'itens ainda não enviados'} à nuvem. Se você sair agora, ${pendentes === 1 ? 'ele fica guardado' : 'eles ficam guardados'} neste aparelho e só ${pendentes === 1 ? 'sobe' : 'sobem'} depois que você entrar de novo e houver conexão.`
       : null;
 
   return (

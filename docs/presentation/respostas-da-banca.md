@@ -95,7 +95,8 @@ Guardas de rota: [`(app)/_layout.tsx`](../../src/app/(app)/_layout.tsx) e
   [`DecidirLeituraUseCase.ts`](../../src/application/use-cases/DecidirLeituraUseCase.ts)
 - Autorização de cadastros, gestão de usuários e de estrutura (endereços e
   padrões)
-- Monitoramento diário por usina, com o comprovante aberto por URL assinada —
+- Leituras diárias de cada endereço (usina ou não), com o comprovante aberto
+  por URL assinada —
   [`leituras-usina.tsx`](../../src/app/(app)/admin/leituras-usina.tsx)
 - Painel de sincronização e diagnóstico do banco local —
   [`PainelSincronizacao.tsx`](../../src/presentation/components/PainelSincronizacao.tsx),
@@ -122,7 +123,8 @@ ADR 9.4).
 
 | Exige internet | Funciona offline e sincroniza depois |
 |---|---|
-| Primeiro login no aparelho | Abrir o app já autenticado (sessão no secure store) |
+| Primeiro login **de cada conta** no aparelho | Abrir o app já autenticado (sessão no secure store) |
+| | Entrar de novo depois de sair — senha conferida contra verificação PBKDF2 no cofre (ADR 10.18) |
 | Cadastro de usuário | Registrar leitura com foto e GPS |
 | Lista de empresas no cadastro | Decidir leitura, marcar avisos |
 | Troca de senha | Estrutura, autorizações, gestão de usuários |
@@ -195,10 +197,12 @@ depende da conta Expo do dono do projeto.
    só id e nome.
 6. **Só a chave anônima no app** — o app recusa a `service_role` ao iniciar
    ([`ambiente.ts`](../../src/infrastructure/config/ambiente.ts)).
-7. **Tokens só no Keychain/Keystore**; **nenhuma senha no aparelho**.
+7. **Tokens só no Keychain/Keystore**; **nenhuma senha no aparelho** — só uma
+   verificação PBKDF2 (sal + 30 000 iterações) para o login offline, também no
+   cofre ([`HashSenhaPbkdf2.ts`](../../src/infrastructure/security/HashSenhaPbkdf2.ts), ADR 10.18).
 8. **Segredos fora do git** (`.gitignore` cobre `.env` e `.env.*`).
 
-**Prova:** `npm run test:rls` roda 29 testes contra um Postgres de verdade —
+**Prova:** `npm run test:rls` roda 34 testes contra um Postgres de verdade —
 anônimo, isolamento entre empresas, técnico em endereço alheio, promoção
 indevida, bucket privado, foto de outra empresa
 ([`politicas.test.mjs`](../../tests/supabase/politicas.test.mjs)). O roteiro
@@ -216,7 +220,7 @@ Não foi regenerado (ninguém pediu). Pontos a corrigir à mão:
   `roteiro_apresentacao_camera_gps.md`) descrevem o app como **100% local**, sem
   nuvem, com login por nome de usuário e senha local hasheada. Hoje: Supabase,
   login por e-mail, nenhuma senha no aparelho.
-- Onde aparece **"Versão do schema 2"** no Diagnóstico, agora é **3**.
+- Onde aparece **"Versão do schema 2"** no Diagnóstico, agora é **6**.
 - Onde aparece "a `action_queue` está reservada / nada enfileira", agora toda
   escrita enfileira.
 - `RESUMO_SINTEC_EQUINOX_MOBILE.pdf` ainda cita SDK 57 (o `.md` foi corrigido).

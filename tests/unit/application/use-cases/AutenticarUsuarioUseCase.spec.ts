@@ -3,15 +3,32 @@ import { CHAVE_CURSORES, CHAVE_USUARIO_DO_CURSOR } from '@/domain/repositories/I
 import { PerfilEnum } from '@/domain/enums/PerfilEnum';
 import { StatusUsuarioEnum } from '@/domain/enums/StatusUsuarioEnum';
 import { AutenticacaoRemotaFake } from '@/infrastructure/fakes/AutenticacaoRemotaFake';
+import { ActionQueueRepositoryMemory } from '@/infrastructure/fakes/ActionQueueRepositoryMemory';
+import { ArquivoFotoGatewayFake } from '@/infrastructure/fakes/ArquivoFotoGatewayFake';
+import { DadosLocaisMemory } from '@/infrastructure/fakes/DadosLocaisMemory';
 import { SessionStorageMemory } from '@/infrastructure/fakes/SessionStorageMemory';
 import { SyncMetaRepositoryMemory } from '@/infrastructure/fakes/SyncMetaRepositoryMemory';
+import { CredencialOfflineMemory } from '@/infrastructure/fakes/CredencialOfflineMemory';
+import { HashSenhaFake } from '@/infrastructure/fakes/HashSenhaFake';
+import { ReautenticacaoEmMemoria } from '@/infrastructure/security/ReautenticacaoEmMemoria';
+import { AcessoOfflineService } from '@/domain/services/AcessoOfflineService';
+import { TrocaDeUsuarioService } from '@/domain/services/TrocaDeUsuarioService';
 import { IDS, SENHA, novoUsuario, uuid } from '../../../helpers/cenarioSync';
 
 function cenario(sobrescrita: { status?: StatusUsuarioEnum; perfil?: PerfilEnum } = {}) {
   const remoto = new AutenticacaoRemotaFake();
   const sessionStorage = new SessionStorageMemory();
   const syncMeta = new SyncMetaRepositoryMemory();
-  const caso = new AutenticarUsuarioUseCase(remoto, sessionStorage, syncMeta);
+  const credenciais = new CredencialOfflineMemory();
+  const reautenticacao = new ReautenticacaoEmMemoria();
+  const acessoOffline = new AcessoOfflineService(credenciais, new HashSenhaFake(), reautenticacao);
+  const trocaDeUsuario = new TrocaDeUsuarioService(
+    syncMeta,
+    new ActionQueueRepositoryMemory(),
+    new DadosLocaisMemory(),
+    new ArquivoFotoGatewayFake(),
+  );
+  const caso = new AutenticarUsuarioUseCase(remoto, sessionStorage, acessoOffline, trocaDeUsuario);
 
   const perfil = sobrescrita.perfil ?? PerfilEnum.TECNICO;
   const ehSuper = perfil === PerfilEnum.SUPER_ADMIN;
@@ -23,7 +40,7 @@ function cenario(sobrescrita: { status?: StatusUsuarioEnum; perfil?: PerfilEnum 
   });
   remoto.registrarConta(usuario, SENHA);
 
-  return { caso, usuario, remoto, sessionStorage, syncMeta };
+  return { caso, usuario, remoto, sessionStorage, syncMeta, credenciais, reautenticacao };
 }
 
 const LOGIN = 'tecnico@equinox.dev';
@@ -83,7 +100,105 @@ describe('AutenticarUsuarioUseCase', () => {
     expect(inexistente.erro).toBe(senhaErrada.erro);
   });
 
-  it('sem rede, explica que o primeiro acesso precisa de internet', async () => {
+  describe('entrar sem rede (ADR 10.18)', () => {
+    /** Entra uma vez com internet, sai, e o aparelho fica sem sinal. */
+    async function jaEntrouNesteAparelho() {
+      const c = cenario();
+      await c.caso.executar({ login: LOGIN, senha: SENHA });
+      await c.sessionStorage.limparSessao();
+      c.remoto.online = false;
+      return c;
+    }
+
+    it('o login com internet deixa no aparelho uma verificação da senha, nunca a senha', async () => {
+      const { caso, credenciais } = cenario();
+
+      await caso.executar({ login: LOGIN, senha: SENHA });
+
+      const guardada = await credenciais.buscar(LOGIN);
+      expect(guardada?.sessao.email).toBe(LOGIN);
+      expect(guardada?.verificador).toMatch(/^[\w-]+\$\d+\$[0-9a-f]+\$[0-9a-f]+$/);
+      expect(JSON.stringify(guardada)).not.toContain(SENHA);
+    });
+
+    it('depois de um login com internet, entra sem rede com a mesma senha', async () => {
+      const { caso, sessionStorage, usuario } = await jaEntrouNesteAparelho();
+
+      const saida = await caso.executar({ login: '  Tecnico@Equinox.dev ', senha: SENHA });
+
+      expect(saida.sucesso).toBe(true);
+      expect(saida.offline).toBe(true);
+      expect((await sessionStorage.obterSessao())?.usuarioId).toBe(usuario.id.value);
+    });
+
+    it('guarda a senha só em memória, para entrar na nuvem quando a rede voltar', async () => {
+      const { caso, reautenticacao } = await jaEntrouNesteAparelho();
+
+      await caso.executar({ login: LOGIN, senha: SENHA });
+
+      expect(reautenticacao.obter()).toEqual({ email: LOGIN, senha: SENHA });
+    });
+
+    it('sem rede, senha errada é recusada com a mesma frase de sempre', async () => {
+      const { caso, sessionStorage } = await jaEntrouNesteAparelho();
+
+      const saida = await caso.executar({ login: LOGIN, senha: 'outra-senha' });
+
+      expect(saida).toEqual({ sucesso: false, erro: 'E-mail ou senha incorretos' });
+      expect(await sessionStorage.obterSessao()).toBeNull();
+    });
+
+    it('sem rede, conta que nunca entrou neste aparelho precisa de internet', async () => {
+      const { caso } = await jaEntrouNesteAparelho();
+
+      const saida = await caso.executar({ login: 'admin@equinox.dev', senha: SENHA });
+
+      expect(saida.sucesso).toBe(false);
+      expect(saida.erro).toContain('precisa de internet');
+    });
+
+    it('a nuvem recusando a senha que o aparelho conhecia: a verificação velha é esquecida', async () => {
+      const { caso, remoto, credenciais } = await jaEntrouNesteAparelho();
+      remoto.online = true;
+      // A senha foi trocada em outro aparelho.
+      remoto.registrarConta(
+        novoUsuario({ empresaId: IDS.empresa, enderecosVinculados: [IDS.endereco] }),
+        'senha-nova',
+      );
+
+      await caso.executar({ login: LOGIN, senha: SENHA });
+
+      expect(await credenciais.buscar(LOGIN)).toBeNull();
+    });
+
+    it('senha errada com rede não apaga a verificação de quem só errou a digitação', async () => {
+      const { caso, remoto, credenciais } = await jaEntrouNesteAparelho();
+      remoto.online = true;
+
+      await caso.executar({ login: LOGIN, senha: 'digitou-errado' });
+
+      expect(await credenciais.buscar(LOGIN)).not.toBeNull();
+    });
+
+    it('conta desativada na nuvem perde o acesso offline neste aparelho', async () => {
+      const c = cenario();
+      await c.caso.executar({ login: LOGIN, senha: SENHA });
+      c.remoto.registrarConta(
+        novoUsuario({
+          status: StatusUsuarioEnum.INATIVO,
+          empresaId: IDS.empresa,
+          enderecosVinculados: [IDS.endereco],
+        }),
+        SENHA,
+      );
+
+      await c.caso.executar({ login: LOGIN, senha: SENHA });
+
+      expect(await c.credenciais.buscar(LOGIN)).toBeNull();
+    });
+  });
+
+  it('sem rede e sem login anterior, explica que o primeiro acesso precisa de internet', async () => {
     const { caso, remoto, sessionStorage } = cenario();
     remoto.online = false;
 

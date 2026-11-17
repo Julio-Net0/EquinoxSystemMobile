@@ -56,6 +56,9 @@ export function GestaoUsuariosScreen(props: GestaoUsuariosScreenProps) {
   const [editando, setEditando] = useState<UsuarioResumoDTO | null>(null);
   const [excluindo, setExcluindo] = useState<UsuarioResumoDTO | null>(null);
   const [erroModal, setErroModal] = useState<string | null>(null);
+  // Falha das ações rápidas do cartão (Desativar, Aprovar). Fica na lista,
+  // porque nenhuma janela está aberta para mostrá-la.
+  const [erroAcao, setErroAcao] = useState<string | null>(null);
 
   return (
     <View style={styles.raiz}>
@@ -77,6 +80,7 @@ export function GestaoUsuariosScreen(props: GestaoUsuariosScreenProps) {
             />
             <FiltroChips opcoes={FILTROS} selecionado={filtro} onSelecionar={onFiltro} />
             {erro ? <Text style={styles.erro}>{erro}</Text> : null}
+            {erroAcao ? <Text style={styles.erro}>{erroAcao}</Text> : null}
           </View>
         }
         ListEmptyComponent={
@@ -122,8 +126,7 @@ export function GestaoUsuariosScreen(props: GestaoUsuariosScreenProps) {
                     cor={Cores.sucesso}
                     carregando={processandoId === item.usuarioId}
                     onPress={async () => {
-                      const falha = await onAprovarRapido(item.usuarioId);
-                      if (falha) setErroModal(falha);
+                      setErroAcao(await onAprovarRapido(item.usuarioId));
                     }}
                   />
                 ) : null}
@@ -134,8 +137,7 @@ export function GestaoUsuariosScreen(props: GestaoUsuariosScreenProps) {
                   cor={Cores.onSurfaceVariant}
                   carregando={processandoId === item.usuarioId}
                   onPress={async () => {
-                    const falha = await onAlternarStatus(item.usuarioId);
-                    if (falha) setErroModal(falha);
+                    setErroAcao(await onAlternarStatus(item.usuarioId));
                   }}
                 />
 

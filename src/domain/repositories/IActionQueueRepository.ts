@@ -11,8 +11,11 @@ export interface IActionQueueRepository {
   obterPendentes(): Promise<ActionQueueItem[]>;
   contar(): Promise<number>;
   remover(id: UUIDv4): Promise<void>;
-  /** Conta uma recusa e guarda o motivo, para a tela poder explicá-lo. */
-  registrarFalha(id: UUIDv4, mensagem: string): Promise<void>;
+  /**
+   * Conta uma recusa e guarda o motivo, para a tela poder explicá-lo. A
+   * definitiva isola o item na hora.
+   */
+  registrarFalha(id: UUIDv4, mensagem: string, definitiva?: boolean): Promise<void>;
   /** Devolve os itens isolados à fila (tentativa manual). */
   reativarIsolados(): Promise<void>;
 }

@@ -2,6 +2,10 @@ import { migrar } from '@/infrastructure/database/sqlite/migrar';
 import { criarMigracoes } from '@/infrastructure/database/sqlite/migrations';
 import { migracaoSchemaInicial } from '@/infrastructure/database/sqlite/migrations/001_schema_inicial';
 import { criarMigracaoSeedDemo } from '@/infrastructure/database/sqlite/migrations/002_seed_demo';
+import { migracaoSincronizacao } from '@/infrastructure/database/sqlite/migrations/003_sincronizacao';
+import { migracaoFotoRelativa } from '@/infrastructure/database/sqlite/migrations/004_foto_relativa';
+import { migracaoFilaComDono } from '@/infrastructure/database/sqlite/migrations/005_fila_com_dono';
+import { DadosLocaisSQLite } from '@/infrastructure/database/sqlite/repositories/DadosLocaisSQLite';
 import {
   UnidadeDeTrabalhoSQLite,
   criarRepositoriosCrus,
@@ -60,7 +64,7 @@ describe('sincronização sobre o SQLite de verdade', () => {
 
   describe('migração 003', () => {
     it('instalação nova: 001, 002 e 003 rodam em sequência', async () => {
-      expect(await migrarTudo()).toBe(3);
+      expect(await migrarTudo()).toBe(6);
 
       const colunas = banco
         .consultar<{ name: string }>('PRAGMA table_info(leituras)')
@@ -106,7 +110,7 @@ describe('sincronização sobre o SQLite de verdade', () => {
       await inserir('9a000000-0000-4000-8000-000000000001', '2026-03-07T15:00:00.000Z', '2026-03-07');
 
       // Atualização do app: só a 003 roda.
-      expect(await migrarTudo()).toBe(3);
+      expect(await migrarTudo()).toBe(6);
 
       const fila = await criarRepositoriosCrus(banco.db).actionQueue.obterPendentes();
       expect(fila.map((i) => i.tipoOperacao)).toEqual(['UPSERT_LEITURA', 'UPSERT_LEITURA']);
@@ -121,6 +125,60 @@ describe('sincronização sobre o SQLite de verdade', () => {
         "SELECT COUNT(*) AS n FROM leituras WHERE sync_status = 'pendente'",
       )[0].n;
       expect(pendentes).toBe(2);
+    });
+  });
+
+  describe('migração 004', () => {
+    const fotos = () =>
+      banco
+        .consultar<{ id: string; foto_local_uri: string }>(
+          "SELECT id, foto_local_uri FROM leituras WHERE id LIKE '9a%' ORDER BY id",
+        )
+        .map((l) => l.foto_local_uri);
+
+    it('instalação nova: a foto do seed já fica relativa', async () => {
+      await migrarTudo();
+
+      const seed = banco.consultar<{ foto_local_uri: string }>(
+        'SELECT DISTINCT foto_local_uri FROM leituras',
+      );
+      expect(seed).toEqual([{ foto_local_uri: 'leituras/seed-demo.jpg' }]);
+    });
+
+    it('aparelho na versão 3: troca o caminho absoluto pela referência relativa', async () => {
+      await migrar(banco.db, [
+        migracaoSchemaInicial,
+        criarMigracaoSeedDemo(new HashSenhaAposentado(), relogio),
+        migracaoSincronizacao,
+      ]);
+      const inserir = (n: number, foto: string, dia: string) =>
+        banco.db.runAsync(
+          `INSERT INTO leituras (id, padrao_id, usuario_id, valor_consumo, foto_local_uri,
+                                 medido_em, data_local, status)
+           VALUES (?, ?, ?, 12000, ?, ?, ?, 'registrada')`,
+          [
+            `9a000000-0000-4000-8000-00000000000${n}`,
+            SEED.padrao.value,
+            SEED.tecnico.value,
+            foto,
+            `${dia}T15:00:00.000Z`,
+            dia,
+          ],
+        );
+      // Como o Expo Go grava: a pasta do app fica dentro da dele, e muda
+      // quando ele é atualizado.
+      await inserir(
+        1,
+        'file:///data/user/0/host.exp.exponent/files/ExperienceData/%40anonymous%2Fequinox/leituras/a1.jpg',
+        '2026-03-07',
+      );
+      await inserir(2, 'leituras/a2.jpg', '2026-03-08');
+      // Leitura que veio da nuvem: sem foto no aparelho.
+      await inserir(3, '', '2026-03-06');
+
+      expect(await migrarTudo()).toBe(6);
+
+      expect(fotos()).toEqual(['leituras/a1.jpg', 'leituras/a2.jpg', '']);
     });
   });
 
@@ -199,6 +257,161 @@ describe('sincronização sobre o SQLite de verdade', () => {
 
       expect(await crus.syncMeta.obter('chave')).toBeNull();
       expect(contar('enderecos')).toBe(6);
+    });
+  });
+
+  describe('migração 005: dono de cada item da fila', () => {
+    it('aparelho na versão 4: o item de leitura ganha o autor dela como dono', async () => {
+      await migrar(banco.db, [
+        migracaoSchemaInicial,
+        criarMigracaoSeedDemo(new HashSenhaAposentado(), relogio),
+        migracaoSincronizacao,
+        migracaoFotoRelativa,
+      ]);
+      const crus = criarRepositoriosCrus(banco.db);
+      await crus.leitura.salvar(nova(1));
+      await banco.db.runAsync(
+        `INSERT INTO action_queue (id, tipo_acao, payload, tentativas, criado_em)
+         VALUES ('9f000000-0000-4000-8000-000000000001', 'UPSERT_LEITURA', ?, 0, ?),
+                ('9f000000-0000-4000-8000-000000000002', 'MARCAR_NOTIFICACOES_LIDAS', ?, 0, ?)`,
+        [
+          JSON.stringify({ id: nova(1).id.value }), HOJE.toISOString(),
+          JSON.stringify({ id: SEED.empresa.value }), HOJE.toISOString(),
+        ],
+      );
+
+      await migrarTudo();
+
+      const [leitura, marcar] = await crus.actionQueue.obterPendentes();
+      expect(leitura.donoId?.value).toBe(SEED.tecnico.value);
+      // Sem como saber de quem era: fica sem dono, e qualquer sessão envia.
+      expect(marcar.donoId).toBeNull();
+    });
+
+    it('o dono vai e volta do banco', async () => {
+      await migrarTudo();
+      const { actionQueue } = criarRepositoriosCrus(banco.db);
+      await actionQueue.enfileirar(
+        ActionQueueItem.para('UPSERT_PADRAO', SEED.padrao, HOJE, SEED.tecnico),
+      );
+
+      const [item] = await actionQueue.obterPendentes();
+
+      expect(item.donoId?.value).toBe(SEED.tecnico.value);
+    });
+
+    it('recusa definitiva isola o item no banco', async () => {
+      await migrarTudo();
+      const { actionQueue } = criarRepositoriosCrus(banco.db);
+      const item = ActionQueueItem.para('UPSERT_PADRAO', SEED.padrao, HOJE);
+      await actionQueue.enfileirar(item);
+
+      await actionQueue.registrarFalha(item.id, 'A foto sumiu', true);
+
+      const [lido] = await actionQueue.obterPendentes();
+      expect(lido.estaIsolado()).toBe(true);
+      expect(lido.ultimoErro).toBe('A foto sumiu');
+    });
+  });
+
+  describe('migração 006: autoria das leituras do condomínio no seed', () => {
+    it('nenhuma leitura do seed tem autor ou decisor de outra empresa', async () => {
+      await migrarTudo();
+
+      const cruzadas = banco.consultar(
+        `SELECT l.id FROM leituras l
+           JOIN padroes_cemig p ON p.id = l.padrao_id
+           JOIN enderecos e ON e.id = p.endereco_id
+           JOIN usuarios u ON u.id = l.usuario_id OR u.id = l.decidida_por_id
+          WHERE u.nivel_acesso < 3 AND u.empresa_id IS NOT e.empresa_id`,
+      );
+      expect(cruzadas).toEqual([]);
+    });
+
+    it('a administradora do condomínio passa a existir no aparelho, sem senha', async () => {
+      await migrarTudo();
+
+      const [helena] = banco.consultar<{ nome: string; empresa_id: string; senha_hash: string }>(
+        "SELECT nome, empresa_id, senha_hash FROM usuarios WHERE email = 'sindica@solardovale.dev'",
+      );
+      expect(helena).toEqual({
+        nome: 'Helena Síndica',
+        empresa_id: '1a000000-0000-4000-8000-000000000002',
+        senha_hash: '',
+      });
+    });
+
+    it('o aviso do Bloco A cita a autora certa', async () => {
+      await migrarTudo();
+
+      const [aviso] = banco.consultar<{ mensagem: string }>(
+        "SELECT mensagem FROM notificacoes WHERE id = '6f000000-0000-4000-8000-000000000003'",
+      );
+      expect(aviso.mensagem).toContain('Registrada por Helena Síndica');
+    });
+
+    it('aparelho que já trocou de usuário (sem o seed) passa sem erro', async () => {
+      await migrar(banco.db, [
+        migracaoSchemaInicial,
+        criarMigracaoSeedDemo(new HashSenhaAposentado(), relogio),
+        migracaoSincronizacao,
+        migracaoFotoRelativa,
+        migracaoFilaComDono,
+      ]);
+      await new DadosLocaisSQLite(banco.db).limparTudo();
+
+      expect(await migrarTudo()).toBe(6);
+      expect(contar('usuarios')).toBe(0);
+    });
+  });
+
+  describe('limpar os dados locais na troca de usuário', () => {
+    it('apaga estrutura, usuários, leituras e avisos, e devolve as fotos a remover', async () => {
+      await migrarTudo();
+      const crus = criarRepositoriosCrus(banco.db);
+      await crus.leitura.salvar(nova(1));
+      await crus.syncMeta.definir('chave', 'fica');
+
+      const fotos = await new DadosLocaisSQLite(banco.db).limparTudo();
+
+      for (const tabela of [
+        'empresas', 'enderecos', 'padroes_cemig', 'usuarios', 'usuario_enderecos',
+        'leituras', 'notificacoes',
+      ]) {
+        expect([tabela, contar(tabela)]).toEqual([tabela, 0]);
+      }
+      expect(await crus.syncMeta.obter('chave')).toBe('fica');
+      expect(fotos).toContain('file:///documents/leituras/1.jpg');
+      expect(fotos.every((f) => f !== '')).toBe(true);
+    });
+  });
+
+  describe('excluir uma leitura do aparelho', () => {
+    it('remove a linha e os avisos ligados a ela, e devolve a leitura removida', async () => {
+      await migrarTudo();
+      const crus = criarRepositoriosCrus(banco.db);
+      const leitura = nova(1);
+      await crus.leitura.salvar(leitura);
+      await banco.db.runAsync(
+        `INSERT INTO notificacoes (id, empresa_id, tipo, titulo, mensagem, leitura_id, lida, criada_em)
+         VALUES ('6f000000-0000-4000-8000-000000000099', ?, 'SEM_LOCALIZACAO', 't', 'm', ?, 0, ?)`,
+        [SEED.empresa.value, leitura.id.value, HOJE.toISOString()],
+      );
+
+      const removida = await crus.leitura.excluir(leitura.id);
+
+      expect(removida?.id.equals(leitura.id)).toBe(true);
+      expect(await crus.leitura.buscarPorId(leitura.id)).toBeNull();
+      expect(
+        banco.consultar("SELECT id FROM notificacoes WHERE id = '6f000000-0000-4000-8000-000000000099'"),
+      ).toEqual([]);
+      // Libera a vaga do dia para uma leitura nova.
+      expect(await crus.leitura.buscarVigenteDoDia(SEED.padrao, leitura.dataLocal)).toBeNull();
+    });
+
+    it('leitura que não existe: devolve nulo', async () => {
+      await migrarTudo();
+      expect(await criarRepositoriosCrus(banco.db).leitura.excluir(nova(7).id)).toBeNull();
     });
   });
 

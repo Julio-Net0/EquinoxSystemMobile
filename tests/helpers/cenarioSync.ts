@@ -1,4 +1,5 @@
 import { ContainerFake, criarContainerFake } from '@/infrastructure/di/criarContainerFake';
+import { CHAVE_USUARIO_DO_CURSOR } from '@/domain/repositories/ISyncMetaRepository';
 import { Empresa } from '@/domain/entities/Empresa';
 import { Endereco } from '@/domain/entities/Endereco';
 import { PadraoCemig } from '@/domain/entities/PadraoCemig';
@@ -109,6 +110,7 @@ export async function aparelhoLogado(): Promise<ContainerFake> {
     email: tecnico.email,
     perfil: tecnico.perfil,
   });
+  await c.fakes.syncMeta.definir(CHAVE_USUARIO_DO_CURSOR, tecnico.id.value);
 
   return c;
 }

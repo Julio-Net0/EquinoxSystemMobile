@@ -9,6 +9,9 @@ import {
 } from '@/domain/repositories/ISyncMetaRepository';
 import { UUIDv4 } from '@/domain/value-objects/UUIDv4';
 import { IRelogio, relogioSistema } from '@/domain/services/Relogio';
+import { AcessoOfflineService } from '@/domain/services/AcessoOfflineService';
+import { IdentidadeRemota } from '@/domain/gateways/IAutenticacaoRemotaGateway';
+import { ResultadoRemoto } from '@/domain/gateways/ResultadoRemoto';
 import { ProcessarFilaSincronizacaoUseCase } from './ProcessarFilaSincronizacaoUseCase';
 import { BaixarAlteracoesUseCase } from './BaixarAlteracoesUseCase';
 
@@ -32,8 +35,10 @@ export interface SincronizarOutput {
   situacao: SituacaoDaSincronizacao;
   enviados: number;
   recebidos: number;
-  /** O que continua na fila de envio. */
+  /** O que continua na fila de envio, de quem está logado. */
   pendentes: number;
+  /** Itens de outra pessoa que usou o aparelho, esperando o dono (ADR 10.19). */
+  deOutrosUsuarios?: number;
   /** Frase pronta para o técnico, quando há algo a dizer. */
   mensagem?: string;
 }
@@ -61,6 +66,7 @@ export class SincronizarUseCase {
     private readonly baixarAlteracoes: BaixarAlteracoesUseCase,
     private readonly usuarioRepo: IUsuarioRepository,
     private readonly syncMeta: ISyncMetaRepository,
+    private readonly acessoOffline: AcessoOfflineService,
     private readonly relogio: IRelogio = relogioSistema,
   ) {}
 
@@ -93,18 +99,41 @@ export class SincronizarUseCase {
 
     // Renova o token de acesso se preciso. Quem está em campo sem sinal nunca
     // chega aqui, então nunca é derrubado por token expirado.
-    const acesso = await this.autenticacaoRemota.garantirSessao();
+    let acesso = await this.autenticacaoRemota.garantirSessao();
     if (!acesso.ok && acesso.motivo === 'rede') {
       return { ...base, situacao: 'offline' };
     }
-    if (!acesso.ok || !acesso.valor || acesso.valor.usuarioId !== sessao.usuarioId) {
+
+    // Entrou sem rede (ADR 10.18): a nuvem ainda não tem sessão, mas a senha
+    // digitada está em memória. Agora que há conexão, entra com ela.
+    const pendente = this.acessoOffline.pendenteDe(sessao.email);
+    if (pendente && !SincronizarUseCase.sessaoDe(acesso, sessao.usuarioId)) {
+      const entrada = await this.autenticacaoRemota.entrar(pendente.email, pendente.senha);
+      if (!entrada.ok && entrada.motivo === 'rede') {
+        return { ...base, situacao: 'offline' };
+      }
+      this.acessoOffline.concluirReautenticacao();
+
+      if (!entrada.ok) {
+        // A senha que valia no aparelho não vale mais na nuvem: foi trocada
+        // em outro lugar. A verificação guardada deixa de servir.
+        await this.acessoOffline.esquecer(pendente.email);
+        const mensagem =
+          'A senha desta conta mudou. Saia e entre de novo, com internet e a senha nova, para enviar os dados pendentes — eles continuam guardados neste aparelho';
+        await this.registrarErro(mensagem);
+        return { ...base, situacao: 'reautenticar', mensagem };
+      }
+      acesso = entrada;
+    }
+
+    if (!SincronizarUseCase.sessaoDe(acesso, sessao.usuarioId)) {
       const mensagem =
         'Sua sessão na nuvem expirou. Saia e entre de novo, com internet, para enviar os dados pendentes — eles continuam guardados neste aparelho';
       await this.registrarErro(mensagem);
       return { ...base, situacao: 'reautenticar', mensagem };
     }
 
-    const envio = await this.processarFila.executar();
+    const envio = await this.processarFila.executar({ usuarioId: sessao.usuarioId });
     if (envio.interrompidoPor === 'rede') {
       return { ...base, situacao: 'offline', enviados: envio.enviados, pendentes: envio.restantes };
     }
@@ -137,6 +166,7 @@ export class SincronizarUseCase {
       enviados: envio.enviados,
       recebidos: pull.recebidos,
       pendentes: envio.restantes,
+      deOutrosUsuarios: envio.deOutrosUsuarios,
       mensagem,
     };
   }
@@ -151,6 +181,8 @@ export class SincronizarUseCase {
     if (!eu) return false;
 
     if (!eu.isAtivo()) {
+      await this.acessoOffline.esquecer(eu.email);
+      this.acessoOffline.concluirReautenticacao();
       await this.autenticacaoRemota.sair();
       await this.sessionStorage.limparSessao();
       return true;
@@ -165,6 +197,14 @@ export class SincronizarUseCase {
       perfil: eu.perfil,
     });
     return false;
+  }
+
+  /** A nuvem tem sessão aberta, e é deste usuário. */
+  private static sessaoDe(
+    acesso: ResultadoRemoto<IdentidadeRemota | null>,
+    usuarioId: string,
+  ): boolean {
+    return acesso.ok && !!acesso.valor && acesso.valor.usuarioId === usuarioId;
   }
 
   private static mensagemDe(

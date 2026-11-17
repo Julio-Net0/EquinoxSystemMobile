@@ -620,6 +620,10 @@ quais contas existem. O campo `usuario` continua existindo e único, como
 apelido. O login recusa texto sem `@` com uma mensagem que explica a mudança.
 
 **Senha local: aposentada.** Nenhuma senha (nem hash) fica no aparelho.
+> **Revisto na 10.18:** para permitir entrar sem rede depois de sair, o
+> aparelho voltou a guardar, no cofre, uma **verificação PBKDF2** derivada da
+> senha (nunca a senha), por conta. A tabela `usuarios.senha_hash` continua
+> vazia; a verificação não fica no SQLite.
 - `HashSenhaExpoCrypto` foi removido, e com ele a dívida de segurança da 9.5.
 - A coluna `usuarios.senha_hash` não pode sair: a migração 002 (publicada, não
   editável) a preenche. A **migração 003** a esvazia e o repositório passa a
@@ -661,7 +665,8 @@ app em primeiro plano (`AppState`), como o Supabase orienta para React Native.
 
 | Operação | Rede | Como |
 |---|---|---|
-| Primeiro login no aparelho | **Obrigatória** | Supabase Auth + primeira sincronização antes de liberar a interface |
+| Primeiro login **de cada conta** no aparelho | **Obrigatória** | Supabase Auth + primeira sincronização antes de liberar a interface |
+| Logins seguintes da mesma conta | Não | Verificação PBKDF2 no cofre; entra na nuvem sozinho quando a rede volta (10.18) |
 | Cadastro de usuário | **Obrigatória** | Supabase Auth + gatilho cria o perfil |
 | Busca de empresas no cadastro | **Obrigatória** | Função `buscar_empresas_cadastro` (só id e nome) |
 | Trocar a senha | **Obrigatória** | Supabase Auth |
@@ -677,8 +682,9 @@ renova o token. Falha de **rede** na renovação conta como "offline" e não
 derruba ninguém; token de renovação **recusado** pelo servidor vira a situação
 `reautenticar` — o técnico continua trabalhando, os pendentes ficam guardados e
 a tela pede novo login com internet. Logout (`EncerrarSessaoUseCase`) apaga a
-sessão e os tokens; o próximo login exige rede. A fila **não** é apagada no
-logout, e o Perfil avisa antes quantos itens ainda não subiram.
+sessão e os tokens. ~~O próximo login exige rede~~ — revisto na 10.18: quem já
+entrou com internet neste aparelho pode entrar de novo sem rede. A fila **não**
+é apagada no logout, e o Perfil avisa antes quantos itens ainda não subiram.
 
 ### 10.5 Metodologia de Sincronização
 
@@ -846,7 +852,9 @@ criar as colunas novas.
 
 `PurgarLeiturasAntigasUseCase` só apaga leitura decidida, com mais de 30 dias
 **e sincronizada**. A que ainda não subiu existe só no aparelho e fica, tenha a
-idade que tiver. A cópia na nuvem não é apagada.
+idade que tiver. A cópia na nuvem não é apagada. As únicas exceções são o
+descarte manual de um envio impossível (10.15) e a limpeza do banco local
+quando outra pessoa entra com rede e a fila está vazia (10.19).
 
 ### 10.12 Testes da Nuvem Sem Rede
 
@@ -884,3 +892,212 @@ sincronização, aviso). A Home e o Diagnóstico mostram o `PainelSincronizacao`
 o catálogo mostra "Pendente de envio / Sincronizada / Não enviada" na última
 leitura de cada padrão; a tela de leituras da usina abre o comprovante
 (`VisualizadorComprovante`).
+
+### 10.15 Foto por Referência Relativa e Descarte de Envio Impossível
+
+**Contexto.** No primeiro teste contra o projeto Supabase real (17/11/2026),
+um aparelho que já usava o app na fase local ficou com 3 leituras presas na
+fila. Todas recusadas com "A foto do medidor não foi encontrada no aparelho".
+O banco guardava o **caminho absoluto** da foto (`file:///…/leituras/<id>.jpg`).
+Esse caminho muda quando o app é atualizado: no iOS a cada atualização, e no
+Expo Go quando ele mesmo é atualizado (aqui, da SDK 57 para a 58). O arquivo
+podia estar intacto e ainda assim ficar inalcançável. E, sem foto, a regra é
+que a leitura não sobe: os itens rodavam até o limite de tentativas, eram
+isolados, e "Tentar de novo" só repetia o ciclo. Não havia saída.
+
+**Decisão 1 — referência relativa.** A foto passa a ser guardada como
+`leituras/<id>.jpg`, relativa a `Paths.document`, e o caminho completo é
+montado a cada uso (`fotoNoAparelho.ts`). O gateway de fotos ganhou
+`uriParaExibir(referencia)` para a tela. A **migração 004**
+(`004_foto_relativa`) converte o que já estava gravado: tudo que contém
+`/leituras/` vira a parte a partir de `leituras/`; vazio (leitura vinda da
+nuvem) e o que já é relativo ficam. Caminho absoluto que sobrar é usado como
+está. Se o arquivo ainda existir na pasta atual, a leitura presa volta a subir
+sozinha depois da migração.
+
+**Decisão 2 — descartar item recusado de vez.** No Diagnóstico, cada item
+**isolado** (5 recusas) ganha "Descartar item", com confirmação que diz o que
+acontece. Para uma leitura, ela, os avisos ligados a ela e a foto saem do
+aparelho, o que também libera a vaga do dia. Para os outros tipos, só o item
+sai da fila; o registro local fica. Item ainda na fila automática não pode ser
+descartado.
+
+**Exceção consciente à 10.11.** "Nunca apagar o que não subiu" continua
+valendo para o expurgo automático. O descarte é a exceção, e por isso só por
+decisão explícita de quem está no aparelho, só para o que o servidor já recusou
+até o limite, e com o aviso de que não há como recuperar.
+
+**Opções avaliadas.** (a) Deixar como estava: a fila nunca esvaziaria, e o app
+diria "tente mais tarde" para sempre. (b) Descartar sozinho os itens sem foto:
+apagaria dado sem ninguém ver. (c) Mandar limpar os dados do app: perderia
+também o que ainda poderia subir. (d) Escolhida: corrigir a causa (referência
+relativa) e dar uma saída explícita para o que não tem conserto.
+
+**Limite.** Se a leitura descartada tinha substituído outra no mesmo dia, a
+anterior continua "substituída" e o dia fica sem leitura vigente no aparelho
+até uma nova ser registrada ou o pull trazer a da nuvem.
+
+### 10.16 Horários: Microssegundos na Nuvem, Milissegundos no App
+
+**Contexto.** No teste de ponta a ponta (17/11/2026), o técnico mudou o
+próprio nome e a nuvem recusou com "Seu perfil não permite alterar nível,
+status ou empresa". O Postgres guarda `timestamptz` com microssegundos; o
+`Date` do JavaScript, com milissegundos. O `autorizado_em` baixado pelo pull
+voltava truncado na RPC `sincronizar_perfil`, e o gatilho `proteger_perfil`
+lia isso como tentativa de mexer na autorização. Afetava o técnico e o
+administrador editando o próprio perfil. O PGlite dos testes não pegou porque
+o relógio dele não tem microssegundos.
+
+**Decisão.** Migração nova `20261117120000_perfil_horario_em_milissegundos.sql`
+(a anterior já estava aplicada no projeto): `sincronizar_perfil` mantém o
+horário da nuvem quando o recebido é igual a ele até o milissegundo. Diferença
+real continua passando pelo gatilho. Os testes de política agora aplicam
+**todas** as migrações da pasta, em ordem, e gravam um horário com
+microssegundos antes de agir como o usuário.
+
+**Por que não mudar as colunas para `timestamptz(3)`.** Arredondaria em vez de
+truncar, e mexeria também em `atualizado_em`, que é o cursor do pull: com menos
+precisão, duas alterações no mesmo milissegundo empatariam no cursor.
+
+**Onde mais isso poderia morder.** `sincronizar_leitura` não compara os
+horários que recebe (só anda o estado) e as notificações não têm gatilho de
+proteção; nenhum dos dois é afetado.
+
+### 10.17 Leituras Diárias de Todos os Endereços (amplia 9.15)
+
+**Contexto.** A tela de monitoramento diário (9.15) listava só endereços com
+`ehUsina`. Com a nuvem, ela virou também o lugar onde o administrador abre o
+comprovante ("Ver foto", por URL assinada). Leituras da sede, do galpão ou do
+depósito subiam normalmente, mas não havia tela onde o administrador as
+acompanhasse dia a dia nem visse a foto.
+
+**Decisão.** A consulta passa a listar **todos os endereços do escopo** do
+ator (a empresa dele; todas, para o super admin), usina ou não. Cada item traz
+`ehUsina`: a tela mostra o selo "Usina" só nesses, e a injeção só aparece
+quando a leitura a tem. O título passou a "Leituras diárias". Técnico continua
+sem acesso.
+
+**Nomes.** Arquivos, rota (`/admin/leituras-usina`) e tipos mantêm "usina" no
+nome para não espalhar a mudança; o comentário do caso de uso explica a origem.
+
+### 10.18 Entrar Sem Rede Depois do Primeiro Acesso (revisa 10.2 e 10.4)
+
+**Contexto.** Até aqui o uso offline dependia de **não sair da conta**: a
+sessão no cofre reabria o app sem rede, mas "Sair" a apagava e o próximo login
+exigia internet, porque quem confere a senha é o Supabase. No teste em campo
+isso pareceu defeito, e a mensagem ("o primeiro acesso precisa de internet")
+estava errada nesse caso. A especificação diz que só o **primeiro** login no
+aparelho exige rede. O dono do projeto decidiu permitir o login offline depois
+de sair (17/11/2026).
+
+**Decisão.**
+
+1. No login **com** internet, o aparelho guarda, no Keychain/Keystore e por
+   e-mail, a sessão e uma **verificação derivada da senha**: PBKDF2-HMAC-SHA256,
+   sal aleatório de 16 bytes, 30 000 iterações (`HashSenhaPbkdf2`, com
+   `@noble/hashes`, JavaScript puro, que roda no Expo Go). A senha não é
+   guardada.
+2. No login **sem** internet, a senha digitada é conferida contra essa
+   verificação, em tempo constante. Confere: abre a sessão local. Não confere:
+   "E-mail ou senha incorretos", a mesma frase de sempre. Conta que nunca
+   entrou neste aparelho: "o primeiro acesso desta conta neste aparelho precisa
+   de internet".
+3. A senha digitada offline fica **só em memória** (`ReautenticacaoEmMemoria`).
+   Quando a rede volta, a sincronização entra no Supabase com ela e a apaga.
+   Fechar o app também a apaga; aí os pendentes esperam um login com rede.
+4. A verificação é **esquecida** quando deixa de ser confiável: senha trocada
+   pelo app; senha recusada pela nuvem quando é a mesma que o aparelho conhecia
+   (trocada em outro lugar); acesso desativado (no login ou no pull). "Sair"
+   **não** a apaga — é isso que permite entrar de novo sem rede.
+
+**Riscos aceitos.**
+
+- Conta **desativada** ou senha **trocada em outro aparelho** continua entrando
+  offline naquele aparelho até ele voltar a ficar online. Quando volta, a
+  sincronização derruba a sessão (acesso revogado) ou pede novo login (senha
+  mudou), e a verificação some.
+- Volta a existir no aparelho algo derivado da senha. Fica dentro do cofre da
+  plataforma, que é a primeira barreira; as iterações são a segunda. É uma
+  verificação, não a senha, e não serve para entrar na nuvem.
+- O custo de 30 000 iterações é um equilíbrio para o Hermes, que não tem JIT:
+  no Node leva ~40 ms, no aparelho deve ficar na casa de um segundo. Cada hash
+  grava as próprias iterações, então o custo pode subir depois sem invalidar os
+  já guardados.
+
+**Opções avaliadas.** (a) Manter "offline = não sair" e só corrigir a mensagem:
+mais seguro, mas contraria a especificação. (b) Guardar a senha cifrada:
+recusada — daria para recuperá-la. (c) PIN local separado: mais uma senha para
+o técnico decorar. (d) Escolhida: verificação PBKDF2 no cofre, senha só em
+memória.
+
+**Testes.** `AcessoOfflineService.spec`, casos novos em
+`AutenticarUsuarioUseCase.spec` e `SincronizarUseCase.spec` (entra sozinho
+quando a rede volta; senha trocada; senha de outra conta; acesso revogado),
+`HashSenhaPbkdf2.spec` (conferido contra o PBKDF2 do `node:crypto`) e
+`CredencialOfflineSecureStore.spec`.
+
+### 10.19 Aparelho Compartilhado, Recusa Definitiva e Autoria do Seed
+
+**Contexto.** No uso real de um mesmo aparelho por mais de uma pessoa (técnico,
+administrador e síndica do condomínio durante a validação de 17/11/2026),
+apareceram quatro problemas correlatos:
+
+1. **Recusa sem conserto esperava 5 rodadas.** Uma leitura cuja foto sumiu do
+   aparelho (ou cujo padrão foi removido antes do envio) nunca vai subir: o
+   problema está no próprio aparelho, não na nuvem. Gastar 5 tentativas antes de
+   isolar só adiava o "Descartar item" (10.15).
+2. **Fila sem dono.** Um item enfileirado offline pelo técnico tentava subir
+   quando outra pessoa entrava no aparelho — e ou era recusado pela nuvem (gastando
+   tentativas de quem não o criou) ou, em operações permitidas, subiria com a
+   sessão errada.
+3. **Resíduo no banco local ao trocar de conta.** Quando outra pessoa entrava,
+   os dados baixados pela conta anterior continuavam no SQLite (e as fotos no
+   disco), embora filtrados pelas telas; inclusive o seed inicial, que traz as
+   duas empresas.
+4. **Autoria cruzada no seed do Condomínio.** As leituras 10 e 11 do seed
+   (`5e…010` e `5e…011`, padrões do Condomínio `1a…002`) estavam com `usuario_id`
+   do técnico da Equinox (`4d…003`) e `decidida_por_id` do administrador da
+   Equinox (`4d…002`), e o aviso `6f…003` citava João da Silva.
+
+**Decisões.**
+
+1. **Recusa definitiva isola na primeira vez.** `ResultadoRemoto` ganhou
+   `definitivo?: boolean`, e `ActionQueueItem.registrarFalha(msg, definitiva)`
+   leva `tentativas` direto a `MAX_TENTATIVAS`. `ProcessarFilaSincronizacaoUseCase`
+   marca como definitivas as recusas locais ("foto não encontrada no aparelho" e
+   "padrão não existe mais"). Recusas do servidor continuam contando uma por vez
+   até 5.
+2. **Fila com dono (migração 005).** `005_fila_com_dono` adiciona
+   `action_queue.usuario_id` (com índice) e preenche o dono dos itens
+   `UPSERT_LEITURA` já existentes pelo autor da leitura quando ela está
+   `registrada` ou `substituida` (decisões de administrador e demais itens
+   antigos ficam com `usuario_id` nulo e podem subir por qualquer sessão). Daqui
+   em diante, `repositoriosComFila` grava o `usuarioId` da sessão atual em cada
+   item. `ProcessarFila` pula itens de outro usuário sem gastar tentativa;
+   `EncerrarSessao.pendentes()` e `ConsultarEstadoSincronizacao` separam o que é
+   de quem está logado (`pendentes`) do que aguarda outro usuário
+   (`deOutrosUsuarios`), e o Diagnóstico mostra "Aguardando o dono entrar" sem
+   oferecer descarte para itens alheios.
+3. **Limpeza na troca de usuário (`TrocaDeUsuarioService`).** Ao autenticar
+   outro usuário (diferente de `CHAVE_USUARIO_DO_CURSOR` em `sync_meta`),
+   **com rede e com a fila vazia**, `IDadosLocaisRepository.limparTudo()` apaga
+   notificações, leituras, vínculos, padrões, endereços, usuários e empresas do
+   SQLite (mantendo `action_queue` e `sync_meta`) e remove os arquivos de foto
+   das leituras apagadas; o pull seguinte reconstrói o banco só no escopo de
+   quem entrou. Em **qualquer** troca de usuário, os cursores do pull são
+   zerados e `CHAVE_USUARIO_DO_CURSOR` é atualizado.
+   - **Limitação consciente:** se houver itens na fila (aguardando o dono) ou se
+     o login for offline (10.18), o banco local **não** é limpo — apagar com
+     fila perderia trabalho não enviado, e apagar sem rede deixaria o aparelho
+     vazio sem ter como baixar da nuvem. As consultas por escopo continuam
+     isolando o que cada tela exibe.
+4. **Autoria do seed do Condomínio (migração 006 e `supabase/correcoes/`).**
+   `006_autoria_seed_condominio` insere Helena Síndica (`4d…005`,
+   `sindica@solardovale.dev`, nível 2, sem senha local) e seus vínculos com os
+   endereços do Condomínio se a empresa `1a…002` ainda existir no aparelho,
+   passa para ela a autoria e a decisão das leituras `5e…010` e `5e…011`, e
+   corrige o texto da notificação `6f…003`. Num aparelho já limpo pela troca de
+   usuário, nada acontece. `supabase/seed.sql` foi alinhado para projetos novos,
+   e `supabase/correcoes/20261117_autoria_seed_condominio.sql` acerta de forma
+   idempotente o projeto Supabase já em produção (desabilitando e reabilitando
+   `trg_leituras_protecao` apenas durante o `UPDATE`).

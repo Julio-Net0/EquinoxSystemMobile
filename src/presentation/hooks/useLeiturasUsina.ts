@@ -73,7 +73,7 @@ export function useLeiturasUsina(): EstadoLeiturasUsina {
         });
 
         if (!resultado.sucesso) {
-          setErro(resultado.erro ?? 'Erro ao carregar leituras da usina');
+          setErro(resultado.erro ?? 'Erro ao carregar as leituras');
           return;
         }
 

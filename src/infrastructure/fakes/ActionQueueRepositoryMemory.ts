@@ -25,8 +25,8 @@ export class ActionQueueRepositoryMemory implements IActionQueueRepository {
     this.items.delete(id.value);
   }
 
-  async registrarFalha(id: UUIDv4, mensagem: string): Promise<void> {
-    this.items.get(id.value)?.registrarFalha(mensagem);
+  async registrarFalha(id: UUIDv4, mensagem: string, definitiva = false): Promise<void> {
+    this.items.get(id.value)?.registrarFalha(mensagem, definitiva);
   }
 
   async reativarIsolados(): Promise<void> {

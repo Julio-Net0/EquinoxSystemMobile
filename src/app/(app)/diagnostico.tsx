@@ -12,7 +12,7 @@ export default function DiagnosticoRoute() {
   const casos = useCasos();
   const voltar = useVoltar('/(app)/(tabs)/perfil');
   const sincronizacao = usePainelSincronizacao();
-  const { estado, versaoDosDados, pendentes } = useSincronizacao();
+  const { estado, versaoDosDados, pendentes, descartar } = useSincronizacao();
 
   const [dados, setDados] = useState<ConsultarDiagnosticoOutput | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -46,7 +46,9 @@ export default function DiagnosticoRoute() {
       onRecarregar={() => void carregar()}
       onVoltar={voltar}
       sincronizacao={sincronizacao}
+      deOutrosUsuarios={estado?.deOutrosUsuarios ?? 0}
       fila={estado?.itens ?? []}
+      onDescartar={descartar}
     />
   );
 }

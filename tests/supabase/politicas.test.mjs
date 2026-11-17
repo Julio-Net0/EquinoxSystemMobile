@@ -9,7 +9,7 @@
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PGlite } from '@electric-sql/pglite';
@@ -38,7 +38,10 @@ let db;
 before(async () => {
   db = new PGlite({ extensions: { pgcrypto } });
   await db.exec(ler('tests', 'supabase', 'preludio.sql'));
-  await db.exec(ler('supabase', 'migrations', '20261116120000_schema_equinox.sql'));
+  // Todas as migrações, na ordem do nome — como o projeto as recebe.
+  for (const arquivo of readdirSync(join(RAIZ, 'supabase', 'migrations')).sort()) {
+    if (arquivo.endsWith('.sql')) await db.exec(ler('supabase', 'migrations', arquivo));
+  }
   await db.exec(ler('supabase', 'seed.sql'));
 });
 
@@ -97,6 +100,51 @@ const enviarLeitura = (leitura) =>
   linhas('select public.sincronizar_leitura($1::jsonb) as r', [JSON.stringify(leitura)]);
 
 // ------------------------------------------------------------------ anônimo
+
+// ---------------------------------------------------------------------- seed
+
+const AUTOR_DE_OUTRA_EMPRESA = `
+  select l.id from public.leituras l
+    join public.perfis p on p.id = l.usuario_id
+   where p.empresa_id is distinct from l.empresa_id
+  union
+  select l.id from public.leituras l
+    join public.perfis p on p.id = l.decidida_por_id
+   where p.empresa_id is distinct from l.empresa_id and p.nivel_acesso < 3`;
+
+test('no seed, nenhuma leitura tem autor ou decisor de outra empresa', async () => {
+  assert.deepEqual(await linhas(AUTOR_DE_OUTRA_EMPRESA), []);
+  const [aviso] = await linhas(
+    "select mensagem from public.notificacoes where id = '6f000000-0000-4000-8000-000000000003'",
+  );
+  assert.match(aviso.mensagem, /Registrada por Helena Síndica/);
+});
+
+test('a correção de autoria do seed acerta um projeto antigo e pode rodar de novo', async () => {
+  await db.exec('begin');
+  try {
+    // Como o projeto ficou com o seed antigo.
+    await db.exec(`
+      alter table public.leituras disable trigger trg_leituras_protecao;
+      update public.leituras
+         set usuario_id = '4d000000-0000-4000-8000-000000000003',
+             decidida_por_id = '4d000000-0000-4000-8000-000000000002'
+       where id in ('5e000000-0000-4000-8000-000000000010', '5e000000-0000-4000-8000-000000000011');
+      alter table public.leituras enable trigger trg_leituras_protecao;
+      update public.notificacoes
+         set mensagem = replace(mensagem, 'Helena Síndica', 'João da Silva')
+       where id = '6f000000-0000-4000-8000-000000000003';`);
+    assert.equal((await linhas(AUTOR_DE_OUTRA_EMPRESA)).length, 2);
+
+    const correcao = ler('supabase', 'correcoes', '20261117_autoria_seed_condominio.sql');
+    await db.exec(correcao);
+    await db.exec(correcao);
+
+    assert.deepEqual(await linhas(AUTOR_DE_OUTRA_EMPRESA), []);
+  } finally {
+    await db.exec('rollback');
+  }
+});
 
 test('anônimo não lê tabela nenhuma', async () => {
   for (const tabela of ['empresas', 'enderecos', 'perfis', 'leituras', 'notificacoes']) {
@@ -380,6 +428,80 @@ test('técnico edita o próprio nome', async () => {
       TECNICO_A,
     ]);
     assert.equal(feito.affectedRows, 1);
+  });
+});
+
+/**
+ * O perfil como o aparelho o devolve: lido da nuvem, passado por um `Date` do
+ * JavaScript (que só guarda milissegundos) e enviado pela RPC, com o nome novo.
+ */
+async function perfilComoOAppEnvia(id, mudancas = {}) {
+  const [p] = await linhas(
+    'select id, nome, usuario, nivel_acesso, nivel_anterior, status, autorizado_em, autorizado_por from public.perfis where id = $1',
+    [id],
+  );
+  return {
+    ...p,
+    autorizado_em: p.autorizado_em ? new Date(p.autorizado_em).toISOString() : null,
+    ...mudancas,
+  };
+}
+
+const sincronizarPerfil = (perfil) =>
+  linhas('select public.sincronizar_perfil($1::jsonb)', [JSON.stringify(perfil)]);
+
+/**
+ * No Supabase, `now()` tem microssegundos; o relógio do PGlite não. O dono do
+ * banco grava um horário com microssegundos antes de o teste agir como o
+ * usuário — é o que o app encontra no projeto real.
+ */
+async function comAutorizacaoEmMicrossegundos(id, tarefa) {
+  await db.exec('begin');
+  try {
+    await db.query(
+      "update public.perfis set autorizado_em = '2026-11-17 11:00:00.123456+00' where id = $1",
+      [id],
+    );
+    await assumir('authenticated', id);
+    return await tarefa();
+  } finally {
+    await db.exec('rollback');
+  }
+}
+
+test('técnico edita o próprio nome pela RPC do app, com horários em milissegundos', async () => {
+  await comAutorizacaoEmMicrossegundos(TECNICO_A, async () => {
+    await sincronizarPerfil(await perfilComoOAppEnvia(TECNICO_A, { nome: 'João S.' }));
+
+    const [p] = await linhas('select nome, autorizado_em from public.perfis where id = $1', [
+      TECNICO_A,
+    ]);
+    assert.equal(p.nome, 'João S.');
+  });
+});
+
+test('administrador edita o próprio nome pela RPC do app', async () => {
+  await comAutorizacaoEmMicrossegundos(ADMIN_A, async () => {
+    await sincronizarPerfil(await perfilComoOAppEnvia(ADMIN_A, { nome: 'Ana Admin' }));
+    const [p] = await linhas('select nome from public.perfis where id = $1', [ADMIN_A]);
+    assert.equal(p.nome, 'Ana Admin');
+  });
+});
+
+test('pela RPC, o técnico continua sem mexer na própria autorização', async () => {
+  await comoUsuario(TECNICO_A, async () => {
+    await assert.rejects(
+      sincronizarPerfil(
+        await perfilComoOAppEnvia(TECNICO_A, { autorizado_em: '2020-01-01T00:00:00.000Z' }),
+      ),
+      /não permite alterar nível/,
+    );
+  });
+  await comoUsuario(TECNICO_A, async () => {
+    await assert.rejects(
+      sincronizarPerfil(await perfilComoOAppEnvia(TECNICO_A, { nivel_acesso: 2 })),
+      /não permite alterar nível/,
+    );
   });
 });
 

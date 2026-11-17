@@ -103,13 +103,13 @@ describe('RegistrarLeituraUseCase', () => {
       expect(salva?.status).toBe(StatusLeituraEnum.REGISTRADA);
     });
 
-    it('comprime e persiste a foto antes de gravar, e guarda a uri permanente', async () => {
+    it('comprime e persiste a foto antes de gravar, e guarda a referência permanente', async () => {
       const { caso, entrada, leituraRepo, arquivoFoto } = await cenario();
 
       const saida = await caso.executar(entrada);
 
       const salva = await leituraRepo.buscarPorId(new UUIDv4(saida.leituraId as string));
-      expect(salva?.fotoLocalUri).toContain('file:///documents/leituras/');
+      expect(salva?.fotoLocalUri).toBe(`leituras/${saida.leituraId}.jpg`);
       expect(salva?.fotoLocalUri).not.toBe(FOTO_TEMP);
       expect(arquivoFoto.salvos.size).toBe(1);
     });

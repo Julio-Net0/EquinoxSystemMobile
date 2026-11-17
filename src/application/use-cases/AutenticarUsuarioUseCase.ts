@@ -1,12 +1,9 @@
 import { IAutenticacaoRemotaGateway } from '@/domain/gateways/IAutenticacaoRemotaGateway';
 import { ISessionStorage, SessaoUsuarioData } from '@/domain/gateways/ISessionStorage';
-import {
-  CHAVE_CURSORES,
-  CHAVE_USUARIO_DO_CURSOR,
-  ISyncMetaRepository,
-} from '@/domain/repositories/ISyncMetaRepository';
 import { Usuario } from '@/domain/entities/Usuario';
 import { StatusUsuarioEnum } from '@/domain/enums/StatusUsuarioEnum';
+import { AcessoOfflineService } from '@/domain/services/AcessoOfflineService';
+import { TrocaDeUsuarioService } from '@/domain/services/TrocaDeUsuarioService';
 
 export interface AutenticarUsuarioInput {
   /** E-mail. O login por nome de usuário foi aposentado com a ida para a nuvem. */
@@ -18,16 +15,22 @@ export interface AutenticarUsuarioOutput {
   sucesso: boolean;
   usuario?: SessaoUsuarioData;
   erro?: string;
+  /** Entrou sem rede, conferindo a senha no aparelho (ADR 10.18). */
+  offline?: boolean;
 }
 
 const CREDENCIAL_INVALIDA = 'E-mail ou senha incorretos';
 const SEM_REDE =
-  'Sem conexão. O primeiro acesso neste aparelho precisa de internet; depois dele o app funciona offline';
+  'Sem conexão. O primeiro acesso desta conta neste aparelho precisa de internet; depois dele dá para entrar também sem rede';
 
 /**
- * Login na nuvem (Supabase Auth). É a única operação de entrada que exige
- * rede: depois dela a sessão fica no armazenamento seguro e o app reabre
- * autenticado mesmo sem sinal.
+ * Login na nuvem (Supabase Auth).
+ *
+ * Com rede, a nuvem confere a senha; o aparelho guarda a sessão e uma
+ * verificação derivada da senha. Sem rede, quem já entrou com internet neste
+ * aparelho entra conferindo a senha contra essa verificação, e o app volta a
+ * entrar na nuvem sozinho quando a conexão voltar (ADR 10.18). Só o primeiro
+ * acesso de cada conta no aparelho exige rede.
  *
  * Credencial errada e conta inexistente devolvem a mesma mensagem, de
  * propósito: distinguir as duas diria a quem tentasse adivinhar quais contas
@@ -37,7 +40,8 @@ export class AutenticarUsuarioUseCase {
   constructor(
     private readonly autenticacaoRemota: IAutenticacaoRemotaGateway,
     private readonly sessionStorage: ISessionStorage,
-    private readonly syncMeta: ISyncMetaRepository,
+    private readonly acessoOffline: AcessoOfflineService,
+    private readonly trocaDeUsuario: TrocaDeUsuarioService,
   ) {}
 
   public async executar(entrada: AutenticarUsuarioInput): Promise<AutenticarUsuarioOutput> {
@@ -57,7 +61,10 @@ export class AutenticarUsuarioUseCase {
 
     const acesso = await this.autenticacaoRemota.entrar(email, entrada.senha);
     if (!acesso.ok) {
-      return { sucesso: false, erro: acesso.motivo === 'rede' ? SEM_REDE : CREDENCIAL_INVALIDA };
+      if (acesso.motivo === 'rede') return this.entrarSemRede(email, entrada.senha);
+
+      await this.acessoOffline.esquecerSeForAMesma(email, entrada.senha);
+      return { sucesso: false, erro: CREDENCIAL_INVALIDA };
     }
 
     const perfil = await this.autenticacaoRemota.obterMeuPerfil();
@@ -70,6 +77,7 @@ export class AutenticarUsuarioUseCase {
 
     const impedimento = AutenticarUsuarioUseCase.impedimentoDeStatus(perfil.valor);
     if (impedimento) {
+      await this.acessoOffline.esquecer(email);
       return this.recusar(impedimento);
     }
 
@@ -82,16 +90,22 @@ export class AutenticarUsuarioUseCase {
       email: usuario.email,
       perfil: usuario.perfil,
     };
+    await this.trocaDeUsuario.prepararPara(sessao.usuarioId, { comRede: true });
     await this.sessionStorage.salvarSessao(sessao);
-
-    // Os cursores do pull valem para o que UM usuário pode ver. Trocou de
-    // usuário neste aparelho, o próximo pull recomeça do zero.
-    if ((await this.syncMeta.obter(CHAVE_USUARIO_DO_CURSOR)) !== sessao.usuarioId) {
-      await this.syncMeta.definir(CHAVE_CURSORES, null);
-      await this.syncMeta.definir(CHAVE_USUARIO_DO_CURSOR, sessao.usuarioId);
-    }
+    await this.acessoOffline.lembrar(email, entrada.senha, sessao);
 
     return { sucesso: true, usuario: sessao };
+  }
+
+  private async entrarSemRede(email: string, senha: string): Promise<AutenticarUsuarioOutput> {
+    const resultado = await this.acessoOffline.entrarSemRede(email, senha);
+
+    if (resultado.tipo === 'sem_credencial') return { sucesso: false, erro: SEM_REDE };
+    if (resultado.tipo === 'senha_incorreta') return { sucesso: false, erro: CREDENCIAL_INVALIDA };
+
+    await this.trocaDeUsuario.prepararPara(resultado.sessao.usuarioId, { comRede: false });
+    await this.sessionStorage.salvarSessao(resultado.sessao);
+    return { sucesso: true, usuario: resultado.sessao, offline: true };
   }
 
   /** Quem não pode entrar não deve ficar com token guardado no aparelho. */

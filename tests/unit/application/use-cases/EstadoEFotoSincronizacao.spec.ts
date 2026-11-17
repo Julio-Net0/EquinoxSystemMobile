@@ -17,7 +17,8 @@ describe('ConsultarEstadoSincronizacaoUseCase', () => {
     const c = await aparelhoLogado();
 
     expect(await c.casos.estadoSincronizacao.executar()).toEqual({
-      pendentes: 0, isolados: 0, ultimaSincronizacaoEm: null, ultimoErro: null, itens: [],
+      pendentes: 0, isolados: 0, deOutrosUsuarios: 0, ultimaSincronizacaoEm: null,
+      ultimoErro: null, itens: [],
     });
   });
 
@@ -73,6 +74,74 @@ describe('ConsultarEstadoSincronizacaoUseCase', () => {
     expect((await c.casos.processarFila.executar()).enviados).toBe(1);
   });
 
+  describe('descartar', () => {
+    /** Leitura cuja foto sumiu do aparelho: recusada até ser isolada. */
+    const leituraSemSaida = async () => {
+      const c = await aparelhoLogado();
+      const leitura = novaLeitura();
+      comFotoNoAparelho(c, leitura);
+      await c.repos.leitura.salvar(leitura);
+      c.fakes.sincronizacaoRemota.recusar.set('enviarLeitura', 'recusada');
+      for (let i = 0; i < ActionQueueItem.MAX_TENTATIVAS; i += 1) {
+        await c.casos.processarFila.executar();
+      }
+      const [item] = await c.fakes.actionQueue.obterPendentes();
+      return { c, leitura, item };
+    };
+
+    it('item recusado de vez: some da fila, e a leitura e a foto saem do aparelho', async () => {
+      const { c, leitura, item } = await leituraSemSaida();
+
+      await c.casos.estadoSincronizacao.descartar(item.id.value);
+
+      expect(await c.fakes.actionQueue.contar()).toBe(0);
+      expect(await c.fakes.leitura.buscarPorId(leitura.id)).toBeNull();
+      expect(c.fakes.arquivoFoto.salvos.has(leitura.fotoLocalUri)).toBe(false);
+      expect((await c.casos.estadoSincronizacao.executar()).pendentes).toBe(0);
+    });
+
+    it('não descarta o que ainda está na fila automática', async () => {
+      const c = await aparelhoLogado();
+      await c.repos.leitura.salvar(novaLeitura());
+      const [item] = await c.fakes.actionQueue.obterPendentes();
+
+      await expect(c.casos.estadoSincronizacao.descartar(item.id.value)).rejects.toThrow(
+        'Só um item recusado de vez pode ser descartado',
+      );
+      expect(await c.fakes.actionQueue.contar()).toBe(1);
+      expect(await c.fakes.leitura.buscarPorId(uuid(100))).not.toBeNull();
+    });
+
+    it('item que já não está na fila: nada a fazer', async () => {
+      const c = await aparelhoLogado();
+      await expect(c.casos.estadoSincronizacao.descartar(uuid(999).value)).resolves.toBeUndefined();
+    });
+
+    it('item que não é leitura: sai da fila e o registro local fica', async () => {
+      const c = await aparelhoLogado();
+      const [endereco] = await c.fakes.endereco.listarTodos();
+      const item = ActionQueueItem.para('UPSERT_ENDERECO', endereco.id, AGORA);
+      await c.fakes.actionQueue.enfileirar(item);
+      for (let i = 0; i < ActionQueueItem.MAX_TENTATIVAS; i += 1) {
+        await c.fakes.actionQueue.registrarFalha(item.id, 'A nuvem recusou');
+      }
+
+      await c.casos.estadoSincronizacao.descartar(item.id.value);
+
+      expect(await c.fakes.actionQueue.contar()).toBe(0);
+      expect(await c.fakes.endereco.buscarPorId(endereco.id)).not.toBeNull();
+    });
+
+    it('a foto já sumida não impede o descarte', async () => {
+      const { c, leitura, item } = await leituraSemSaida();
+      c.fakes.arquivoFoto.salvos.clear();
+
+      await c.casos.estadoSincronizacao.descartar(item.id.value);
+
+      expect(await c.fakes.leitura.buscarPorId(leitura.id)).toBeNull();
+    });
+  });
+
   it('tentar de novo não mexe em quem não está isolado', async () => {
     const c = await aparelhoLogado();
     await c.repos.leitura.salvar(novaLeitura());
@@ -97,6 +166,17 @@ describe('ObterFotoDaLeituraUseCase', () => {
 
     expect(saida).toEqual({ uri: 'file:///documents/leituras/100.jpg', origem: 'aparelho' });
     expect(c.fakes.sincronizacaoRemota.chamadas).toEqual([]);
+  });
+
+  it('referência relativa: devolve a uri completa, pronta para a imagem', async () => {
+    const c = await aparelhoLogado();
+    const leitura = novaLeitura({ fotoLocalUri: 'leituras/100.jpg' });
+    comFotoNoAparelho(c, leitura);
+    await c.fakes.leitura.salvar(leitura);
+
+    const saida = await c.casos.fotoDaLeitura.executar({ leituraId: uuid(100).value });
+
+    expect(saida).toEqual({ uri: 'file:///documents/leituras/100.jpg', origem: 'aparelho' });
   });
 
   it('leitura de outro aparelho: pede uma URL assinada de vida curta', async () => {
@@ -198,7 +278,7 @@ describe('EncerrarSessaoUseCase', () => {
     expect(await c.fakes.leitura.buscarPorId(uuid(100))).not.toBeNull();
   });
 
-  it('depois de sair, entrar de novo exige rede', async () => {
+  it('quem nunca entrou com senha neste aparelho, depois de sair, precisa de rede', async () => {
     const c = await aparelhoLogado();
     await c.casos.encerrarSessao.executar();
     c.fakes.autenticacaoRemota.online = false;
@@ -209,5 +289,21 @@ describe('EncerrarSessaoUseCase', () => {
 
     expect(saida.sucesso).toBe(false);
     expect(saida.erro).toContain('precisa de internet');
+  });
+
+  it('sair mantém a verificação de senha (para entrar sem rede) e apaga a senha em memória', async () => {
+    const c = await aparelhoLogado();
+    await c.casos.autenticar.executar({ login: 'tecnico@equinox.dev', senha: 'Equinox@2026' });
+    c.fakes.reautenticacao.guardar({ email: 'tecnico@equinox.dev', senha: 'Equinox@2026' });
+
+    await c.casos.encerrarSessao.executar();
+    c.fakes.autenticacaoRemota.online = false;
+
+    expect(c.fakes.reautenticacao.obter()).toBeNull();
+    const saida = await c.casos.autenticar.executar({
+      login: 'tecnico@equinox.dev', senha: 'Equinox@2026',
+    });
+    expect(saida.sucesso).toBe(true);
+    expect(saida.offline).toBe(true);
   });
 });

@@ -12,11 +12,15 @@ export interface AuthContextData {
   /** Verdadeiro só até a sessão guardada ser lida, no primeiro render. */
   isCarregando: boolean;
   /**
-   * Login na nuvem, por e-mail. Exige rede. Em caso de sucesso já volta com os
-   * dados do usuário baixados para o banco local.
+   * Login por e-mail. Com rede, na nuvem, e já volta com os dados baixados
+   * para o banco local. Sem rede, vale para quem já entrou com internet neste
+   * aparelho (ADR 10.18).
    */
   entrar(email: string, senha: string): Promise<{ sucesso: boolean; erro?: string }>;
-  /** Apaga a sessão local e os tokens. O próximo acesso exige rede. */
+  /**
+   * Apaga a sessão local e os tokens. A verificação de senha fica, então quem
+   * já entrou aqui pode entrar de novo sem rede.
+   */
   sair(): Promise<void>;
   /** Relê a sessão do armazenamento — usar após alterar os próprios dados. */
   recarregar(): Promise<void>;

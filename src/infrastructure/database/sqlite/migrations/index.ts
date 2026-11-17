@@ -4,11 +4,17 @@ import { Migracao } from './Migracao';
 import { migracaoSchemaInicial } from './001_schema_inicial';
 import { criarMigracaoSeedDemo } from './002_seed_demo';
 import { migracaoSincronizacao } from './003_sincronizacao';
+import { migracaoFotoRelativa } from './004_foto_relativa';
+import { migracaoFilaComDono } from './005_fila_com_dono';
+import { migracaoAutoriaSeedCondominio } from './006_autoria_seed_condominio';
 
 export type { Migracao } from './Migracao';
 export { DDL_SCHEMA_INICIAL } from './001_schema_inicial';
 export { SENHA_DEMO } from './002_seed_demo';
 export { DDL_SINCRONIZACAO } from './003_sincronizacao';
+export { DDL_FOTO_RELATIVA } from './004_foto_relativa';
+export { DDL_FILA_COM_DONO } from './005_fila_com_dono';
+export { DDL_AUTORIA_SEED_CONDOMINIO } from './006_autoria_seed_condominio';
 
 /**
  * Lista de migrações, em ordem de versão.
@@ -27,5 +33,8 @@ export function criarMigracoes(
     migracaoSchemaInicial,
     criarMigracaoSeedDemo(hashSenha, relogio),
     migracaoSincronizacao,
+    migracaoFotoRelativa,
+    migracaoFilaComDono,
+    migracaoAutoriaSeedCondominio,
   ];
 }

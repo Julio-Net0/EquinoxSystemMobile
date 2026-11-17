@@ -161,6 +161,7 @@ async function setup() {
     padrao2,
     padraoB,
     leituraRepo,
+    padraoRepo,
   };
 }
 
@@ -170,7 +171,7 @@ describe('ConsultarLeiturasDiaUsinaUseCase', () => {
 
     const resultado = await caso.executar({ atorId: tecnico.id.value });
     expect(resultado.sucesso).toBe(false);
-    expect(resultado.erro).toBe('Seu perfil não permite acessar o monitoramento de usinas');
+    expect(resultado.erro).toBe('Seu perfil não permite acessar o monitoramento de leituras');
   });
 
   it('recusa quando atorId não existe', async () => {
@@ -181,25 +182,59 @@ describe('ConsultarLeiturasDiaUsinaUseCase', () => {
     expect(resultado.erro).toBe('Sessão inválida');
   });
 
-  it('admin lista apenas usinas da própria empresa e exclui endereços comuns', async () => {
-    const { caso, adminA, usinaA1 } = await setup();
+  it('admin lista todos os endereços da própria empresa, usina ou não', async () => {
+    const { caso, adminA, usinaA1, comumA2 } = await setup();
 
     const resultado = await caso.executar({ atorId: adminA.id.value });
     expect(resultado.sucesso).toBe(true);
-    expect(resultado.usinas).toHaveLength(1);
-    expect(resultado.usinas[0].id).toBe(usinaA1.id.value);
-    expect(resultado.usinas[0].apelido).toBe('Usina Pampulha');
+    expect(resultado.usinas.map((u) => [u.id, u.ehUsina])).toEqual([
+      [usinaA1.id.value, true],
+      [comumA2.id.value, false],
+    ]);
   });
 
-  it('super admin lista usinas de todas as empresas', async () => {
-    const { caso, superAdmin, usinaA1, usinaB1 } = await setup();
+  it('super admin lista os endereços de todas as empresas', async () => {
+    const { caso, superAdmin, usinaA1, comumA2, usinaB1 } = await setup();
 
     const resultado = await caso.executar({ atorId: superAdmin.id.value });
     expect(resultado.sucesso).toBe(true);
-    expect(resultado.usinas).toHaveLength(2);
-    const apelidos = resultado.usinas.map((u) => u.apelido);
-    expect(apelidos).toContain(usinaA1.apelido);
-    expect(apelidos).toContain(usinaB1.apelido);
+    expect(resultado.usinas.map((u) => u.apelido).sort()).toEqual(
+      [usinaA1.apelido, comumA2.apelido, usinaB1.apelido].sort(),
+    );
+  });
+
+  it('abre um endereço comum, sem injeção, como qualquer outro', async () => {
+    const { caso, adminA, comumA2, tecnico, leituraRepo, padraoRepo } = await setup();
+    const padraoComum = new PadraoCemig({
+      id: UUIDv4.gerar(),
+      enderecoId: comumA2.id,
+      numero: 'PAD-SEDE',
+    });
+    await padraoRepo.salvar(padraoComum);
+    await leituraRepo.salvar(
+      new Leitura({
+        id: UUIDv4.gerar(),
+        padraoId: padraoComum.id,
+        usuarioId: tecnico.id,
+        valorConsumo: new ValorKwh(4200),
+        fotoLocalUri: 'leituras/sede.jpg',
+        medidoEm: AGORA,
+        dataLocal: DataLocal.de(AGORA),
+      }),
+    );
+
+    const resultado = await caso.executar({
+      atorId: adminA.id.value,
+      usinaId: comumA2.id.value,
+    });
+
+    expect(resultado.sucesso).toBe(true);
+    expect(resultado.usinaSelecionada?.ehUsina).toBe(false);
+    expect(resultado.medidores).toHaveLength(1);
+    expect(resultado.medidores[0].leituraVigente).toMatchObject({
+      valorConsumo: 4200,
+      valorInjecao: null,
+    });
   });
 
   it('seleciona por padrão a primeira usina quando usinaId não é informado', async () => {
@@ -218,7 +253,7 @@ describe('ConsultarLeiturasDiaUsinaUseCase', () => {
       usinaId: usinaB1.id.value,
     });
     expect(resultado.sucesso).toBe(false);
-    expect(resultado.erro).toBe('Usina não encontrada ou fora do seu escopo');
+    expect(resultado.erro).toBe('Endereço não encontrado ou fora do seu escopo');
   });
 
   it('identifica quais medidores tiveram leituras no dia e quais estão pendentes', async () => {

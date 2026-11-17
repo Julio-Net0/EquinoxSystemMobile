@@ -23,6 +23,7 @@ import { Cartao } from '@/presentation/components/Cartao';
 import { EstadoVazio } from '@/presentation/components/EstadoVazio';
 import { IconeTile } from '@/presentation/components/IconeTile';
 import { PilulaStatus, PilulaStatusLeitura } from '@/presentation/components/PilulaStatus';
+import { SolarButton } from '@/presentation/components/SolarButton';
 
 export interface LeiturasUsinaScreenProps {
   usinas: UsinaItemDTO[];
@@ -153,8 +154,8 @@ export function LeiturasUsinaScreen({
     return (
       <View style={styles.raiz}>
         <CabecalhoTela
-          titulo="Leituras da usina"
-          subtitulo="Selecione a usina para ver as medições"
+          titulo="Leituras diárias"
+          subtitulo="Selecione o endereço para ver as medições"
           onVoltar={onVoltar}
           acao={
             <Pressable
@@ -190,10 +191,10 @@ export function LeiturasUsinaScreen({
           ListHeaderComponent={
             <View style={styles.topoListaUsinas}>
               <Text style={[Tipografia.rotulo, styles.secaoTitulo]}>
-                Usinas disponíveis ({usinas.length})
+                Endereços disponíveis ({usinas.length})
               </Text>
               <Text style={[Tipografia.corpoSm, styles.subtituloEscolha]}>
-                Toque em uma usina para abrir automaticamente as leituras de hoje.
+                Toque em um endereço para abrir as leituras de hoje.
               </Text>
             </View>
           }
@@ -207,7 +208,7 @@ export function LeiturasUsinaScreen({
                       <Text style={[Tipografia.tituloCard, styles.usinaNome]} numberOfLines={1}>
                         {item.apelido}
                       </Text>
-                      <PilulaStatus texto="Usina" tom="primary" />
+                      {item.ehUsina ? <PilulaStatus texto="Usina" tom="primary" /> : null}
                     </View>
                     <Text style={[Tipografia.meta, styles.usinaMeta]}>
                       UC {item.uc} · {item.empresaNome}
@@ -248,14 +249,14 @@ export function LeiturasUsinaScreen({
                   <Pressable
                     onPress={onDesmarcarUsina}
                     accessibilityRole="button"
-                    accessibilityLabel="Trocar usina"
+                    accessibilityLabel="Trocar endereço"
                     style={styles.botaoTrocarUsina}
                   >
                     <MaterialIcons name="swap-horiz" size={16} color={Cores.primary} />
                     <Text style={styles.botaoTrocarUsinaTexto}>Trocar</Text>
                   </Pressable>
                 ) : (
-                  <PilulaStatus texto="Usina" tom="primary" />
+                  usinaSelecionada.ehUsina ? <PilulaStatus texto="Usina" tom="primary" /> : null
                 )}
               </View>
               <Text style={[Tipografia.meta, styles.usinaMeta]}>
@@ -344,7 +345,7 @@ export function LeiturasUsinaScreen({
 
       <View style={styles.divisoriaSecao}>
         <Text style={[Tipografia.rotulo, styles.secaoTitulo]}>
-          Medidores da usina ({medidores.length})
+          Medidores do endereço ({medidores.length})
         </Text>
       </View>
     </View>
@@ -418,20 +419,21 @@ export function LeiturasUsinaScreen({
                       <Text style={[Tipografia.meta, styles.tagTexto]}>Sem GPS</Text>
                     </View>
                   )}
-
-                  <Pressable
-                    style={styles.tagHardware}
-                    onPress={() => onVerFoto?.(item.leituraVigente!.id)}
-                    disabled={!onVerFoto}
-                    accessibilityRole="button"
-                    accessibilityLabel="Ver o comprovante da leitura"
-                    testID={`ver-foto-${item.leituraVigente.id}`}
-                  >
-                    <MaterialIcons name="photo-camera" size={12} color={Cores.primary} />
-                    <Text style={[Tipografia.meta, styles.tagTexto]}>Ver foto</Text>
-                  </Pressable>
                 </View>
               </View>
+
+              {onVerFoto ? (
+                <View style={styles.acaoFoto}>
+                  <SolarButton
+                    titulo="Ver foto"
+                    variante="secundario"
+                    icone="photo-camera"
+                    onPress={() => onVerFoto(item.leituraVigente!.id)}
+                    accessibilityLabel="Ver o comprovante da leitura"
+                    testID={`ver-foto-${item.leituraVigente.id}`}
+                  />
+                </View>
+              ) : null}
             </View>
           ) : (
             <View style={styles.semLeituraBloco}>
@@ -545,7 +547,7 @@ export function LeiturasUsinaScreen({
   return (
     <View style={styles.raiz}>
       <CabecalhoTela
-        titulo="Leituras da usina"
+        titulo="Leituras diárias"
         subtitulo={usinaSelecionada ? usinaSelecionada.apelido : 'Acompanhamento diário'}
         onVoltar={voltarAcao}
         acao={
@@ -572,15 +574,15 @@ export function LeiturasUsinaScreen({
         <View style={styles.carregandoContainer}>
           <ActivityIndicator color={Cores.primary} size="large" />
           <Text style={[Tipografia.corpoSm, styles.carregandoTexto]}>
-            Carregando leituras da usina…
+            Carregando leituras…
           </Text>
         </View>
       ) : usinas.length === 0 ? (
         <View style={styles.vazioContainer}>
           <EstadoVazio
             icone="solar-power"
-            titulo="Nenhuma usina encontrada"
-            descricao="Não há usinas solares cadastradas disponíveis para o seu perfil."
+            titulo="Nenhum endereço encontrado"
+            descricao="Não há endereços cadastrados disponíveis para o seu perfil."
             acao={{ titulo: 'Atualizar', onPress: onRecarregar }}
           />
         </View>
@@ -601,7 +603,7 @@ export function LeiturasUsinaScreen({
           ListEmptyComponent={
             <View style={styles.vazioMedidores}>
               <Text style={[Tipografia.corpoSm, styles.vazioMedidoresTexto]}>
-                Esta usina ainda não possui medidores (padrões) cadastrados.
+                Este endereço ainda não possui medidores (padrões) cadastrados.
               </Text>
             </View>
           }
@@ -946,6 +948,7 @@ const styles = StyleSheet.create({
     color: Cores.sucesso,
     marginTop: 2,
   },
+  acaoFoto: { marginTop: Espaco.md },
   rodapeLeitura: {
     flexDirection: 'row',
     alignItems: 'center',

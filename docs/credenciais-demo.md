@@ -23,11 +23,13 @@ nome de usuário foi desativado quando a autenticação foi para o Supabase
 | Administrador | `admin@equinox.dev` | Só a Equinox Energia Solar |
 | Técnico | `tecnico@equinox.dev` | Registra leituras nos endereços vinculados (Sede, Usina Pampulha, Depósito Contagem) |
 | Técnico **pendente** | `maria@equinox.dev` | Não entra até ser autorizado — serve para a tela de autorizações |
-| Administradora | `sindica@solardovale.dev` | Só o Condomínio Solar do Vale. **Existe só na nuvem**: é a conta para mostrar que uma empresa não vê os dados da outra |
+| Administradora | `sindica@solardovale.dev` | Só o Condomínio Solar do Vale. É a conta para mostrar que uma empresa não vê os dados da outra (ADR 10.19) |
 
-> **A senha só vale no seu projeto Supabase.** No aparelho não há senha nenhuma
-> (nem hash): a conta é conferida na nuvem. Por isso o **primeiro login de cada
-> aparelho precisa de internet**. Depois dele, o app abre offline.
+> **A senha só vale no seu projeto Supabase.** Quem confere a conta é a nuvem.
+> Por isso o **primeiro login de cada conta em cada aparelho precisa de
+> internet**. Depois dele o app abre offline e aceita entrar de novo sem rede,
+> conferindo a senha contra uma verificação PBKDF2 guardada no cofre do
+> aparelho — nunca a senha (ADR 10.18).
 
 > Se o repositório for público, troque a senha no `seed.sql` antes de rodar
 > (veja o aviso em [supabase-setup.md](supabase-setup.md)).
@@ -66,7 +68,7 @@ Elas já contam como **sincronizadas** (existem na nuvem com os mesmos ids).
 
 As fotos das leituras do seed **não existem** — nem no aparelho, nem no bucket.
 Foram criadas sem passar pela câmera. Só as leituras que você registrar têm foto
-real, que aparece pelo botão "Ver foto" em Leituras da usina.
+real, que aparece pelo botão "Ver foto" em Leituras diárias.
 
 ### Atenção às datas
 

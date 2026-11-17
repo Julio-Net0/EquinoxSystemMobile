@@ -30,7 +30,7 @@ dentro:
 | `CameraExpoContext` | `useCameraExpo` | O gateway concreto da câmera, para a `CameraView` registrar o capturador |
 | `AuthProvider` | `useAuth` | `usuario`, `perfil`, `nivel`, `empresaId`, `isAutenticado`, `entrar(email, senha)`, `sair()`, `recarregar()` |
 | `ConectividadeProvider` | `useConectividade` | `online`, `conhecida` — sobre a porta `IConectividadeGateway` (NetInfo) |
-| `SincronizacaoProvider` | `useSincronizacao` | `sincronizando`, `pendentes`, `isolados`, `ultimaSincronizacaoEm`, `aviso`, `estado` da fila, `versaoDosDados`, `sincronizar()`, `tentarDeNovo()` |
+| `SincronizacaoProvider` | `useSincronizacao` | `sincronizando`, `pendentes`, `isolados`, `ultimaSincronizacaoEm`, `aviso`, `estado` da fila, `versaoDosDados`, `sincronizar()`, `tentarDeNovo()`, `descartar(itemId)` |
 
 **`AuthProvider`** — na abertura só lê a sessão do secure store (sem rede): é
 isso que deixa o app abrir em modo avião. `entrar` faz o login na nuvem e a
@@ -54,7 +54,7 @@ gatilho para reler o SQLite.
 | `useAutorizacoes` | Autorizações | Pendentes, autorizar, recusar |
 | `useGestaoUsuarios` | Usuários | Busca, filtro, editar, desativar, excluir |
 | `useEstrutura` | Estrutura | Empresas, endereços, padrões |
-| `useLeiturasUsina` | Leituras da usina | Dia, usina, medidores, calendário |
+| `useLeiturasUsina` | Leituras diárias | Dia, endereço (usina ou não), medidores, calendário |
 | `useVoltar` | várias | Volta ou vai para uma rota padrão |
 
 ## Testes

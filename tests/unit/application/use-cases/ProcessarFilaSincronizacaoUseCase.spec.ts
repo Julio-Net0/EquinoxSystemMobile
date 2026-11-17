@@ -52,7 +52,9 @@ describe('ProcessarFilaSincronizacaoUseCase', () => {
 
       const saida = await c.casos.processarFila.executar();
 
-      expect(saida).toEqual({ enviados: 1, recusados: 0, isolados: 0, restantes: 0 });
+      expect(saida).toEqual({
+        enviados: 1, recusados: 0, isolados: 0, restantes: 0, deOutrosUsuarios: 0,
+      });
       const salva = await c.fakes.leitura.buscarPorId(uuid(100));
       expect(salva?.estadoSync).toBe(EstadoSyncEnum.SINCRONIZADA);
       expect(salva?.fotoRemotaPath).toBe(CAMINHO);
@@ -138,14 +140,82 @@ describe('ProcessarFilaSincronizacaoUseCase', () => {
       expect(c.fakes.sincronizacaoRemota.leituras.size).toBe(0);
     });
 
+    it('foto ausente é recusa definitiva: isola na primeira vez, sem esperar 5 rodadas', async () => {
+      const c = await aparelhoLogado();
+      await c.repos.leitura.salvar(novaLeitura());
+
+      const saida = await c.casos.processarFila.executar();
+
+      expect(saida.isolados).toBe(1);
+      const [item] = await c.fakes.actionQueue.obterPendentes();
+      expect(item.estaIsolado()).toBe(true);
+      expect((await c.fakes.leitura.buscarPorId(uuid(100)))?.estadoSync).toBe(EstadoSyncEnum.FALHOU);
+    });
+
+    it('padrão que não existe mais no aparelho também é definitivo', async () => {
+      const c = await aparelhoLogado();
+      const leitura = novaLeitura({ padraoId: uuid(777) });
+      comFotoNoAparelho(c, leitura);
+      await c.fakes.leitura.salvar(leitura);
+      await c.fakes.actionQueue.enfileirar(ActionQueueItem.para('UPSERT_LEITURA', leitura.id, AGORA));
+
+      await c.casos.processarFila.executar();
+
+      expect((await c.fakes.actionQueue.obterPendentes())[0].estaIsolado()).toBe(true);
+    });
+
     it('item de leitura que não existe mais sai da fila sem enviar nada', async () => {
       const c = await aparelhoLogado();
       await c.fakes.actionQueue.enfileirar(ActionQueueItem.para('UPSERT_LEITURA', uuid(555), AGORA));
 
       const saida = await c.casos.processarFila.executar();
 
-      expect(saida).toEqual({ enviados: 1, recusados: 0, isolados: 0, restantes: 0 });
+      expect(saida).toEqual({
+        enviados: 1, recusados: 0, isolados: 0, restantes: 0, deOutrosUsuarios: 0,
+      });
       expect(c.fakes.sincronizacaoRemota.chamadas).toEqual([]);
+    });
+  });
+
+  describe('dono de cada item (ADR 10.19)', () => {
+    const OUTRO = uuid(42).value;
+
+    it('o item nasce com o dono da sessão em que a escrita foi feita', async () => {
+      const { c } = await comLeituraNaFila();
+
+      const [item] = await c.fakes.actionQueue.obterPendentes();
+
+      expect(item.donoId?.value).toBe(IDS.tecnico.value);
+    });
+
+    it('com outra pessoa logada, o item fica esperando o dono, sem gastar tentativa', async () => {
+      const { c, remoto } = await comLeituraNaFila();
+
+      const saida = await c.casos.processarFila.executar({ usuarioId: OUTRO });
+
+      expect(saida).toMatchObject({ enviados: 0, recusados: 0, restantes: 0, deOutrosUsuarios: 1 });
+      expect(remoto.chamadas).toEqual([]);
+      expect((await c.fakes.actionQueue.obterPendentes())[0].tentativas).toBe(0);
+    });
+
+    it('quando o dono entra, o item sobe', async () => {
+      const { c, remoto } = await comLeituraNaFila();
+
+      const saida = await c.casos.processarFila.executar({ usuarioId: IDS.tecnico.value });
+
+      expect(saida.enviados).toBe(1);
+      expect(remoto.leituras.size).toBe(1);
+    });
+
+    it('item sem dono (anterior à migração 005) sobe com qualquer sessão', async () => {
+      const c = await aparelhoLogado();
+      await c.fakes.actionQueue.enfileirar(
+        ActionQueueItem.para('MARCAR_NOTIFICACOES_LIDAS', IDS.empresa, AGORA),
+      );
+
+      const saida = await c.casos.processarFila.executar({ usuarioId: OUTRO });
+
+      expect(saida.enviados).toBe(1);
     });
   });
 
@@ -201,7 +271,12 @@ describe('ProcessarFilaSincronizacaoUseCase', () => {
       const saida = await c.casos.processarFila.executar();
 
       expect(saida).toEqual({
-        enviados: 0, recusados: 0, isolados: 0, restantes: 1, interrompidoPor: 'rede',
+        enviados: 0,
+        recusados: 0,
+        isolados: 0,
+        restantes: 1,
+        deOutrosUsuarios: 0,
+        interrompidoPor: 'rede',
       });
       expect((await c.fakes.actionQueue.obterPendentes())[0].tentativas).toBe(0);
     });
@@ -265,7 +340,9 @@ describe('ProcessarFilaSincronizacaoUseCase', () => {
       const saida = await c.casos.processarFila.executar();
 
       expect(remoto.chamadas).toEqual([]);
-      expect(saida).toEqual({ enviados: 0, recusados: 0, isolados: 1, restantes: 1 });
+      expect(saida).toEqual({
+        enviados: 0, recusados: 0, isolados: 1, restantes: 1, deOutrosUsuarios: 0,
+      });
     });
 
     it('erro inesperado ao montar o envio vira recusa, não exceção', async () => {

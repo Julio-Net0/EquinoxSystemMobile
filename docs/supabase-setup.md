@@ -29,6 +29,12 @@ Tempo estimado: 20 minutos.
    `buscar_empresas_cadastro`, `sincronizar_leitura` e `sincronizar_perfil`, o
    bucket **privado** `comprovantes` e as políticas do Storage.
 
+4. Depois, rode **cada arquivo seguinte** da pasta `supabase/migrations/`, na
+   ordem do nome. Hoje há mais um:
+   `20261117120000_perfil_horario_em_milissegundos.sql` (correção que permite
+   ao usuário editar o próprio perfil pelo app — ADR 10.16). Ele pode ser
+   rodado de novo sem efeito colateral.
+
 > Se tiver o Supabase CLI, o equivalente é `supabase link` seguido de
 > `supabase db push`. Pelo painel funciona igual.
 
@@ -53,6 +59,13 @@ Tempo estimado: 20 minutos.
 
 Os identificadores são os mesmos do seed local do app: o primeiro login não
 duplica nada.
+
+3. **Se você já havia rodado uma versão anterior do `seed.sql`:** rode no **SQL
+   Editor** o script de correção
+   [`supabase/correcoes/20261117_autoria_seed_condominio.sql`](../supabase/correcoes/20261117_autoria_seed_condominio.sql).
+   Ele passa a autoria e a decisão das duas leituras do Condomínio Solar do Vale
+   (e o texto do aviso correspondente) para `Helena Síndica` (ADR 10.19). É
+   idempotente e pode rodar mais de uma vez.
 
 > **Atenção à senha.** No seu projeto, `Equinox@2026` passa a ser uma senha de
 > verdade. Se o repositório for público, troque o valor de `v_senha` no
@@ -117,13 +130,22 @@ Com o celular no Expo Go (ou o APK de `docs/eas-build.md`):
 | 6 | No painel: **Table Editor → leituras** | A leitura nova está lá, com `foto_path` |
 | 7 | No painel: **Storage → comprovantes** | A foto está em `<empresa>/<endereço>/<leitura>.jpg` |
 | 8 | No painel, inserir um padrão novo em `padroes_cemig` para o endereço `2b000000-0000-4000-8000-000000000001` | No app, "Sincronizar agora" — o padrão aparece no catálogo |
-| 9 | Sair e entrar como `sindica@solardovale.dev` | Não vê a leitura nem a foto da Equinox (Leituras da usina mostra só as usinas do condomínio) |
+| 9 | Sair e entrar como `sindica@solardovale.dev` | Não vê a leitura nem a foto da Equinox (Leituras diárias mostra só os endereços do condomínio) |
 
 ### Roteiro de segurança (manual, no painel)
 
 O `npm run test:rls` prova as políticas num Postgres local. Estes três testes
-provam o mesmo no seu projeto de verdade, pela API pública — use um terminal
-com `curl`. Substitua `URL` e `ANON` pelos seus valores.
+provam o mesmo no seu projeto de verdade, pela API pública.
+
+**Jeito rápido (Windows):** o script abaixo lê a URL e a chave do
+`.env.local`, pede a senha das contas de demonstração sem mostrá-la e roda os
+três testes, dizendo OK ou FALHOU em cada um:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\testar-seguranca.ps1
+```
+
+**À mão, com `curl`:** substitua `URL` e `ANON` pelos seus valores.
 
 **a) Usuário da empresa B tentando ler dado da empresa A.**
 
@@ -168,3 +190,4 @@ permissão, consegue uma URL assinada — que expira em 60 segundos.
 | "Sua conta não tem perfil neste app" | Usuário criado à mão no painel, sem linha em `perfis` |
 | "Seu cadastro ainda aguarda autorização" | Esperado para cadastro novo: um administrador precisa autorizar |
 | Item "não pôde ser enviado" no Diagnóstico | O servidor recusou; o motivo aparece embaixo do item |
+| "A foto do medidor não foi encontrada no aparelho" | Leitura de antes da atualização cuja foto se perdeu. Sem foto ela nunca sobe: no Diagnóstico, "Descartar item" (ADR 10.15) |

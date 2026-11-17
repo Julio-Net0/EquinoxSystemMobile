@@ -62,6 +62,11 @@ export function repositoriosComFila(
   relogio: IRelogio,
   /** Chamado depois de cada escrita confirmada, para quem quiser sincronizar logo. */
   aoEnfileirar: () => void = () => undefined,
+  /**
+   * Quem está logado: vira o dono de cada item enfileirado, e só a sessão
+   * dele o envia (ADR 10.19).
+   */
+  donoAtual: () => Promise<string | null> = async () => null,
 ): RepositoriosComFila {
   type Entrada = [TipoOperacaoActionQueue, UUIDv4 | null];
 
@@ -70,11 +75,14 @@ export function repositoriosComFila(
     escrita: (repos: RepositoriosDaTransacao) => Promise<void>,
     ...entradas: Entrada[]
   ): Promise<void> => {
+    const dono = await donoAtual();
+    const donoId = dono ? new UUIDv4(dono) : null;
+
     await unidadeDeTrabalho.executar(async (repos) => {
       await escrita(repos);
       const agora = relogio.agora();
       for (const [tipo, registroId] of entradas) {
-        await repos.actionQueue.enfileirar(ActionQueueItem.para(tipo, registroId, agora));
+        await repos.actionQueue.enfileirar(ActionQueueItem.para(tipo, registroId, agora, donoId));
       }
     });
     // Só depois do commit: avisar antes faria alguém ler uma fila ainda vazia.

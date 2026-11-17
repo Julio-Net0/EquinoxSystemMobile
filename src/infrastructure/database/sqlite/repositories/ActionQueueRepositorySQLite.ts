@@ -10,6 +10,7 @@ interface ActionQueueRow {
   tentativas: number;
   criado_em: string;
   ultimo_erro: string | null;
+  usuario_id: string | null;
 }
 
 /**
@@ -21,8 +22,9 @@ export class ActionQueueRepositorySQLite implements IActionQueueRepository {
 
   async enfileirar(item: ActionQueueItem): Promise<void> {
     await this.db.runAsync(
-      `INSERT INTO action_queue (id, tipo_acao, payload, tentativas, criado_em, ultimo_erro)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO action_queue
+         (id, tipo_acao, payload, tentativas, criado_em, ultimo_erro, usuario_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         item.id.value,
         item.tipoOperacao,
@@ -30,6 +32,7 @@ export class ActionQueueRepositorySQLite implements IActionQueueRepository {
         item.tentativas,
         item.timestamp.toISOString(),
         item.ultimoErro,
+        item.donoId?.value ?? null,
       ],
     );
   }
@@ -49,6 +52,7 @@ export class ActionQueueRepositorySQLite implements IActionQueueRepository {
           tentativas: row.tentativas,
           timestamp: new Date(row.criado_em),
           ultimoErro: row.ultimo_erro,
+          donoId: row.usuario_id ? new UUIDv4(row.usuario_id) : null,
         }),
     );
   }
@@ -64,10 +68,14 @@ export class ActionQueueRepositorySQLite implements IActionQueueRepository {
     await this.db.runAsync('DELETE FROM action_queue WHERE id = ?', [id.value]);
   }
 
-  async registrarFalha(id: UUIDv4, mensagem: string): Promise<void> {
+  async registrarFalha(id: UUIDv4, mensagem: string, definitiva = false): Promise<void> {
     await this.db.runAsync(
-      'UPDATE action_queue SET tentativas = tentativas + 1, ultimo_erro = ? WHERE id = ?',
-      [mensagem, id.value],
+      definitiva
+        ? 'UPDATE action_queue SET tentativas = ?, ultimo_erro = ? WHERE id = ?'
+        : 'UPDATE action_queue SET tentativas = tentativas + 1, ultimo_erro = ? WHERE id = ?',
+      definitiva
+        ? [ActionQueueItem.MAX_TENTATIVAS, mensagem, id.value]
+        : [mensagem, id.value],
     );
   }
 

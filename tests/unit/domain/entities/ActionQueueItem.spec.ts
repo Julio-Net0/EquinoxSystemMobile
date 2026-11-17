@@ -111,4 +111,40 @@ describe('ActionQueueItem', () => {
       expect(item.estaIsolado()).toBe(false);
     });
   });
+
+  describe('recusa definitiva e dono (ADR 10.19)', () => {
+    const DONO = new UUIDv4('4d000000-0000-4000-8000-000000000003');
+    const OUTRO = '4d000000-0000-4000-8000-000000000004';
+
+    it('recusa definitiva isola na primeira vez', () => {
+      const item = ActionQueueItem.para('UPSERT_LEITURA', DONO, AGORA);
+
+      item.registrarFalha('A foto sumiu', true);
+
+      expect(item.estaIsolado()).toBe(true);
+      expect(item.ultimoErro).toBe('A foto sumiu');
+    });
+
+    it('recusa comum continua contando uma por vez', () => {
+      const item = ActionQueueItem.para('UPSERT_LEITURA', DONO, AGORA);
+      item.registrarFalha('recusada');
+      expect(item.tentativas).toBe(1);
+      expect(item.estaIsolado()).toBe(false);
+    });
+
+    it('guarda o dono e diz a quem pertence', () => {
+      const item = ActionQueueItem.para('UPSERT_LEITURA', DONO, AGORA, DONO);
+
+      expect(item.donoId?.value).toBe(DONO.value);
+      expect(item.pertenceA(DONO.value)).toBe(true);
+      expect(item.pertenceA(OUTRO)).toBe(false);
+    });
+
+    it('item sem dono pertence a qualquer sessão', () => {
+      const item = ActionQueueItem.para('UPSERT_LEITURA', DONO, AGORA);
+
+      expect(item.donoId).toBeNull();
+      expect(item.pertenceA(OUTRO)).toBe(true);
+    });
+  });
 });

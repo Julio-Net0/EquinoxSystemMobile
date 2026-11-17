@@ -16,6 +16,19 @@ const USINA_1 = {
   logradouro: 'Av. Negrão de Lima · Belo Horizonte',
   temGeocerca: true,
   totalMedidores: 2,
+  ehUsina: true,
+};
+
+const SEDE = {
+  id: 'e3',
+  apelido: 'Sede administrativa',
+  uc: '3001234567',
+  empresaId: 'emp1',
+  empresaNome: 'Equinox Energia',
+  logradouro: 'Avenida Afonso Pena, 1500 · Belo Horizonte',
+  temGeocerca: true,
+  totalMedidores: 2,
+  ehUsina: false,
 };
 
 const USINA_2 = {
@@ -27,6 +40,7 @@ const USINA_2 = {
   logradouro: 'Rua das Palmeiras, 45 · Nova Lima',
   temGeocerca: true,
   totalMedidores: 1,
+  ehUsina: true,
 };
 
 const MEDIDOR_COM_LEITURA = {
@@ -127,7 +141,7 @@ describe('LeiturasUsinaScreen', () => {
   it('renderiza título, cabeçalho e informações da usina', async () => {
     const { tela } = await montar();
 
-    expect(await tela.findByText('Leituras da usina')).toBeTruthy();
+    expect(await tela.findByText('Leituras diárias')).toBeTruthy();
     expect((await tela.findAllByText('Usina Pampulha')).length).toBeGreaterThan(0);
     expect(await tela.findByText('UC 3003456789 · Equinox Energia')).toBeTruthy();
     expect(await tela.findByText('10/03/2026')).toBeTruthy();
@@ -136,7 +150,7 @@ describe('LeiturasUsinaScreen', () => {
   it('exibe lista de escolha de usinas quando nenhuma usina estiver aberta e existirem várias', async () => {
     const { props, tela } = await montar({ usinaSelecionada: null });
 
-    expect(await tela.findByText('Usinas disponíveis (2)')).toBeTruthy();
+    expect(await tela.findByText('Endereços disponíveis (2)')).toBeTruthy();
     expect(await tela.findByText('Usina Pampulha')).toBeTruthy();
     expect(await tela.findByText('Usina Solar do Vale')).toBeTruthy();
 
@@ -146,10 +160,26 @@ describe('LeiturasUsinaScreen', () => {
     expect(props.onSelecionarUsina).toHaveBeenCalledWith('u1');
   });
 
+  it('lista também endereços que não são usina, com o selo Usina só nas usinas', async () => {
+    const { tela } = await montar({ usinas: [USINA_1, SEDE], usinaSelecionada: null });
+
+    expect(await tela.findByText('Endereços disponíveis (2)')).toBeTruthy();
+    expect(await tela.findByText('Sede administrativa')).toBeTruthy();
+    expect(tela.getAllByText('Usina')).toHaveLength(1);
+  });
+
+  it('endereço comum aberto não leva o selo Usina', async () => {
+    const { tela } = await montar({ usinas: [USINA_1, SEDE], usinaSelecionada: SEDE });
+
+    expect((await tela.findAllByText('Sede administrativa')).length).toBeGreaterThan(0);
+    expect(tela.queryByText('Usina')).toBeNull();
+    expect(await tela.findByText('Medidores do endereço (2)')).toBeTruthy();
+  });
+
   it('permite trocar de usina tocando no botão Trocar', async () => {
     const { props, tela } = await montar();
 
-    const btnTrocar = await tela.findByLabelText('Trocar usina');
+    const btnTrocar = await tela.findByLabelText('Trocar endereço');
     await fireEvent.press(btnTrocar);
 
     expect(props.onDesmarcarUsina).toHaveBeenCalledTimes(1);
@@ -251,6 +281,6 @@ describe('LeiturasUsinaScreen', () => {
   it('exibe estado vazio quando não há usinas disponíveis', async () => {
     const { tela } = await montar({ usinas: [], usinaSelecionada: null, medidores: [] });
 
-    expect(await tela.findByText('Nenhuma usina encontrada')).toBeTruthy();
+    expect(await tela.findByText('Nenhum endereço encontrado')).toBeTruthy();
   });
 });

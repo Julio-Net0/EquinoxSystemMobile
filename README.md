@@ -17,8 +17,10 @@ aparelho e sobe para a nuvem (**Supabase**) quando há conexão.
   entram numa fila de envio, na mesma transação.
 - **Sincroniza sozinho:** ao abrir o app, quando a rede volta, logo após cada
   registro e por botão. Foto sobe antes da leitura; envio idempotente.
-- **Login offline:** depois do primeiro login online, o app reabre autenticado
-  em modo avião, com a sessão no `expo-secure-store`.
+- **Login offline:** depois do primeiro login online de uma conta no aparelho,
+  o app reabre autenticado em modo avião e, mesmo depois de sair, aceita entrar
+  de novo sem rede — a senha é conferida contra uma verificação PBKDF2 no
+  `expo-secure-store` (ADR 10.18).
 - **Multiempresa com segurança no banco:** Row Level Security por empresa e por
   nível; fotos num bucket privado, exibidas por URL assinada de 60 s.
 - **Três perfis:** Técnico, Administrador e Super Admin.

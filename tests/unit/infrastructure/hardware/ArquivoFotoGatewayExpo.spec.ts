@@ -12,6 +12,8 @@ const mockEstado = {
   criadas: [] as string[],
   movimentos: [] as { de: string; para: string }[],
   apagados: [] as string[],
+  /** Uris que existem no disco; nulo = todas. */
+  existentes: null as string[] | null,
 };
 
 jest.mock('expo-file-system', () => {
@@ -31,7 +33,7 @@ jest.mock('expo-file-system', () => {
     }
 
     get exists(): boolean {
-      return true;
+      return mockEstado.existentes ? mockEstado.existentes.includes(this.uri) : true;
     }
 
     move(destino: { uri: string }) {
@@ -80,6 +82,7 @@ describe('ArquivoFotoGatewayExpo', () => {
     mockEstado.criadas = [];
     mockEstado.movimentos = [];
     mockEstado.apagados = [];
+    mockEstado.existentes = null;
     jest.clearAllMocks();
   });
 
@@ -175,20 +178,41 @@ describe('ArquivoFotoGatewayExpo', () => {
       expect(mockEstado.criadas).toHaveLength(0);
     });
 
-    it('devolve a uri permanente e as medidas, não a do cache', async () => {
+    it('devolve a referência relativa à pasta do app, e as medidas', async () => {
       const foto = await gateway.comprimirEPersistir(URI_CAMERA, 'leitura-1');
 
-      expect(foto.uri).toContain('file:///documents');
-      expect(foto.uri).not.toBe(URI_CAMERA);
+      // Nunca o caminho absoluto: a pasta do app muda de lugar quando o app (ou
+      // o Expo Go) é atualizado, e um caminho absoluto gravado no banco passa a
+      // apontar para o nada.
+      expect(foto.uri).toBe('leituras/leitura-1.jpg');
       expect(foto.largura).toBe(1080);
       expect(foto.bytes).toBeGreaterThan(0);
     });
   });
 
-  describe('remoção', () => {
-    it('apaga o arquivo pedido', async () => {
-      await gateway.remover('file:///documents/leituras/antiga.jpg');
-      expect(mockEstado.apagados).toContain('file:///documents/leituras/antiga.jpg');
+  describe('referência relativa', () => {
+    it('confere a existência na pasta atual do app', async () => {
+      mockEstado.existentes = ['file:///documents/leituras/a.jpg'];
+
+      expect(await gateway.existe('leituras/a.jpg')).toBe(true);
+      expect(await gateway.existe('leituras/b.jpg')).toBe(false);
+    });
+
+    it('apaga o arquivo resolvido na pasta atual do app', async () => {
+      await gateway.remover('leituras/antiga.jpg');
+      expect(mockEstado.apagados).toEqual(['file:///documents/leituras/antiga.jpg']);
+    });
+
+    it('monta a uri completa para exibir a foto', () => {
+      expect(gateway.uriParaExibir('leituras/a.jpg')).toBe('file:///documents/leituras/a.jpg');
+    });
+
+    it('caminho absoluto (gravado antes da migração 004) segue como está', async () => {
+      const absoluto = 'file:///outro/lugar/leituras/a.jpg';
+      mockEstado.existentes = [absoluto];
+
+      expect(await gateway.existe(absoluto)).toBe(true);
+      expect(gateway.uriParaExibir(absoluto)).toBe(absoluto);
     });
   });
 });

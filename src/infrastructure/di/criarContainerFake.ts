@@ -18,6 +18,10 @@ import { DiagnosticoLocalFake } from '../fakes/DiagnosticoLocalFake';
 import { AutenticacaoRemotaFake } from '../fakes/AutenticacaoRemotaFake';
 import { SincronizacaoRemotaFake } from '../fakes/SincronizacaoRemotaFake';
 import { ConectividadeFake } from '../fakes/ConectividadeFake';
+import { CredencialOfflineMemory } from '../fakes/CredencialOfflineMemory';
+import { DadosLocaisMemory } from '../fakes/DadosLocaisMemory';
+import { HashSenhaFake } from '../fakes/HashSenhaFake';
+import { ReautenticacaoEmMemoria } from '../security/ReautenticacaoEmMemoria';
 
 /** Instante fixo padrão dos testes: 10/03/2026, 12:00 em Brasília. */
 export const AGORA_FIXO = new Date(Date.UTC(2026, 2, 10, 15));
@@ -49,6 +53,8 @@ export interface ContainerFake extends Container {
     autenticacaoRemota: AutenticacaoRemotaFake;
     sincronizacaoRemota: SincronizacaoRemotaFake;
     conectividade: ConectividadeFake;
+    credenciaisOffline: CredencialOfflineMemory;
+    reautenticacao: ReautenticacaoEmMemoria;
   };
 }
 
@@ -70,6 +76,8 @@ export function criarContainerFake(relogio: IRelogio = relogioFixo(AGORA_FIXO)):
     autenticacaoRemota: new AutenticacaoRemotaFake(),
     sincronizacaoRemota: new SincronizacaoRemotaFake(),
     conectividade: new ConectividadeFake(),
+    credenciaisOffline: new CredencialOfflineMemory(),
+    reautenticacao: new ReautenticacaoEmMemoria(),
   };
 
   const crus: RepositoriosDaTransacao = {
@@ -92,6 +100,10 @@ export function criarContainerFake(relogio: IRelogio = relogioFixo(AGORA_FIXO)):
     autenticacaoRemota: fakes.autenticacaoRemota,
     sincronizacaoRemota: fakes.sincronizacaoRemota,
     conectividade: fakes.conectividade,
+    credenciaisOffline: fakes.credenciaisOffline,
+    hashSenha: new HashSenhaFake(),
+    reautenticacao: fakes.reautenticacao,
+    dadosLocais: new DadosLocaisMemory(fakes),
   };
 
   const unidadeDeTrabalho = new UnidadeDeTrabalhoMemory(crus);

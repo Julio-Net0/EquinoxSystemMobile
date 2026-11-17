@@ -27,6 +27,12 @@ export interface ActionQueueItemProps {
   timestamp?: Date;
   tentativas?: number;
   ultimoErro?: string | null;
+  /**
+   * Quem fez a escrita. Só a sessão dessa pessoa envia o item (ADR 10.19).
+   * Nulo nos itens anteriores à migração 005 sem dono deduzível: qualquer
+   * sessão os envia.
+   */
+  donoId?: UUIDv4 | null;
 }
 
 /**
@@ -48,6 +54,7 @@ export class ActionQueueItem {
   public readonly tipoOperacao: TipoOperacaoActionQueue;
   public readonly payloadJSON: string;
   public readonly timestamp: Date;
+  public readonly donoId: UUIDv4 | null;
   private _tentativas: number;
   private _ultimoErro: string | null;
 
@@ -65,6 +72,7 @@ export class ActionQueueItem {
     this.timestamp = props.timestamp ?? new Date();
     this._tentativas = props.tentativas ?? 0;
     this._ultimoErro = props.ultimoErro ?? null;
+    this.donoId = props.donoId ?? null;
   }
 
   /**
@@ -76,13 +84,20 @@ export class ActionQueueItem {
     tipoOperacao: TipoOperacaoActionQueue,
     registroId: UUIDv4 | null,
     quando: Date,
+    donoId: UUIDv4 | null = null,
   ): ActionQueueItem {
     return new ActionQueueItem({
       id: UUIDv4.gerar(),
       tipoOperacao,
       payloadJSON: JSON.stringify({ id: registroId?.value ?? null }),
       timestamp: quando,
+      donoId,
     });
+  }
+
+  /** A sessão deste usuário pode enviar o item? */
+  public pertenceA(usuarioId: string): boolean {
+    return this.donoId === null || this.donoId.value === usuarioId;
   }
 
   public get tentativas(): number {
@@ -107,8 +122,13 @@ export class ActionQueueItem {
     return this._tentativas >= ActionQueueItem.MAX_TENTATIVAS;
   }
 
-  public registrarFalha(mensagem: string): void {
-    this._tentativas += 1;
+  /**
+   * Conta uma recusa. A **definitiva** (o problema está no aparelho e repetir
+   * não muda nada, como a foto que sumiu) isola o item de uma vez, em vez de
+   * gastar as tentativas.
+   */
+  public registrarFalha(mensagem: string, definitiva = false): void {
+    this._tentativas = definitiva ? ActionQueueItem.MAX_TENTATIVAS : this._tentativas + 1;
     this._ultimoErro = mensagem;
   }
 

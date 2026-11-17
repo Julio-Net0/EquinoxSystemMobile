@@ -1,6 +1,7 @@
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { Directory, File, Paths } from 'expo-file-system';
 import { FotoPersistida, IArquivoFotoGateway } from '@/domain/gateways/IArquivoFotoGateway';
+import { PASTA_DAS_FOTOS, arquivoDaFoto, referenciaDaFoto } from './fotoNoAparelho';
 
 /** Lado maior em pixels, conforme AGENTS.md seção 6. */
 const LARGURA_ALVO = 1080;
@@ -11,8 +12,6 @@ const ORCAMENTO_BYTES = 320_000;
 /** Qualidades tentadas em ordem até caber no orçamento. */
 const QUALIDADES = [0.8, 0.7, 0.6, 0.5];
 
-const PASTA = 'leituras';
-
 /**
  * Comprime a foto do medidor e move do cache para o armazenamento permanente.
  *
@@ -20,7 +19,10 @@ const PASTA = 'leituras';
  * sistema pode apagar a qualquer momento — sem esta etapa a leitura ficaria sem
  * comprovante. O destino é `Paths.document`, que não é purgado.
  *
- * Usa a API contextual do SDK 57 (`ImageManipulator.manipulate`); o
+ * Devolve e recebe a referência relativa a essa pasta (`leituras/<id>.jpg`),
+ * resolvida a cada uso: o caminho absoluto muda quando o app é atualizado.
+ *
+ * Usa a API contextual do `ImageManipulator.manipulate` (SDK 58); o
  * `manipulateAsync` antigo está deprecado.
  */
 export class ArquivoFotoGatewayExpo implements IArquivoFotoGateway {
@@ -52,24 +54,29 @@ export class ArquivoFotoGatewayExpo implements IArquivoFotoGateway {
     await origem.move(destino);
 
     return {
-      uri: destino.uri,
+      // A referência relativa, não `destino.uri`: ver `referenciaDaFoto`.
+      uri: referenciaDaFoto(nomeBase),
       bytes: destino.size ?? 0,
       largura: salva.width,
       altura: salva.height,
     };
   }
 
-  async remover(uri: string): Promise<void> {
-    const arquivo = new File(uri);
+  async remover(referencia: string): Promise<void> {
+    const arquivo = arquivoDaFoto(referencia);
     if (arquivo.exists) await arquivo.delete();
   }
 
-  async existe(uri: string): Promise<boolean> {
-    return new File(uri).exists;
+  async existe(referencia: string): Promise<boolean> {
+    return arquivoDaFoto(referencia).exists;
+  }
+
+  uriParaExibir(referencia: string): string {
+    return arquivoDaFoto(referencia).uri;
   }
 
   private arquivoDestino(nomeBase: string): File {
-    const pasta = new Directory(Paths.document, PASTA);
+    const pasta = new Directory(Paths.document, PASTA_DAS_FOTOS);
     if (!pasta.exists) pasta.create();
 
     return new File(pasta, `${nomeBase}.jpg`);

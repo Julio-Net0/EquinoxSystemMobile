@@ -182,4 +182,19 @@ describe('legado e arquivos', () => {
 
     expect(await lerArquivoDoAparelho('file:///documents/leituras/1.jpg')).toBe(bytes);
   });
+
+  it('resolve a referência relativa na pasta atual do app antes de ler', async () => {
+    const { File } = jest.requireMock('expo-file-system') as { File: { prototype: object } };
+    const lidas: string[] = [];
+    Object.assign(File.prototype, {
+      arrayBuffer: jest.fn(async function (this: { uri: string }) {
+        lidas.push(this.uri);
+        return new ArrayBuffer(1);
+      }),
+    });
+
+    await lerArquivoDoAparelho('leituras/1.jpg');
+
+    expect(lidas).toEqual(['file:///documents/leituras/1.jpg']);
+  });
 });

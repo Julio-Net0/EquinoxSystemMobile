@@ -19,8 +19,8 @@ Documento de especificação técnica do aplicativo móvel **Equinox Mobile**, u
 > | RF10 | `ProcessarFilaSincronizacaoUseCase`, disparado ao voltar a rede (NetInfo), ao abrir o app, por botão e após escritas |
 > | RF11 | `BaixarAlteracoesUseCase`: pull incremental por carimbo do servidor, filtrado por RLS |
 > | RF12 | Última medição vence, arbitrada no servidor (`sincronizar_leitura`); o administrador recebe aviso |
-> | RF13 | Primeiro login exige rede e faz a primeira sincronização antes de liberar a interface |
-> | RNF05 | Tokens só no cofre (`CofreSeguroEmPartes`); nenhuma senha no aparelho |
+> | RF13 | Primeiro login **de cada conta** no aparelho exige rede e faz a primeira sincronização; os seguintes entram também sem rede, por verificação PBKDF2 no cofre (ADR 10.18) |
+> | RNF05 | Tokens só no cofre (`CofreSeguroEmPartes`); nenhuma senha no aparelho, só a verificação PBKDF2 do login offline, também no cofre |
 > | RNF06 | `PainelSincronizacao` na Home e no Diagnóstico (conexão + pendentes), sobre `ConectividadeContext` e `SincronizacaoContext` |
 > | RNF07 | Expurgo só de leitura decidida, com mais de 30 dias **e sincronizada** |
 > | RNF09 | **Não implementado:** Sentry fora desta fase (ADR 10.13) |

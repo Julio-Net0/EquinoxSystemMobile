@@ -3,13 +3,23 @@ import { PerfilEnum } from '@/domain/enums/PerfilEnum';
 import { UsuarioRepositoryMemory } from '@/infrastructure/fakes/UsuarioRepositoryMemory';
 import { SessionStorageMemory } from '@/infrastructure/fakes/SessionStorageMemory';
 import { AutenticacaoRemotaFake } from '@/infrastructure/fakes/AutenticacaoRemotaFake';
+import { CredencialOfflineMemory } from '@/infrastructure/fakes/CredencialOfflineMemory';
+import { HashSenhaFake } from '@/infrastructure/fakes/HashSenhaFake';
+import { ReautenticacaoEmMemoria } from '@/infrastructure/security/ReautenticacaoEmMemoria';
+import { AcessoOfflineService } from '@/domain/services/AcessoOfflineService';
 import { IDS, SENHA, novoUsuario, uuid } from '../../../helpers/cenarioSync';
 
 async function cenario() {
   const usuarioRepo = new UsuarioRepositoryMemory();
   const sessionStorage = new SessionStorageMemory();
   const remoto = new AutenticacaoRemotaFake();
-  const caso = new GerenciarPerfilUseCase(usuarioRepo, sessionStorage, remoto);
+  const credenciais = new CredencialOfflineMemory();
+  const acessoOffline = new AcessoOfflineService(
+    credenciais,
+    new HashSenhaFake(),
+    new ReautenticacaoEmMemoria(),
+  );
+  const caso = new GerenciarPerfilUseCase(usuarioRepo, sessionStorage, remoto, acessoOffline);
 
   const eu = novoUsuario({ nome: 'João da Silva', usuario: 'joao', email: 'joao@equinox.dev' });
   const outro = novoUsuario({
@@ -25,7 +35,7 @@ async function cenario() {
     usuario: eu.usuario, email: eu.email, perfil: PerfilEnum.TECNICO,
   });
 
-  return { caso, usuarioRepo, sessionStorage, remoto, eu, outro };
+  return { caso, usuarioRepo, sessionStorage, remoto, eu, outro, credenciais, acessoOffline };
 }
 
 describe('GerenciarPerfilUseCase', () => {
@@ -123,6 +133,18 @@ describe('GerenciarPerfilUseCase', () => {
       expect(saida.sucesso).toBe(true);
       expect((await remoto.entrar(eu.email, 'NovaSenha@1')).ok).toBe(true);
       expect((await remoto.entrar(eu.email, SENHA)).ok).toBe(false);
+    });
+
+    it('esquece a verificação da senha antiga: entrar sem rede com ela deixa de valer', async () => {
+      const { caso, eu, credenciais, acessoOffline } = await cenario();
+      await acessoOffline.lembrar(eu.email, SENHA, {
+        usuarioId: eu.id.value, empresaId: IDS.empresa.value, nome: eu.nome,
+        usuario: eu.usuario, email: eu.email, perfil: PerfilEnum.TECNICO,
+      });
+
+      await caso.alterarSenha(troca(eu.id.value));
+
+      expect(await credenciais.buscar(eu.email)).toBeNull();
     });
 
     it('encerra a sessão dos dois lados: é preciso entrar com a senha nova', async () => {

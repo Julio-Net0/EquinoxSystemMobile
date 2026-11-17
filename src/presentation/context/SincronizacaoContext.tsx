@@ -34,6 +34,8 @@ export interface SincronizacaoContextData {
   sincronizar(): Promise<SincronizarOutput | null>;
   /** Devolve à fila os itens isolados e sincroniza. */
   tentarDeNovo(): Promise<void>;
+  /** Descarta um item recusado de vez. Devolve a mensagem de falha, ou nulo. */
+  descartar(itemId: string): Promise<string | null>;
 }
 
 const SincronizacaoContext = createContext<SincronizacaoContextData | null>(null);
@@ -160,6 +162,24 @@ export function SincronizacaoProvider({ children }: { children: ReactNode }) {
     await sincronizarAtual.current();
   }, [casos.estadoSincronizacao]);
 
+  const descartar = useCallback(
+    async (itemId: string): Promise<string | null> => {
+      try {
+        await casos.estadoSincronizacao.descartar(itemId);
+      } catch (erro) {
+        return (erro as Error).message;
+      }
+      // O aviso era da rodada que recusou o item; ele já não vale.
+      if (montado.current) {
+        setAviso(null);
+        setVersaoDosDados((v) => v + 1);
+      }
+      await atualizarEstado();
+      return null;
+    },
+    [casos.estadoSincronizacao, atualizarEstado],
+  );
+
   const valor = useMemo<SincronizacaoContextData>(
     () => ({
       sincronizando,
@@ -171,8 +191,9 @@ export function SincronizacaoProvider({ children }: { children: ReactNode }) {
       versaoDosDados,
       sincronizar,
       tentarDeNovo,
+      descartar,
     }),
-    [sincronizando, estado, aviso, versaoDosDados, sincronizar, tentarDeNovo],
+    [sincronizando, estado, aviso, versaoDosDados, sincronizar, tentarDeNovo, descartar],
   );
 
   return <SincronizacaoContext.Provider value={valor}>{children}</SincronizacaoContext.Provider>;

@@ -130,8 +130,8 @@ export function HomeScreen({
           {onLeiturasUsina ? (
             <AcaoCard
               icone="solar-power"
-              titulo="Leituras da usina"
-              subtitulo="Acompanhe medições diárias, substituições e alertas"
+              titulo="Leituras diárias"
+              subtitulo="Medições de cada endereço, dia a dia, com foto e alertas"
               onPress={onLeiturasUsina}
             />
           ) : null}

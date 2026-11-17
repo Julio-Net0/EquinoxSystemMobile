@@ -1,6 +1,7 @@
 import { migrar } from '@/infrastructure/database/sqlite/migrar';
 import { migracaoSchemaInicial } from '@/infrastructure/database/sqlite/migrations/001_schema_inicial';
 import { migracaoSincronizacao } from '@/infrastructure/database/sqlite/migrations/003_sincronizacao';
+import { migracaoFilaComDono } from '@/infrastructure/database/sqlite/migrations/005_fila_com_dono';
 import { EmpresaRepositorySQLite } from '@/infrastructure/database/sqlite/repositories/EmpresaRepositorySQLite';
 import { EnderecoRepositorySQLite } from '@/infrastructure/database/sqlite/repositories/EnderecoRepositorySQLite';
 import { PadraoRepositorySQLite } from '@/infrastructure/database/sqlite/repositories/PadraoRepositorySQLite';
@@ -152,7 +153,11 @@ describe('repositórios SQLite (banco de verdade)', () => {
     // Só o schema, sem o seed: cada teste monta exatamente o que precisa.
     // Schema inicial + colunas de sincronização, sem o seed (versão 2): cada
     // teste monta o próprio cenário.
-    await migrar(banco.db, [migracaoSchemaInicial, { ...migracaoSincronizacao, versao: 2 }]);
+    await migrar(banco.db, [
+      migracaoSchemaInicial,
+      { ...migracaoSincronizacao, versao: 2 },
+      { ...migracaoFilaComDono, versao: 3 },
+    ]);
 
     empresas = new EmpresaRepositorySQLite(banco.db);
     enderecos = new EnderecoRepositorySQLite(banco.db);
@@ -776,7 +781,7 @@ describe('repositórios SQLite (banco de verdade)', () => {
 
       expect(estado).toEqual({
         nomeDoArquivo: 'equinox.db',
-        versaoDoSchema: 2,
+        versaoDoSchema: 3,
         contagens: {
           empresas: 1, enderecos: 1, padroes: 1, usuarios: 1,
           vinculos: 1, leituras: 1, notificacoes: 1,

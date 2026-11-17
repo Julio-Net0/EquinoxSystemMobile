@@ -243,4 +243,13 @@ export class LeituraRepositorySQLite implements ILeituraRepository {
 
     return rows.map(leituraDeRow);
   }
+
+  async excluir(id: UUIDv4): Promise<Leitura | null> {
+    const leitura = await this.buscarPorId(id);
+    if (!leitura) return null;
+
+    // Os avisos ligados a ela saem junto, pelo ON DELETE CASCADE.
+    await this.db.runAsync('DELETE FROM leituras WHERE id = ?', [id.value]);
+    return leitura;
+  }
 }

@@ -29,11 +29,14 @@ describe('migrações SQLite', () => {
       }
     });
 
-    it('a versão 1 cria o schema, a 2 popula o seed e a 3 traz a sincronização', () => {
+    it('as migrações publicadas, na ordem', () => {
       expect(migracoes.map((m) => m.nome)).toEqual([
         '001_schema_inicial',
         '002_seed_demo',
         '003_sincronizacao',
+        '004_foto_relativa',
+        '005_fila_com_dono',
+        '006_autoria_seed_condominio',
       ]);
     });
 

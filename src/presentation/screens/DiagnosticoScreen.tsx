@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,6 +9,8 @@ import { ConsultarDiagnosticoOutput } from '@/application/use-cases/ConsultarDia
 import { CabecalhoTela } from '@/presentation/components/CabecalhoTela';
 import { Cartao } from '@/presentation/components/Cartao';
 import { EstadoVazio } from '@/presentation/components/EstadoVazio';
+import { ModalShell } from '@/presentation/components/ModalShell';
+import { SolarButton } from '@/presentation/components/SolarButton';
 import { PilulaEstadoSync, PilulaStatusLeitura } from '@/presentation/components/PilulaStatus';
 import {
   PainelSincronizacao,
@@ -25,8 +27,15 @@ export interface DiagnosticoScreenProps {
   onVoltar(): void;
   /** Conexão, fila de envio e última sincronização. */
   sincronizacao?: PainelSincronizacaoProps;
+  /** Itens de outras pessoas que usaram o aparelho, esperando o dono entrar. */
+  deOutrosUsuarios?: number;
   /** O que está na fila de envio, na ordem em que vai subir. */
   fila?: ItemDaFilaDTO[];
+  /**
+   * Descarta um item recusado de vez. Devolve a mensagem de falha, ou nulo.
+   * Sem ele, a tela não oferece o descarte.
+   */
+  onDescartar?(itemId: string): Promise<string | null>;
 }
 
 const ROTULOS: Record<string, string> = {
@@ -61,9 +70,15 @@ export function DiagnosticoScreen({
   onRecarregar,
   onVoltar,
   sincronizacao,
+  deOutrosUsuarios,
   fila = [],
+  onDescartar,
 }: DiagnosticoScreenProps) {
   const { bottom } = useSafeAreaInsets();
+  const [descartando, setDescartando] = useState<ItemDaFilaDTO | null>(null);
+  const [confirmando, setConfirmando] = useState(false);
+  const [erroDescarte, setErroDescarte] = useState<string | null>(null);
+  const outrosNaFila = deOutrosUsuarios ?? fila.filter((i) => i.deOutroUsuario).length;
 
   return (
     <View style={styles.raiz}>
@@ -94,19 +109,27 @@ export function DiagnosticoScreen({
             <Cartao nivel="baixo">
               <Linha rotulo="Conexão" valor={sincronizacao.online ? 'Online' : 'Offline'} />
               <Linha rotulo="Na fila de envio" valor={String(sincronizacao.pendentes)} />
-              <Linha rotulo="Com envio recusado" valor={String(sincronizacao.isolados)} ultima />
+              <Linha rotulo="Com envio recusado" valor={String(sincronizacao.isolados)} />
+              <Linha rotulo="De outros usuários" valor={String(outrosNaFila)} ultima />
             </Cartao>
 
             {fila.map((item) => (
               <Cartao key={item.itemId} nivel="baixo">
                 <View style={styles.leituraTopo}>
                   <Text style={[Tipografia.corpoSm, styles.valor]}>{item.descricao}</Text>
-                  <Text style={[Tipografia.meta, item.isolado ? styles.erro : styles.meta]}>
-                    {item.isolado
-                      ? 'Fora da fila'
-                      : item.tentativas === 0
-                        ? 'Aguardando'
-                        : `${item.tentativas} tentativa(s)`}
+                  <Text
+                    style={[
+                      Tipografia.meta,
+                      item.isolado && !item.deOutroUsuario ? styles.erro : styles.meta,
+                    ]}
+                  >
+                    {item.deOutroUsuario
+                      ? 'Aguardando o dono entrar'
+                      : item.isolado
+                        ? 'Fora da fila'
+                        : item.tentativas === 0
+                          ? 'Aguardando'
+                          : `${item.tentativas} tentativa(s)`}
                   </Text>
                 </View>
                 <Text style={[Tipografia.meta, styles.meta]}>
@@ -114,6 +137,21 @@ export function DiagnosticoScreen({
                 </Text>
                 {item.ultimoErro ? (
                   <Text style={[Tipografia.meta, styles.erro]}>{item.ultimoErro}</Text>
+                ) : null}
+                {item.isolado && !item.deOutroUsuario && onDescartar ? (
+                  <View style={styles.acaoItem}>
+                    <SolarButton
+                      titulo="Descartar item"
+                      variante="fantasma"
+                      icone="delete-outline"
+                      largo={false}
+                      onPress={() => {
+                        setErroDescarte(null);
+                        setDescartando(item);
+                      }}
+                      testID={`descartar-${item.itemId}`}
+                    />
+                  </View>
                 ) : null}
               </Cartao>
             ))}
@@ -238,8 +276,39 @@ export function DiagnosticoScreen({
           </>
         )}
       </ScrollView>
+
+      <ModalShell
+        visivel={descartando !== null}
+        tema="erro"
+        icone="delete-outline"
+        titulo="Descartar este item?"
+        subtitulo={descartando ? textoDoDescarte(descartando) : undefined}
+        erro={erroDescarte ?? undefined}
+        confirmarLabel="Descartar"
+        cancelarLabel="Manter na fila"
+        confirmando={confirmando}
+        onConfirmar={async () => {
+          if (!descartando || !onDescartar) return;
+          setConfirmando(true);
+          const falha = await onDescartar(descartando.itemId);
+          setConfirmando(false);
+          if (falha) {
+            setErroDescarte(falha);
+            return;
+          }
+          setDescartando(null);
+        }}
+        onFechar={() => setDescartando(null)}
+      />
     </View>
   );
+}
+
+/** O que o descarte faz, dito antes de fazer. */
+function textoDoDescarte(item: ItemDaFilaDTO): string {
+  return item.tipo === 'UPSERT_LEITURA'
+    ? 'Esta leitura nunca chegou à nuvem e não tem como chegar. Ela será apagada deste aparelho e não pode ser recuperada.'
+    : 'O item sai da fila e não será enviado. O registro continua neste aparelho.';
 }
 
 function Linha({
@@ -301,4 +370,5 @@ const styles = StyleSheet.create({
   valor: { color: Cores.onSurface, flexShrink: 1 },
   marcas: { flexDirection: 'row', flexWrap: 'wrap', gap: Espaco.lg, marginTop: Espaco.sm },
   marca: { flexDirection: 'row', alignItems: 'center', gap: Espaco.xs },
+  acaoItem: { alignItems: 'flex-start', marginTop: Espaco.sm },
 });

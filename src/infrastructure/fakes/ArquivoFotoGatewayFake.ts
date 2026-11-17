@@ -1,5 +1,8 @@
 import { FotoPersistida, IArquivoFotoGateway } from '@/domain/gateways/IArquivoFotoGateway';
 
+/** Pasta de documentos simulada, para montar a uri de exibição. */
+const PASTA_DO_APP = 'file:///documents';
+
 export class ArquivoFotoGatewayFake implements IArquivoFotoGateway {
   public salvos: Map<string, FotoPersistida> = new Map();
   public falharAoPersistir = false;
@@ -10,7 +13,7 @@ export class ArquivoFotoGatewayFake implements IArquivoFotoGateway {
     }
 
     const foto: FotoPersistida = {
-      uri: `file:///documents/leituras/${nomeBase}.jpg`,
+      uri: `leituras/${nomeBase}.jpg`,
       bytes: 300_000,
       largura: 1080,
       altura: 1440,
@@ -19,11 +22,15 @@ export class ArquivoFotoGatewayFake implements IArquivoFotoGateway {
     return foto;
   }
 
-  async remover(uri: string): Promise<void> {
-    this.salvos.delete(uri);
+  async remover(referencia: string): Promise<void> {
+    this.salvos.delete(referencia);
   }
 
-  async existe(uri: string): Promise<boolean> {
-    return this.salvos.has(uri);
+  async existe(referencia: string): Promise<boolean> {
+    return this.salvos.has(referencia);
+  }
+
+  uriParaExibir(referencia: string): string {
+    return referencia.includes('://') ? referencia : `${PASTA_DO_APP}/${referencia}`;
   }
 }

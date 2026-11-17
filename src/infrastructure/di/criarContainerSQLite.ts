@@ -7,6 +7,7 @@ import {
   criarRepositoriosCrus,
 } from '../database/sqlite/UnidadeDeTrabalhoSQLite';
 import { DiagnosticoLocalSQLite } from '../database/sqlite/DiagnosticoLocalSQLite';
+import { DadosLocaisSQLite } from '../database/sqlite/repositories/DadosLocaisSQLite';
 import { CameraGatewayExpo } from '../hardware/camera/CameraGatewayExpo';
 import { LocationGatewayExpo } from '../hardware/location/LocationGatewayExpo';
 import { ArquivoFotoGatewayExpo } from '../hardware/midia/ArquivoFotoGatewayExpo';
@@ -18,6 +19,9 @@ import { acompanharPrimeiroPlano, criarClienteSupabase } from '../supabase/clien
 import { AutenticacaoSupabase } from '../supabase/AutenticacaoSupabase';
 import { SincronizacaoSupabase } from '../supabase/SincronizacaoSupabase';
 import { ConectividadeNetInfo } from '../network/ConectividadeNetInfo';
+import { CredencialOfflineSecureStore } from '../adapters/CredencialOfflineSecureStore';
+import { HashSenhaPbkdf2 } from '../security/HashSenhaPbkdf2';
+import { ReautenticacaoEmMemoria } from '../security/ReautenticacaoEmMemoria';
 
 /**
  * Montagem de produção. Síncrona de propósito: nada aqui faz I/O, só liga
@@ -72,6 +76,10 @@ export function criarContainerSQLite(
     autenticacaoRemota: new AutenticacaoSupabase(supabase),
     sincronizacaoRemota: new SincronizacaoSupabase(supabase, lerArquivoDoAparelho),
     conectividade: new ConectividadeNetInfo(),
+    credenciaisOffline: new CredencialOfflineSecureStore(),
+    hashSenha: new HashSenhaPbkdf2(),
+    reautenticacao: new ReautenticacaoEmMemoria(),
+    dadosLocais: new DadosLocaisSQLite(db),
   };
 
   const unidadeDeTrabalho = new UnidadeDeTrabalhoSQLite(db);

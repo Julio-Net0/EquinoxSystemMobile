@@ -47,4 +47,11 @@ export interface ILeituraRepository {
    * para a nuvem, porque o aparelho é o único lugar onde ela existe.
    */
   excluirDecididasAntesDe(dataLocal: DataLocal): Promise<Leitura[]>;
+
+  /**
+   * Apaga uma leitura do aparelho, com os avisos ligados a ela, e devolve a
+   * removida (ou nulo, se não existia). Só o descarte de um envio impossível
+   * usa isto — ver `ConsultarEstadoSincronizacaoUseCase.descartar`.
+   */
+  excluir(id: UUIDv4): Promise<Leitura | null>;
 }

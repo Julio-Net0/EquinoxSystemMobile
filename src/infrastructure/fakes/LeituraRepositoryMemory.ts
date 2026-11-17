@@ -122,6 +122,12 @@ export class LeituraRepositoryMemory implements ILeituraRepository {
     return alvos;
   }
 
+  async excluir(id: UUIDv4): Promise<Leitura | null> {
+    const leitura = this.items.get(id.value) ?? null;
+    this.items.delete(id.value);
+    return leitura;
+  }
+
   private ordenarPorMedicao(leituras: Leitura[]): Leitura[] {
     return [...leituras].sort((a, b) => a.medidoEm.getTime() - b.medidoEm.getTime());
   }

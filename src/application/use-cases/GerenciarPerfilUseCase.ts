@@ -3,6 +3,7 @@ import { ISessionStorage } from '@/domain/gateways/ISessionStorage';
 import { IAutenticacaoRemotaGateway } from '@/domain/gateways/IAutenticacaoRemotaGateway';
 import { Usuario } from '@/domain/entities/Usuario';
 import { UUIDv4 } from '@/domain/value-objects/UUIDv4';
+import { AcessoOfflineService } from '@/domain/services/AcessoOfflineService';
 
 export interface AlterarDadosInput {
   usuarioId: string;
@@ -38,6 +39,7 @@ export class GerenciarPerfilUseCase {
     private readonly usuarioRepo: IUsuarioRepository,
     private readonly sessionStorage: ISessionStorage,
     private readonly autenticacaoRemota: IAutenticacaoRemotaGateway,
+    private readonly acessoOffline: AcessoOfflineService,
   ) {}
 
   public async alterarDados(entrada: AlterarDadosInput): Promise<ResultadoPerfil> {
@@ -128,6 +130,10 @@ export class GerenciarPerfilUseCase {
       }
       return { sucesso: false, erro: 'A senha atual está incorreta' };
     }
+
+    // A verificação guardada é da senha antiga: entrar sem rede com ela não
+    // pode mais valer. O próximo login com internet guarda a da nova.
+    await this.acessoOffline.esquecer(eu.email);
 
     // Força entrar de novo com a senha nova, como o app antigo faz.
     await this.autenticacaoRemota.sair();

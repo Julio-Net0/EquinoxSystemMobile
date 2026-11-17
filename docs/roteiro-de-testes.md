@@ -19,7 +19,8 @@ Senha de todas as contas: **`Equinox@2026`**. O login é **por e-mail**.
 |---|---|---|---|
 | A1 | Credencial errada é recusada | `tecnico@equinox.dev` com senha errada | `E-mail ou senha incorretos`. A mesma frase para conta inexistente, de propósito |
 | A2 | Nome de usuário não entra mais | Entrar com `tecnico` | Explica que o acesso é por e-mail |
-| A3 | Primeiro login exige rede | Com o modo avião ligado, num aparelho sem sessão, entrar | `Sem conexão. O primeiro acesso neste aparelho precisa de internet…` |
+| A3 | Primeiro login exige rede | Modo avião, com uma conta que **nunca entrou** neste aparelho | `Sem conexão. O primeiro acesso desta conta neste aparelho precisa de internet…` |
+| A7 | Entrar sem rede depois de sair | Entrar com internet, Sair, ligar o modo avião, entrar de novo | Entra. Senha errada: `E-mail ou senha incorretos`. Ao desligar o modo avião, o painel sobe sozinho para "Tudo sincronizado" |
 | A4 | Pendente não entra | `maria@equinox.dev` | `Seu cadastro ainda aguarda autorização…` |
 | A5 | Abas mudam conforme o perfil | Contar as abas como técnico e como admin | Técnico vê 3; administrador vê 4, com Avisos |
 | A6 | Tela protegida exige sessão | Sair e tentar voltar pelo botão de voltar do Android | Permanece no login |
@@ -52,9 +53,12 @@ O coração da demonstração. Faça como `tecnico@equinox.dev`.
 | C4 | Sobe sozinho ao voltar a rede | Desligar o modo avião e esperar | Sem tocar em nada: painel "Tudo sincronizado", catálogo "Sincronizada" |
 | C5 | Está mesmo na nuvem | Painel do Supabase → `leituras` e Storage → `comprovantes` | A linha e a foto, em `<empresa>/<endereço>/<leitura>.jpg` |
 | C6 | O que é criado na nuvem chega | No painel, criar um padrão no endereço da Sede; no app, "Sincronizar agora" | O padrão aparece no catálogo |
-| C7 | Diagnóstico mostra a fila | Perfil → Diagnóstico e sincronização, com um item pendente | Conexão, itens na fila, tentativas e a hora da última sincronização. Versão do schema **3** |
-| C8 | Sair avisa dos pendentes | Com item pendente, abrir o Perfil | Aviso de que há itens não enviados antes do botão Sair |
-| C9 | Foto por URL assinada | Como `admin`, Leituras da usina → dia da leitura → "Ver foto" | Abre a foto. Se ela não estiver no aparelho, a legenda diz que veio por endereço assinado |
+| C7 | Diagnóstico mostra a fila | Perfil → Diagnóstico e sincronização, com um item pendente | Conexão, itens na fila, tentativas e a hora da última sincronização. Versão do schema **6** |
+| C10 | Descartar envio impossível | Item com "Fora da fila" no Diagnóstico (ex.: leitura cuja foto sumiu, que é isolada na 1ª tentativa) → "Descartar item" | Confirmação diz que a leitura será apagada deste aparelho; ao confirmar, o item some e o painel volta a "Tudo sincronizado". Item ainda na fila automática não tem o botão |
+| C11 | Aparelho compartilhado: fila tem dono | Como `tecnico`, registrar leitura em modo avião; Sair; ligar a rede e entrar como `admin@equinox.dev` | O item do técnico **não** sobe na sessão do admin; em Diagnóstico aparece "De outros usuários: 1" e o item diz "Aguardando o dono entrar" (sem botão Descartar). Quando `tecnico` entra de novo, o item sobe |
+| C12 | Troca de usuário limpa dados locais | Com a fila vazia e com rede, sair de `tecnico@equinox.dev` e entrar como `sindica@solardovale.dev` | Os dados locais da Equinox saem do SQLite e o pull baixa só o escopo do Condomínio (Diagnóstico → Linhas por tabela mostra 1 empresa e 2 endereços) |
+| C8 | Sair avisa dos pendentes | Com item pendente, abrir o Perfil | Aviso de que há itens não enviados (só os seus) antes do botão Sair |
+| C9 | Foto por URL assinada | Como `admin`, Leituras diárias → endereço → dia da leitura → "Ver foto" | Abre a foto. Se ela não estiver no aparelho, a legenda diz que veio por endereço assinado |
 
 ## D. Isolamento entre empresas — 2 min
 

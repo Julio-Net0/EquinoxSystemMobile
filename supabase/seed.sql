@@ -146,7 +146,11 @@ insert into public.leituras (
 select
   ('5e000000-0000-4000-8000-' || lpad(h.seq::text, 12, '0'))::uuid,
   pc.id, e.id, e.empresa_id,
-  '4d000000-0000-4000-8000-000000000003',
+  case
+    when e.empresa_id = '1a000000-0000-4000-8000-000000000002'
+      then '4d000000-0000-4000-8000-000000000005'::uuid
+    else '4d000000-0000-4000-8000-000000000003'::uuid
+  end,
   h.consumo, h.injecao,
   e.empresa_id || '/' || e.id || '/seed-demo.jpg',
   -19.9191, -43.9386,
@@ -155,7 +159,12 @@ select
   current_date - h.dias,
   h.status,
   case when h.status = 'aprovada' then now() end,
-  case when h.status = 'aprovada' then '4d000000-0000-4000-8000-000000000002'::uuid end
+  case
+    when h.status = 'aprovada' and e.empresa_id = '1a000000-0000-4000-8000-000000000002'
+      then '4d000000-0000-4000-8000-000000000005'::uuid
+    when h.status = 'aprovada'
+      then '4d000000-0000-4000-8000-000000000002'::uuid
+  end
 from (values
   (1,  1, 12, 10240, null,  'aprovada'),
   (2,  1, 5,  10890, null,  'aprovada'),
@@ -193,6 +202,6 @@ values
   ('6f000000-0000-4000-8000-000000000003', '1a000000-0000-4000-8000-000000000002',
    'LEITURA_VALOR_MENOR', 'Valor menor no padrão 225566',
    'Bloco A: a última leitura deste padrão foi 7.900 kWh. '
-     || 'Foi digitado 7.640 kWh. Registrada por João da Silva.',
+     || 'Foi digitado 7.640 kWh. Registrada por Helena Síndica.',
    false, null, now() - interval '2 days', true)
 on conflict (id) do nothing;
